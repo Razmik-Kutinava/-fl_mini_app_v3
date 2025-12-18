@@ -1,20 +1,31 @@
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseService {
   static const String supabaseUrl = 'https://wntvxdgxzenehfzvorae.supabase.co';
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndudHZ4ZGd4emVuZWhmenZvcmFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMTQxMDgsImV4cCI6MjA4MDY5MDEwOH0.2CGjqmX-5wwgMmBKLrft9BxlcDG0bR4XDy0pT8hYNU0';
+  static const String supabaseAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndudHZ4ZGd4emVuZWhmenZvcmFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMTQxMDgsImV4cCI6MjA4MDY5MDEwOH0.2CGjqmX-5wwgMmBKLrft9BxlcDG0bR4XDy0pT8hYNU0';
 
   static SupabaseClient get client => Supabase.instance.client;
 
+  static String _generateUuid() {
+    final random = Random();
+    const hexDigits = '0123456789abcdef';
+    final uuid = List.generate(36, (i) {
+      if (i == 8 || i == 13 || i == 18 || i == 23) return '-';
+      if (i == 14) return '4';
+      if (i == 19) return hexDigits[(random.nextInt(4) + 8)];
+      return hexDigits[random.nextInt(16)];
+    }).join();
+    return uuid;
+  }
+
   static Future<void> initialize() async {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
+    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
   }
 
   // ==================== LOCATIONS ====================
-  
+
   static Future<List<Map<String, dynamic>>> getLocations() async {
     try {
       final response = await client
@@ -40,7 +51,7 @@ class SupabaseService {
   }
 
   // ==================== CATEGORIES ====================
-  
+
   static Future<List<Map<String, dynamic>>> getCategories() async {
     try {
       final response = await client
@@ -57,7 +68,7 @@ class SupabaseService {
   }
 
   // ==================== PRODUCTS ====================
-  
+
   static Future<List<Map<String, dynamic>>> getProducts() async {
     try {
       final response = await client
@@ -72,7 +83,9 @@ class SupabaseService {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getProductsByCategory(String categoryId) async {
+  static Future<List<Map<String, dynamic>>> getProductsByCategory(
+    String categoryId,
+  ) async {
     try {
       final response = await client
           .from('Product')
@@ -96,19 +109,23 @@ class SupabaseService {
   }
 
   // ==================== MODIFIERS ====================
-  
-  static Future<List<Map<String, dynamic>>> getModifierGroups(String productId) async {
+
+  static Future<List<Map<String, dynamic>>> getModifierGroups(
+    String productId,
+  ) async {
     try {
       // Получаем связи продукт-модификатор
       final links = await client
           .from('ProductModifierGroup')
           .select('modifierGroupId')
           .eq('productId', productId);
-      
+
       if (links.isEmpty) return [];
-      
-      final groupIds = (links as List).map((e) => e['modifierGroupId']).toList();
-      
+
+      final groupIds = (links as List)
+          .map((e) => e['modifierGroupId'])
+          .toList();
+
       final response = await client
           .from('ModifierGroup')
           .select()
@@ -121,7 +138,9 @@ class SupabaseService {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getModifierOptions(String groupId) async {
+  static Future<List<Map<String, dynamic>>> getModifierOptions(
+    String groupId,
+  ) async {
     try {
       final response = await client
           .from('ModifierOption')
@@ -137,7 +156,7 @@ class SupabaseService {
   }
 
   // ==================== ORDERS ====================
-  
+
   static Future<Map<String, dynamic>> createOrder({
     required String locationId,
     required List<Map<String, dynamic>> items,
@@ -154,9 +173,13 @@ class SupabaseService {
       print('locationId: $locationId');
       print('items: $items');
       print('total: $total');
+
+      // Генерируем UUID для id
+      final orderId = _generateUuid();
       
       // Поля согласно схеме Order
       final orderData = {
+        'id': orderId,
         'locationId': locationId,
         'status': 'created',
         'subtotal': total + (discount ?? 0),
@@ -168,9 +191,9 @@ class SupabaseService {
         'customerPhone': customerPhone,
         'comment': comment,
       };
-      
+
       print('Order data to insert: $orderData');
-      
+
       // Создаём заказ
       final orderResponse = await client
           .from('Order')
@@ -179,8 +202,6 @@ class SupabaseService {
           .single();
 
       print('Order created: $orderResponse');
-      
-      final orderId = orderResponse['id'];
 
       // Добавляем позиции заказа
       for (var item in items) {
@@ -214,7 +235,9 @@ class SupabaseService {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getOrders({String? visitorId}) async {
+  static Future<List<Map<String, dynamic>>> getOrders({
+    String? visitorId,
+  }) async {
     try {
       final response = await client
           .from('Order')
@@ -228,7 +251,7 @@ class SupabaseService {
   }
 
   // ==================== PROMOCODES ====================
-  
+
   static Future<Map<String, dynamic>?> validatePromocode(String code) async {
     try {
       final response = await client
@@ -237,9 +260,9 @@ class SupabaseService {
           .eq('code', code.toUpperCase())
           .eq('isActive', true)
           .maybeSingle();
-      
+
       if (response == null) return null;
-      
+
       // Проверяем даты действия
       final now = DateTime.now();
       if (response['startsAt'] != null) {
@@ -250,12 +273,12 @@ class SupabaseService {
         final endDate = DateTime.parse(response['endsAt']);
         if (now.isAfter(endDate)) return null;
       }
-      
+
       // Проверяем лимит использований
       if (response['usageLimit'] != null && response['usedCount'] != null) {
         if (response['usedCount'] >= response['usageLimit']) return null;
       }
-      
+
       return response;
     } catch (e) {
       print('Supabase Promocode error: $e');
