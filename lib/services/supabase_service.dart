@@ -16,11 +16,16 @@ class SupabaseService {
   // ==================== LOCATIONS ====================
   
   static Future<List<Map<String, dynamic>>> getLocations() async {
-    final response = await client
-        .from('Location')
-        .select()
-        .order('createdAt', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await client
+          .from('Location')
+          .select();
+      print('Supabase Locations response: $response');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Supabase Locations error: $e');
+      return [];
+    }
   }
 
   static Future<Map<String, dynamic>?> getLocationById(String id) async {
