@@ -19,7 +19,9 @@ class SupabaseService {
     try {
       final response = await client
           .from('Location')
-          .select();
+          .select()
+          .eq('status', 'active')
+          .eq('isAcceptingOrders', true);
       print('Supabase Locations response: $response');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
@@ -43,7 +45,9 @@ class SupabaseService {
     try {
       final response = await client
           .from('Category')
-          .select();
+          .select()
+          .eq('isActive', true)
+          .order('sortOrder', ascending: true);
       print('Supabase Categories response: $response');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
@@ -58,7 +62,8 @@ class SupabaseService {
     try {
       final response = await client
           .from('Product')
-          .select();
+          .select()
+          .eq('status', 'active');
       print('Supabase Products response: $response');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
@@ -72,7 +77,8 @@ class SupabaseService {
       final response = await client
           .from('Product')
           .select()
-          .eq('categoryId', categoryId);
+          .eq('categoryId', categoryId)
+          .eq('status', 'active');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('Supabase Products by category error: $e');
@@ -92,30 +98,42 @@ class SupabaseService {
   // ==================== MODIFIERS ====================
   
   static Future<List<Map<String, dynamic>>> getModifierGroups(String productId) async {
-    // Получаем связи продукт-модификатор
-    final links = await client
-        .from('ProductModifierGroup')
-        .select('modifierGroupId')
-        .eq('productId', productId);
-    
-    if (links.isEmpty) return [];
-    
-    final groupIds = (links as List).map((e) => e['modifierGroupId']).toList();
-    
-    final response = await client
-        .from('ModifierGroup')
-        .select()
-        .inFilter('id', groupIds);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      // Получаем связи продукт-модификатор
+      final links = await client
+          .from('ProductModifierGroup')
+          .select('modifierGroupId')
+          .eq('productId', productId);
+      
+      if (links.isEmpty) return [];
+      
+      final groupIds = (links as List).map((e) => e['modifierGroupId']).toList();
+      
+      final response = await client
+          .from('ModifierGroup')
+          .select()
+          .inFilter('id', groupIds)
+          .order('sortOrder', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Supabase ModifierGroups error: $e');
+      return [];
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getModifierOptions(String groupId) async {
-    final response = await client
-        .from('ModifierOption')
-        .select()
-        .eq('modifierGroupId', groupId)
-        .order('sortOrder', ascending: true);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await client
+          .from('ModifierOption')
+          .select()
+          .eq('groupId', groupId)
+          .eq('isActive', true)
+          .order('sortOrder', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Supabase ModifierOptions error: $e');
+      return [];
+    }
   }
 
   // ==================== ORDERS ====================
@@ -127,6 +145,9 @@ class SupabaseService {
     String? promocodeId,
     double? discount,
     String? telegramUserId,
+    String? customerName,
+    String? customerPhone,
+    String? comment,
   }) async {
     try {
       print('=== CREATING ORDER ===');
@@ -134,13 +155,18 @@ class SupabaseService {
       print('items: $items');
       print('total: $total');
       
-      // Поля для Order согласно схеме БД
+      // Поля согласно схеме Order
       final orderData = {
         'locationId': locationId,
-        'status': 'PENDING',
-        'subtotal': total,
+        'status': 'created',
+        'subtotal': total + (discount ?? 0),
         'discountAmount': discount ?? 0,
+        'totalAmount': total,
         'promocodeId': promocodeId,
+        'paymentStatus': 'pending',
+        'customerName': customerName,
+        'customerPhone': customerPhone,
+        'comment': comment,
       };
       
       print('Order data to insert: $orderData');
@@ -161,9 +187,12 @@ class SupabaseService {
         final itemData = {
           'orderId': orderId,
           'productId': item['productId'],
-          'quantity': item['quantity'],
-          'price': item['price'],
-          'total': item['total'],
+          'productName': item['productName'] ?? '',
+          'quantity': item['quantity'] ?? 1,
+          'unitPrice': item['price'] ?? 0,
+          'basePrice': item['price'] ?? 0,
+          'modifiersPrice': 0,
+          'totalPrice': item['total'] ?? item['price'] ?? 0,
         };
         print('Inserting OrderItem: $itemData');
         await client.from('OrderItem').insert(itemData);
@@ -172,7 +201,7 @@ class SupabaseService {
       // Добавляем запись в историю статусов
       await client.from('OrderStatusHistory').insert({
         'orderId': orderId,
-        'status': 'PENDING',
+        'newStatus': 'created',
       });
 
       print('Order completed successfully!');
@@ -185,60 +214,52 @@ class SupabaseService {
     }
   }
 
-  static Future<List<Map<String, dynamic>>> getOrders({String? telegramUserId}) async {
-    final response = telegramUserId != null
-        ? await client
-            .from('Order')
-            .select('*, OrderItem(*)')
-            .eq('telegramUserId', telegramUserId)
-            .order('createdAt', ascending: false)
-        : await client
-            .from('Order')
-            .select('*, OrderItem(*)')
-            .order('createdAt', ascending: false);
-    return List<Map<String, dynamic>>.from(response);
+  static Future<List<Map<String, dynamic>>> getOrders({String? visitorId}) async {
+    try {
+      final response = await client
+          .from('Order')
+          .select('*, OrderItem(*)')
+          .order('createdAt', ascending: false);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Supabase Orders error: $e');
+      return [];
+    }
   }
 
   // ==================== PROMOCODES ====================
   
   static Future<Map<String, dynamic>?> validatePromocode(String code) async {
-    final response = await client
-        .from('Promocode')
-        .select()
-        .eq('code', code.toUpperCase())
-        .eq('isActive', true)
-        .maybeSingle();
-    
-    if (response == null) return null;
-    
-    // Проверяем даты действия
-    final now = DateTime.now();
-    if (response['startDate'] != null) {
-      final startDate = DateTime.parse(response['startDate']);
-      if (now.isBefore(startDate)) return null;
+    try {
+      final response = await client
+          .from('Promocode')
+          .select()
+          .eq('code', code.toUpperCase())
+          .eq('isActive', true)
+          .maybeSingle();
+      
+      if (response == null) return null;
+      
+      // Проверяем даты действия
+      final now = DateTime.now();
+      if (response['startsAt'] != null) {
+        final startDate = DateTime.parse(response['startsAt']);
+        if (now.isBefore(startDate)) return null;
+      }
+      if (response['endsAt'] != null) {
+        final endDate = DateTime.parse(response['endsAt']);
+        if (now.isAfter(endDate)) return null;
+      }
+      
+      // Проверяем лимит использований
+      if (response['usageLimit'] != null && response['usedCount'] != null) {
+        if (response['usedCount'] >= response['usageLimit']) return null;
+      }
+      
+      return response;
+    } catch (e) {
+      print('Supabase Promocode error: $e');
+      return null;
     }
-    if (response['endDate'] != null) {
-      final endDate = DateTime.parse(response['endDate']);
-      if (now.isAfter(endDate)) return null;
-    }
-    
-    // Проверяем лимит использований
-    if (response['maxUsages'] != null && response['usageCount'] != null) {
-      if (response['usageCount'] >= response['maxUsages']) return null;
-    }
-    
-    return response;
-  }
-
-  static Future<void> usePromocode(String promocodeId, String orderId) async {
-    // Увеличиваем счётчик использований
-    await client.rpc('increment_promocode_usage', params: {'promocode_id': promocodeId});
-    
-    // Записываем использование
-    await client.from('PromocodeUsage').insert({
-      'promocodeId': promocodeId,
-      'orderId': orderId,
-    });
   }
 }
-

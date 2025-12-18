@@ -72,6 +72,7 @@ class _CartScreenState extends State<CartScreen> {
       'locationId': locationProvider.selectedLocation?.id ?? '',
       'items': cartProvider.items.map((item) => {
         'productId': item.product.id,
+        'productName': item.product.name,
         'quantity': item.quantity,
         'price': item.product.price,
         'total': item.totalPrice,

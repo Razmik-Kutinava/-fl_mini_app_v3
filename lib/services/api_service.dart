@@ -12,24 +12,33 @@ class ApiService {
       return data.map((json) => Location(
         id: json['id'] ?? '',
         name: json['name'] ?? '',
-        address: json['address'] ?? '',
-        lat: (json['latitude'] as num?)?.toDouble() ?? 0,
-        lng: (json['longitude'] as num?)?.toDouble() ?? 0,
-        rating: (json['rating'] as num?)?.toDouble() ?? 4.5,
+        address: json['address'] ?? json['city'] ?? '',
+        lat: _parseDouble(json['latitude']),
+        lng: _parseDouble(json['longitude']),
+        rating: 4.5, // No rating in schema
         workingHours: _formatWorkingHours(json),
-        isOpen: json['isActive'] ?? true,
+        isOpen: json['isAcceptingOrders'] ?? true,
       )).toList();
     } catch (e) {
       print('Error loading locations: $e');
-      // Fallback to mock data if Supabase fails
       return _mockLocations;
     }
   }
 
+  double _parseDouble(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
+  }
+
   String _formatWorkingHours(Map<String, dynamic> json) {
-    final openTime = json['openTime'] ?? '08:00';
-    final closeTime = json['closeTime'] ?? '22:00';
-    return '$openTime-$closeTime';
+    // workingHours is JSON object in schema
+    final workingHours = json['workingHours'];
+    if (workingHours is Map && workingHours.isNotEmpty) {
+      return '08:00-22:00'; // Parse from JSON if needed
+    }
+    return '08:00-22:00';
   }
 
   // ==================== MENU ====================
@@ -126,9 +135,10 @@ class ApiService {
       return {
         'valid': true,
         'id': promo['id'],
-        'discountPercent': promo['discountPercent'] ?? 0,
-        'discountAmount': promo['discountAmount'] ?? 0,
-        'type': promo['type'], // PERCENT or FIXED
+        'value': promo['value'] ?? 0,
+        'type': promo['type'], // percent or fixed
+        'minOrderAmount': promo['minOrderAmount'],
+        'maxDiscountAmount': promo['maxDiscountAmount'],
       };
     } catch (e) {
       print('Error validating promocode: $e');
