@@ -9040,7 +9040,7 @@ f=b1==null
 e=f?0:b1
 f=f?0:b1
 d=t.N
-l=A.ad(["id",n,"locationId",b3,"status","created","subtotal",b6+e,"discountAmount",f,"totalAmount",b6,"promocodeId",b4,"paymentStatus","pending","customerName",a8,"customerPhone",a9,"comment",a7,"createdAt",m,"updatedAt",m],d,t.X)
+l=A.ad(["id",n,"locationId",b3,"status","pending","subtotal",b6+e,"discountAmount",f,"totalAmount",b6,"promocodeId",b4,"paymentStatus","pending","customerName",a8,"customerPhone",a9,"comment",a7,"createdAt",m,"updatedAt",m],d,t.X)
 A.cI("Order data to insert: "+A.k(l))
 f=$.fh()
 e=f.b
@@ -9077,7 +9077,7 @@ case 11:case 9:b2.length===e||(0,A.I)(b2),++a
 s=8
 break
 case 10:s=12
-return A.n(f.b.ku("OrderStatusHistory").iq(0,A.ad(["id",A.aFu(),"orderId",n,"newStatus","created","createdAt",m],d,d)),$async$Ew)
+return A.n(f.b.ku("OrderStatusHistory").iq(0,A.ad(["id",A.aFu(),"orderId",n,"newStatus","pending","createdAt",m],d,d)),$async$Ew)
 case 12:A.cI("Order completed successfully!")
 q=k
 s=1
