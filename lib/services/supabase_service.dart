@@ -176,8 +176,9 @@ class SupabaseService {
 
       // Генерируем UUID для id
       final orderId = _generateUuid();
+      final now = DateTime.now().toUtc().toIso8601String();
       
-      // Поля согласно схеме Order
+      // Все обязательные поля согласно схеме Order
       final orderData = {
         'id': orderId,
         'locationId': locationId,
@@ -190,6 +191,8 @@ class SupabaseService {
         'customerName': customerName,
         'customerPhone': customerPhone,
         'comment': comment,
+        'createdAt': now,
+        'updatedAt': now,
       };
 
       print('Order data to insert: $orderData');
