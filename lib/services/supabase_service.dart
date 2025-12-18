@@ -177,7 +177,7 @@ class SupabaseService {
       // Генерируем UUID для id
       final orderId = _generateUuid();
       final now = DateTime.now().toUtc().toIso8601String();
-      
+
       // Все обязательные поля согласно схеме Order
       final orderData = {
         'id': orderId,
@@ -209,6 +209,7 @@ class SupabaseService {
       // Добавляем позиции заказа
       for (var item in items) {
         final itemData = {
+          'id': _generateUuid(),
           'orderId': orderId,
           'productId': item['productId'],
           'productName': item['productName'] ?? '',
@@ -217,6 +218,7 @@ class SupabaseService {
           'basePrice': item['price'] ?? 0,
           'modifiersPrice': 0,
           'totalPrice': item['total'] ?? item['price'] ?? 0,
+          'createdAt': now,
         };
         print('Inserting OrderItem: $itemData');
         await client.from('OrderItem').insert(itemData);
@@ -224,8 +226,10 @@ class SupabaseService {
 
       // Добавляем запись в историю статусов
       await client.from('OrderStatusHistory').insert({
+        'id': _generateUuid(),
         'orderId': orderId,
         'newStatus': 'created',
+        'createdAt': now,
       });
 
       print('Order completed successfully!');
