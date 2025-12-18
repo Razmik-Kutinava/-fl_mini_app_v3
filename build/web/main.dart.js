@@ -8993,14 +8993,15 @@ A.d0("=== CREATING ORDER ===")
 A.d0("locationId: "+a3)
 A.d0("items: "+A.k(a2))
 A.d0("total: "+A.k(a6))
-g=t.N
-n=A.ad(["locationId",a3,"status","PENDING","total",a6],g,t.K)
+g=a1==null?0:a1
+f=t.N
+n=A.ad(["locationId",a3,"status","PENDING","subtotal",a6,"discountAmount",g,"promocodeId",a4],f,t.X)
 A.d0("Order data to insert: "+A.k(n))
-f=$.fh()
-e=f.b
+g=$.fh()
+e=g.b
 e===$&&A.a()
 e=e.ku("Order").iq(0,n).m9(0)
-d=A.d7(e.b,g,g)
+d=A.d7(e.b,f,f)
 d.m(0,"Accept","application/vnd.pgrst.object+json")
 c=t.a
 s=7
@@ -9011,15 +9012,15 @@ l=J.aG(m,"id")
 e=a2.length,d=t.z,b=0
 case 8:if(!(b<a2.length)){s=10
 break}k=a2[b]
-j=A.ad(["orderId",l,"productId",J.aG(k,"productId"),"quantity",J.aG(k,"quantity"),"price",J.aG(k,"price"),"total",J.aG(k,"total")],g,d)
+j=A.ad(["orderId",l,"productId",J.aG(k,"productId"),"quantity",J.aG(k,"quantity"),"price",J.aG(k,"price"),"total",J.aG(k,"total")],f,d)
 A.aGW("Inserting OrderItem: "+A.k(j))
 s=11
-return A.n(f.b.ku("OrderItem").iq(0,j),$async$Ew)
+return A.n(g.b.ku("OrderItem").iq(0,j),$async$Ew)
 case 11:case 9:a2.length===e||(0,A.I)(a2),++b
 s=8
 break
 case 10:s=12
-return A.n(f.b.ku("OrderStatusHistory").iq(0,A.ad(["orderId",l,"status","PENDING"],g,d)),$async$Ew)
+return A.n(g.b.ku("OrderStatusHistory").iq(0,A.ad(["orderId",l,"status","PENDING"],f,d)),$async$Ew)
 case 12:A.d0("Order completed successfully!")
 q=m
 s=1

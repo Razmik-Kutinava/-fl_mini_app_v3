@@ -134,11 +134,13 @@ class SupabaseService {
       print('items: $items');
       print('total: $total');
       
-      // Используем только поля которые точно есть в таблице Order
+      // Поля для Order согласно схеме БД
       final orderData = {
         'locationId': locationId,
         'status': 'PENDING',
-        'total': total,
+        'subtotal': total,
+        'discountAmount': discount ?? 0,
+        'promocodeId': promocodeId,
       };
       
       print('Order data to insert: $orderData');
