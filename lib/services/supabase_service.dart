@@ -40,33 +40,44 @@ class SupabaseService {
   // ==================== CATEGORIES ====================
   
   static Future<List<Map<String, dynamic>>> getCategories() async {
-    final response = await client
-        .from('Category')
-        .select()
-        .eq('isActive', true)
-        .order('sortOrder', ascending: true);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await client
+          .from('Category')
+          .select();
+      print('Supabase Categories response: $response');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Supabase Categories error: $e');
+      return [];
+    }
   }
 
   // ==================== PRODUCTS ====================
   
   static Future<List<Map<String, dynamic>>> getProducts() async {
-    final response = await client
-        .from('Product')
-        .select()
-        .eq('isActive', true)
-        .order('sortOrder', ascending: true);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await client
+          .from('Product')
+          .select();
+      print('Supabase Products response: $response');
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Supabase Products error: $e');
+      return [];
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getProductsByCategory(String categoryId) async {
-    final response = await client
-        .from('Product')
-        .select()
-        .eq('categoryId', categoryId)
-        .eq('isActive', true)
-        .order('sortOrder', ascending: true);
-    return List<Map<String, dynamic>>.from(response);
+    try {
+      final response = await client
+          .from('Product')
+          .select()
+          .eq('categoryId', categoryId);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Supabase Products by category error: $e');
+      return [];
+    }
   }
 
   static Future<Map<String, dynamic>?> getProductById(String id) async {
@@ -123,13 +134,11 @@ class SupabaseService {
       print('items: $items');
       print('total: $total');
       
+      // Используем только поля которые точно есть в таблице Order
       final orderData = {
         'locationId': locationId,
         'status': 'PENDING',
-        'subtotal': total + (discount ?? 0),
-        'discount': discount ?? 0,
         'total': total,
-        'paymentStatus': 'PENDING',
       };
       
       print('Order data to insert: $orderData');
