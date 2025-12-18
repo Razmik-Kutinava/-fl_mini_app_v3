@@ -182,7 +182,7 @@ class SupabaseService {
       final orderData = {
         'id': orderId,
         'locationId': locationId,
-        'status': 'pending',
+        'status': 'paid',
         'subtotal': total + (discount ?? 0),
         'discountAmount': discount ?? 0,
         'totalAmount': total,
@@ -228,7 +228,7 @@ class SupabaseService {
       await client.from('OrderStatusHistory').insert({
         'id': _generateUuid(),
         'orderId': orderId,
-        'newStatus': 'pending',
+        'newStatus': 'paid',
         'createdAt': now,
       });
 
