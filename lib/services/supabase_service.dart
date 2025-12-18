@@ -117,42 +117,61 @@ class SupabaseService {
     double? discount,
     String? telegramUserId,
   }) async {
-    // Создаём заказ
-    final orderResponse = await client
-        .from('Order')
-        .insert({
-          'locationId': locationId,
-          'status': 'PENDING',
-          'subtotal': total + (discount ?? 0),
-          'discount': discount ?? 0,
-          'total': total,
-          'promocodeId': promocodeId,
-          'telegramUserId': telegramUserId,
-          'paymentStatus': 'PENDING',
-        })
-        .select()
-        .single();
+    try {
+      print('=== CREATING ORDER ===');
+      print('locationId: $locationId');
+      print('items: $items');
+      print('total: $total');
+      
+      final orderData = {
+        'locationId': locationId,
+        'status': 'PENDING',
+        'subtotal': total + (discount ?? 0),
+        'discount': discount ?? 0,
+        'total': total,
+        'paymentStatus': 'PENDING',
+      };
+      
+      print('Order data to insert: $orderData');
+      
+      // Создаём заказ
+      final orderResponse = await client
+          .from('Order')
+          .insert(orderData)
+          .select()
+          .single();
 
-    final orderId = orderResponse['id'];
+      print('Order created: $orderResponse');
+      
+      final orderId = orderResponse['id'];
 
-    // Добавляем позиции заказа
-    for (var item in items) {
-      await client.from('OrderItem').insert({
+      // Добавляем позиции заказа
+      for (var item in items) {
+        final itemData = {
+          'orderId': orderId,
+          'productId': item['productId'],
+          'quantity': item['quantity'],
+          'price': item['price'],
+          'total': item['total'],
+        };
+        print('Inserting OrderItem: $itemData');
+        await client.from('OrderItem').insert(itemData);
+      }
+
+      // Добавляем запись в историю статусов
+      await client.from('OrderStatusHistory').insert({
         'orderId': orderId,
-        'productId': item['productId'],
-        'quantity': item['quantity'],
-        'price': item['price'],
-        'total': item['total'],
+        'status': 'PENDING',
       });
+
+      print('Order completed successfully!');
+      return orderResponse;
+    } catch (e, stack) {
+      print('=== ORDER ERROR ===');
+      print('Error: $e');
+      print('Stack: $stack');
+      rethrow;
     }
-
-    // Добавляем запись в историю статусов
-    await client.from('OrderStatusHistory').insert({
-      'orderId': orderId,
-      'status': 'PENDING',
-    });
-
-    return orderResponse;
   }
 
   static Future<List<Map<String, dynamic>>> getOrders({String? telegramUserId}) async {

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import '../constants/app_colors.dart';
 import '../providers/cart_provider.dart';
+import '../providers/location_provider.dart';
 import '../services/api_service.dart';
 
 class CartScreen extends StatefulWidget {
@@ -54,6 +55,7 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> _checkout() async {
     final cartProvider = context.read<CartProvider>();
+    final locationProvider = context.read<LocationProvider>();
 
     showDialog(
       context: context,
@@ -61,13 +63,22 @@ class _CartScreenState extends State<CartScreen> {
       builder: (_) => const Center(child: CircularProgressIndicator()),
     );
 
+    print('=== CHECKOUT START ===');
+    print('Location: ${locationProvider.selectedLocation?.id}');
+    print('Items count: ${cartProvider.items.length}');
+    print('Total: ${cartProvider.total}');
+
     await _apiService.createOrder({
+      'locationId': locationProvider.selectedLocation?.id ?? '',
       'items': cartProvider.items.map((item) => {
         'productId': item.product.id,
         'quantity': item.quantity,
+        'price': item.product.price,
+        'total': item.totalPrice,
         'modifiers': item.modifiers,
       }).toList(),
       'promoCode': cartProvider.promoCode,
+      'discount': cartProvider.discount,
       'total': cartProvider.total,
     });
 
