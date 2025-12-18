@@ -1,5 +1,52 @@
-import 'dart:js' as js;
+import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
+import 'package:web/web.dart' as web;
+
+@JS('Telegram.WebApp')
+external TelegramWebApp? get telegramWebApp;
+
+@JS()
+@staticInterop
+class TelegramWebApp {}
+
+extension TelegramWebAppExt on TelegramWebApp {
+  external void ready();
+  external void expand();
+  external void close();
+  external TelegramInitDataUnsafe? get initDataUnsafe;
+  external TelegramMainButton get MainButton;
+}
+
+@JS()
+@staticInterop
+class TelegramInitDataUnsafe {}
+
+extension TelegramInitDataUnsafeExt on TelegramInitDataUnsafe {
+  external TelegramUser? get user;
+}
+
+@JS()
+@staticInterop
+class TelegramUser {}
+
+extension TelegramUserExt on TelegramUser {
+  external int? get id;
+  @JS('first_name')
+  external String? get firstName;
+  @JS('last_name')
+  external String? get lastName;
+  external String? get username;
+}
+
+@JS()
+@staticInterop
+class TelegramMainButton {}
+
+extension TelegramMainButtonExt on TelegramMainButton {
+  external void setText(String text);
+  external void show();
+  external void hide();
+}
 
 class TelegramService {
   static TelegramService? _instance;
@@ -10,8 +57,7 @@ class TelegramService {
   bool get isInTelegram {
     if (!kIsWeb) return false;
     try {
-      return js.context.hasProperty('Telegram') &&
-          js.context['Telegram'].hasProperty('WebApp');
+      return telegramWebApp != null;
     } catch (e) {
       return false;
     }
@@ -20,8 +66,8 @@ class TelegramService {
   void init() {
     if (!isInTelegram) return;
     try {
-      js.context['Telegram']['WebApp'].callMethod('ready');
-      js.context['Telegram']['WebApp'].callMethod('expand');
+      telegramWebApp?.ready();
+      telegramWebApp?.expand();
     } catch (e) {
       debugPrint('Telegram init error: $e');
     }
@@ -30,14 +76,13 @@ class TelegramService {
   Map<String, dynamic>? getUser() {
     if (!isInTelegram) return null;
     try {
-      final initDataUnsafe = js.context['Telegram']['WebApp']['initDataUnsafe'];
-      final user = initDataUnsafe['user'];
+      final user = telegramWebApp?.initDataUnsafe?.user;
       if (user != null) {
         return {
-          'id': user['id'],
-          'firstName': user['first_name'],
-          'lastName': user['last_name'],
-          'username': user['username'],
+          'id': user.id,
+          'firstName': user.firstName,
+          'lastName': user.lastName,
+          'username': user.username,
         };
       }
     } catch (e) {
@@ -49,10 +94,8 @@ class TelegramService {
   void showMainButton(String text, Function callback) {
     if (!isInTelegram) return;
     try {
-      final mainButton = js.context['Telegram']['WebApp']['MainButton'];
-      mainButton.callMethod('setText', [text]);
-      mainButton.callMethod('show');
-      mainButton['onClick'] = js.allowInterop(callback);
+      telegramWebApp?.MainButton.setText(text);
+      telegramWebApp?.MainButton.show();
     } catch (e) {
       debugPrint('Telegram showMainButton error: $e');
     }
@@ -61,7 +104,7 @@ class TelegramService {
   void hideMainButton() {
     if (!isInTelegram) return;
     try {
-      js.context['Telegram']['WebApp']['MainButton'].callMethod('hide');
+      telegramWebApp?.MainButton.hide();
     } catch (e) {
       debugPrint('Telegram hideMainButton error: $e');
     }
@@ -70,10 +113,9 @@ class TelegramService {
   void close() {
     if (!isInTelegram) return;
     try {
-      js.context['Telegram']['WebApp'].callMethod('close');
+      telegramWebApp?.close();
     } catch (e) {
       debugPrint('Telegram close error: $e');
     }
   }
 }
-
