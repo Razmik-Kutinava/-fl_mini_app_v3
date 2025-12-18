@@ -5,10 +5,14 @@ import 'providers/location_provider.dart';
 import 'providers/menu_provider.dart';
 import 'screens/permissions_screen.dart';
 import 'services/telegram_service.dart';
+import 'services/supabase_service.dart';
 import 'constants/app_colors.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Supabase
+  await SupabaseService.initialize();
   
   // Initialize Telegram WebApp
   TelegramService.instance.init();
