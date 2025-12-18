@@ -164,30 +164,9 @@ class ApiService {
     }
   }
 
-  // ==================== MOCK DATA (Fallback) ====================
+  // ==================== MOCK DATA (Fallback - empty, use Supabase) ====================
   
-  static final List<Location> _mockLocations = [
-    Location(
-      id: 'loc_1',
-      name: 'Кофейня "Арбат"',
-      address: 'ул. Арбат, 24',
-      lat: 55.7522,
-      lng: 37.5876,
-      rating: 4.9,
-      workingHours: '08:00-23:00',
-      isOpen: true,
-    ),
-    Location(
-      id: 'loc_2',
-      name: 'Кофейня "Тверская"',
-      address: 'Тверская ул., 15',
-      lat: 55.7640,
-      lng: 37.6056,
-      rating: 4.8,
-      workingHours: '07:00-22:00',
-      isOpen: true,
-    ),
-  ];
+  static final List<Location> _mockLocations = [];
 
   static final List<Category> _mockCategories = [
     Category(id: 'cat_1', name: 'Кофе', emoji: '☕'),
