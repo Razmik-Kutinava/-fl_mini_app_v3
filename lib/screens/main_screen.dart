@@ -3,6 +3,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
+import 'package:page_transition/page_transition.dart';
+import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
@@ -189,10 +191,16 @@ class _MainScreenState extends State<MainScreen> {
               ),
               position: badges.BadgePosition.topEnd(top: -8, end: -8),
               child: FloatingActionButton.extended(
-                onPressed: () {
+                onPressed: () async {
+                  HapticFeedback.lightImpact();
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const CartScreen()),
+                    PageTransition(
+                      type: PageTransitionType.rightToLeft,
+                      child: const CartScreen(),
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    ),
                   );
                 },
                 backgroundColor: AppColors.primary,

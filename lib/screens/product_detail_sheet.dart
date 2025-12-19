@@ -3,6 +3,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
+import 'package:confetti/confetti.dart';
+import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../constants/app_colors.dart';
 import '../models/product.dart';
 import '../models/cart_item.dart';
@@ -22,6 +25,19 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
   int selectedMilk = 0;
   List<int> selectedExtras = [];
   int quantity = 1;
+  late ConfettiController _confettiController;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 1));
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
+  }
 
   double get totalPrice {
     double total = widget.product.price;
@@ -43,7 +59,10 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
     return total * quantity;
   }
 
-  void _addToCart() {
+  Future<void> _addToCart() async {
+    // Haptic feedback
+    HapticFeedback.mediumImpact();
+    
     final cartItem = CartItem(
       product: widget.product,
       modifiers: {
@@ -56,27 +75,38 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
     );
 
     context.read<CartProvider>().addItem(cartItem);
-    Navigator.pop(context);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${widget.product.name} добавлен в корзину'),
-        backgroundColor: AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+    
+    // Confetti animation
+    _confettiController.play();
+    
+    // Toast notification
+    Fluttertoast.showToast(
+      msg: '${widget.product.name} добавлен в корзину! 🎉',
+      toastLength: Toast.LENGTH_SHORT,
+      gravity: ToastGravity.BOTTOM,
+      backgroundColor: AppColors.success,
+      textColor: Colors.white,
+      fontSize: 14.0,
     );
+    
+    // Close after short delay
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Column(
+    return Stack(
+      children: [
+        Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
         children: [
           // Handle
           Container(
@@ -228,6 +258,27 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
           ),
         ],
       ),
+    ),
+        // Confetti overlay
+        Align(
+          alignment: Alignment.topCenter,
+          child: ConfettiWidget(
+            confettiController: _confettiController,
+            blastDirection: 3.14 / 2,
+            maxBlastForce: 5,
+            minBlastForce: 2,
+            emissionFrequency: 0.05,
+            numberOfParticles: 20,
+            gravity: 0.1,
+            colors: const [
+              AppColors.primary,
+              AppColors.accent,
+              Colors.orange,
+              Colors.brown,
+            ],
+          ),
+        ),
+      ],
     );
   }
 

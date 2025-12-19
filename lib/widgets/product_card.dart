@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:glassmorphism/glassmorphism.dart';
+import 'package:page_transition/page_transition.dart';
+import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../models/product.dart';
 import '../screens/product_detail_sheet.dart';
@@ -15,7 +17,8 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
+      onTap: () async {
+        HapticFeedback.selectionClick();
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,

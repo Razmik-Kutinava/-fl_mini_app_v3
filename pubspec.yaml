@@ -59,6 +59,15 @@ dependencies:
   lottie: ^3.1.0
   flutter_slidable: ^3.0.1
 
+  # Enhanced UI & Animations
+  page_transition: ^2.1.0
+  confetti: ^0.7.0
+  flip_card: ^0.6.0
+  flutter_card_swiper: ^1.0.0
+  gradient_widgets: ^0.6.0
+  fluttertoast: ^8.2.4
+  font_awesome_flutter: ^10.7.0
+
   # Telegram
   js: ^0.6.7
   web: ^1.1.1

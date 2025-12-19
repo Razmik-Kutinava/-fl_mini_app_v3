@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import '../constants/app_colors.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
@@ -39,13 +41,19 @@ class _CartScreenState extends State<CartScreen> {
         final cartProvider = context.read<CartProvider>();
         final discountPercent = result['discountPercent'] as int;
         final discountAmount = cartProvider.subtotal * discountPercent / 100;
-        cartProvider.applyPromoCode(_promoController.text.toUpperCase(), discountAmount);
+        cartProvider.applyPromoCode(
+          _promoController.text.toUpperCase(),
+          discountAmount,
+        );
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Промокод применён: -$discountPercent%'),
-            backgroundColor: AppColors.success,
-          ),
+        await Haptics.Haptics.lightImpact();
+        Fluttertoast.showToast(
+          msg: 'Промокод применён: -$discountPercent% 🎉',
+          toastLength: Toast.LENGTH_SHORT,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: AppColors.success,
+          textColor: Colors.white,
+          fontSize: 14.0,
         );
       } else {
         setState(() => _promoError = 'Недействительный промокод');
@@ -54,6 +62,8 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _checkout() async {
+    await Haptics.Haptics.mediumImpact();
+
     final cartProvider = context.read<CartProvider>();
     final locationProvider = context.read<LocationProvider>();
 
@@ -70,14 +80,18 @@ class _CartScreenState extends State<CartScreen> {
 
     await _apiService.createOrder({
       'locationId': locationProvider.selectedLocation?.id ?? '',
-      'items': cartProvider.items.map((item) => {
-        'productId': item.product.id,
-        'productName': item.product.name,
-        'quantity': item.quantity,
-        'price': item.product.price,
-        'total': item.totalPrice,
-        'modifiers': item.modifiers,
-      }).toList(),
+      'items': cartProvider.items
+          .map(
+            (item) => {
+              'productId': item.product.id,
+              'productName': item.product.name,
+              'quantity': item.quantity,
+              'price': item.product.price,
+              'total': item.totalPrice,
+              'modifiers': item.modifiers,
+            },
+          )
+          .toList(),
       'promoCode': cartProvider.promoCode,
       'discount': cartProvider.discount,
       'total': cartProvider.total,
@@ -86,11 +100,13 @@ class _CartScreenState extends State<CartScreen> {
     if (mounted) {
       Navigator.pop(context); // Close loading
       cartProvider.clear();
-      
+
       showDialog(
         context: context,
         builder: (_) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -101,7 +117,11 @@ class _CartScreenState extends State<CartScreen> {
                   color: AppColors.success.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.check, color: AppColors.success, size: 48),
+                child: const Icon(
+                  Icons.check,
+                  color: AppColors.success,
+                  size: 48,
+                ),
               ),
               const SizedBox(height: 16),
               Text(
@@ -121,11 +141,15 @@ class _CartScreenState extends State<CartScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () {
+              onPressed: () async {
+                HapticFeedback.lightImpact();
                 Navigator.pop(context);
                 Navigator.pop(context);
               },
-              child: Text('Отлично!', style: TextStyle(color: AppColors.primary)),
+              child: Text(
+                'Отлично!',
+                style: TextStyle(color: AppColors.primary),
+              ),
             ),
           ],
         ),
@@ -170,7 +194,10 @@ class _CartScreenState extends State<CartScreen> {
                           motion: const ScrollMotion(),
                           children: [
                             SlidableAction(
-                              onPressed: (_) => cartProvider.removeItem(item),
+                              onPressed: (_) async {
+                                HapticFeedback.mediumImpact();
+                                cartProvider.removeItem(item);
+                              },
                               backgroundColor: AppColors.error,
                               foregroundColor: Colors.white,
                               icon: Icons.delete,
@@ -179,117 +206,148 @@ class _CartScreenState extends State<CartScreen> {
                             ),
                           ],
                         ),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 10,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: CachedNetworkImage(
-                                  imageUrl: item.product.imageUrl,
-                                  width: 70,
-                                  height: 70,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      '${item.product.name} ${item.sizeLabel}',
-                                      style: GoogleFonts.montserrat(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    ...item.modifiersList.map((mod) => Text(
-                                      mod,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 12,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    )),
-                                  ],
-                                ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () => cartProvider.updateQuantity(
-                                          item,
-                                          item.quantity - 1,
-                                        ),
-                                        child: Container(
-                                          width: 28,
-                                          height: 28,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[200],
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: const Icon(Icons.remove, size: 18),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                                        child: Text(
-                                          '${item.quantity}',
-                                          style: GoogleFonts.montserrat(
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 16,
-                                          ),
-                                        ),
-                                      ),
-                                      GestureDetector(
-                                        onTap: () => cartProvider.updateQuantity(
-                                          item,
-                                          item.quantity + 1,
-                                        ),
-                                        child: Container(
-                                          width: 28,
-                                          height: 28,
-                                          decoration: BoxDecoration(
-                                            color: AppColors.primary,
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: const Icon(Icons.add, size: 18, color: Colors.white),
-                                        ),
+                        child:
+                            Container(
+                                  margin: const EdgeInsets.only(bottom: 12),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '${item.totalPrice.toStringAsFixed(0)} ₽',
-                                    style: GoogleFonts.montserrat(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: AppColors.primary,
-                                    ),
+                                  child: Row(
+                                    children: [
+                                      ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: CachedNetworkImage(
+                                          imageUrl: item.product.imageUrl,
+                                          width: 70,
+                                          height: 70,
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              '${item.product.name} ${item.sizeLabel}',
+                                              style: GoogleFonts.montserrat(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                            ...item.modifiersList.map(
+                                              (mod) => Text(
+                                                mod,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 12,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                        children: [
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              GestureDetector(
+                                                onTap: () async {
+                                                  HapticFeedback.selectionClick();
+                                                  cartProvider.updateQuantity(
+                                                    item,
+                                                    item.quantity - 1,
+                                                  );
+                                                },
+                                                child: Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.grey[200],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.remove,
+                                                    size: 18,
+                                                  ),
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 12,
+                                                    ),
+                                                child: Text(
+                                                  '${item.quantity}',
+                                                  style: GoogleFonts.montserrat(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ),
+                                              GestureDetector(
+                                                onTap: () async {
+                                                  HapticFeedback.selectionClick();
+                                                  cartProvider.updateQuantity(
+                                                    item,
+                                                    item.quantity + 1,
+                                                  );
+                                                },
+                                                child: Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.primary,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8,
+                                                        ),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.add,
+                                                    size: 18,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            '${item.totalPrice.toStringAsFixed(0)} ₽',
+                                            style: GoogleFonts.montserrat(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: AppColors.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ).animate(delay: Duration(milliseconds: 100 * index))
-                            .fadeIn()
-                            .slideX(begin: 0.2),
+                                )
+                                .animate(
+                                  delay: Duration(milliseconds: 100 * index),
+                                )
+                                .fadeIn()
+                                .slideX(begin: 0.2),
                       );
                     },
                   ),
@@ -299,7 +357,9 @@ class _CartScreenState extends State<CartScreen> {
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.1),
@@ -321,7 +381,9 @@ class _CartScreenState extends State<CartScreen> {
                                   controller: _promoController,
                                   decoration: InputDecoration(
                                     hintText: 'Промокод',
-                                    hintStyle: GoogleFonts.inter(color: AppColors.textSecondary),
+                                    hintStyle: GoogleFonts.inter(
+                                      color: AppColors.textSecondary,
+                                    ),
                                     filled: true,
                                     fillColor: Colors.grey[100],
                                     border: OutlineInputBorder(
@@ -338,7 +400,9 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                               const SizedBox(width: 12),
                               ElevatedButton(
-                                onPressed: _isApplyingPromo ? null : _applyPromoCode,
+                                onPressed: _isApplyingPromo
+                                    ? null
+                                    : _applyPromoCode,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: AppColors.primary,
                                   foregroundColor: Colors.white,
@@ -361,7 +425,9 @@ class _CartScreenState extends State<CartScreen> {
                                       )
                                     : Text(
                                         'Применить',
-                                        style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
+                                        style: GoogleFonts.montserrat(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                               ),
                             ],
@@ -375,7 +441,10 @@ class _CartScreenState extends State<CartScreen> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.check_circle, color: AppColors.success),
+                                const Icon(
+                                  Icons.check_circle,
+                                  color: AppColors.success,
+                                ),
                                 const SizedBox(width: 8),
                                 Expanded(
                                   child: Text(
@@ -387,8 +456,12 @@ class _CartScreenState extends State<CartScreen> {
                                   ),
                                 ),
                                 IconButton(
-                                  onPressed: () => cartProvider.removePromoCode(),
-                                  icon: const Icon(Icons.close, color: AppColors.success),
+                                  onPressed: () =>
+                                      cartProvider.removePromoCode(),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: AppColors.success,
+                                  ),
                                   iconSize: 20,
                                 ),
                               ],
@@ -402,11 +475,15 @@ class _CartScreenState extends State<CartScreen> {
                           children: [
                             Text(
                               'Товары (${cartProvider.itemCount} шт)',
-                              style: GoogleFonts.inter(color: AppColors.textSecondary),
+                              style: GoogleFonts.inter(
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                             Text(
                               '${cartProvider.subtotal.toStringAsFixed(0)} ₽',
-                              style: GoogleFonts.montserrat(fontWeight: FontWeight.w500),
+                              style: GoogleFonts.montserrat(
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ],
                         ),
@@ -417,7 +494,9 @@ class _CartScreenState extends State<CartScreen> {
                             children: [
                               Text(
                                 'Скидка (${cartProvider.promoCode})',
-                                style: GoogleFonts.inter(color: AppColors.success),
+                                style: GoogleFonts.inter(
+                                  color: AppColors.success,
+                                ),
                               ),
                               Text(
                                 '-${cartProvider.discount.toStringAsFixed(0)} ₽',
@@ -563,4 +642,3 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 }
-

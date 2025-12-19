@@ -1,6 +1,5 @@
 import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
-import 'package:web/web.dart' as web;
 
 @JS('Telegram.WebApp')
 external TelegramWebApp? get telegramWebApp;
