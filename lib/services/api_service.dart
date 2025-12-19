@@ -30,17 +30,33 @@ class ApiService {
               lng = coords['lng']!;
               print('Geocoded location: $name -> lat: $lat, lng: $lng');
             } else {
-              // Fallback координаты для Самары (если не удалось найти)
+              // Fallback координаты (если не удалось найти)
               final cityLower = city.toLowerCase();
-              if (cityLower.contains('самара') || cityLower.contains('samara') || 
-                  name.toLowerCase().contains('напибар')) {
+              final nameLower = name.toLowerCase();
+              final addressLower = address.toLowerCase();
+              
+              // СНАЧАЛА проверяем Ереван (важно!)
+              if (cityLower.contains('ереван') || 
+                  cityLower.contains('yerevan') ||
+                  addressLower.contains('ереван') ||
+                  addressLower.contains('yerevan') ||
+                  nameLower.contains('ереван')) {
+                lat = 40.1811;
+                lng = 44.5136;
+                print('Using Yerevan fallback for: $name -> lat: $lat, lng: $lng');
+              } else if (cityLower.contains('самара') || 
+                         cityLower.contains('samara') || 
+                         nameLower.contains('напибар') ||
+                         addressLower.contains('куйбышева')) {
                 lat = 53.2015;
                 lng = 50.1405;
+                print('Using Samara fallback for: $name -> lat: $lat, lng: $lng');
               } else {
-                lat = 53.2001;
-                lng = 50.1400;
+                // Неизвестный город - используем центр между Самарой и Ереваном
+                lat = 46.5;
+                lng = 47.0;
+                print('Using default fallback for: $name -> lat: $lat, lng: $lng');
               }
-              print('Using fallback coordinates for: $name -> lat: $lat, lng: $lng');
             }
           }
         }
@@ -163,9 +179,18 @@ class ApiService {
       
       print('Geocoding failed for: $query');
       
-      // Fallback: если геокодинг не удался, используем координаты Самары
-      if (cityLower.contains('самара') || cityLower.contains('samara') ||
-          nameLower.contains('напибар')) {
+      // Fallback: если геокодинг не удался, используем координаты по городу
+      // СНАЧАЛА проверяем Ереван
+      if (cityLower.contains('ереван') || 
+          cityLower.contains('yerevan') ||
+          addressLower.contains('ереван') ||
+          addressLower.contains('yerevan') ||
+          nameLower.contains('ереван')) {
+        return {'lat': 40.1811, 'lng': 44.5136};
+      } else if (cityLower.contains('самара') || 
+                 cityLower.contains('samara') ||
+                 nameLower.contains('напибар') ||
+                 addressLower.contains('куйбышева')) {
         return {'lat': 53.2015, 'lng': 50.1405};
       }
       
@@ -175,8 +200,19 @@ class ApiService {
       // Fallback для известных городов
       final cityLower = city.toLowerCase();
       final nameLower = name.toLowerCase();
-      if (cityLower.contains('самара') || cityLower.contains('samara') ||
-          nameLower.contains('напибар')) {
+      final addressLower = address.toLowerCase();
+      
+      // СНАЧАЛА проверяем Ереван
+      if (cityLower.contains('ереван') || 
+          cityLower.contains('yerevan') ||
+          addressLower.contains('ереван') ||
+          addressLower.contains('yerevan') ||
+          nameLower.contains('ереван')) {
+        return {'lat': 40.1811, 'lng': 44.5136};
+      } else if (cityLower.contains('самара') || 
+                 cityLower.contains('samara') ||
+                 nameLower.contains('напибар') ||
+                 addressLower.contains('куйбышева')) {
         return {'lat': 53.2015, 'lng': 50.1405};
       }
       return null;
@@ -223,7 +259,7 @@ class ApiService {
           description: json['description'] ?? '',
           imageUrl: (imageUrl != null && imageUrl.toString().isNotEmpty)
               ? imageUrl.toString()
-              : 'https://via.placeholder.com/400x400/8B4513/FFFFFF?text=${Uri.encodeComponent(productName)}',
+              : '', // Пустая строка - будет показана иконка кофе
           categoryId: json['categoryId'] ?? '',
           modifiers: modifiers,
         );
