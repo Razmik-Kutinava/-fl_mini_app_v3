@@ -79,7 +79,15 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
 
   /// Вычисляет границы всех точек и устанавливает карту так, чтобы все были видны
   void _fitBounds(List<Location> locations) {
-    if (locations.isEmpty) return;
+    if (locations.isEmpty) {
+      print('⚠️ No valid locations to fit bounds');
+      return;
+    }
+    
+    print('🗺️ Fitting bounds for ${locations.length} locations');
+    for (var loc in locations) {
+      print('  - ${loc.name}: lat=${loc.lat}, lng=${loc.lng}');
+    }
     
     final userPos = context.read<LocationProvider>().userPosition;
     final allPoints = <LatLng>[];
@@ -88,15 +96,22 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
     for (var loc in locations) {
       if (loc.lat != 0 && loc.lng != 0) {
         allPoints.add(LatLng(loc.lat, loc.lng));
+        print('  ✅ Added point: ${loc.name} at (${loc.lat}, ${loc.lng})');
+      } else {
+        print('  ❌ Skipped point: ${loc.name} - invalid coordinates');
       }
     }
     
     // Добавляем позицию пользователя, если есть
     if (userPos != null) {
       allPoints.add(LatLng(userPos.latitude, userPos.longitude));
+      print('  ✅ Added user position: (${userPos.latitude}, ${userPos.longitude})');
     }
     
-    if (allPoints.isEmpty) return;
+    if (allPoints.isEmpty) {
+      print('⚠️ No valid points to display');
+      return;
+    }
     
     // Вычисляем границы
     double minLat = allPoints.first.latitude;
@@ -147,10 +162,15 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
     if (zoom < 1.0) zoom = 1.0;
     
     // Устанавливаем карту
+    print('🗺️ Setting map center: ($centerLat, $centerLng) with zoom: $zoom');
+    print('🗺️ Bounds: lat=[$minLat, $maxLat], lng=[$minLng, $maxLng], diff=$maxDiff');
+    
     _mapController.move(
       LatLng(centerLat, centerLng),
       zoom,
     );
+    
+    print('✅ Map updated successfully');
   }
 
   void _selectLocation(Location location) {

@@ -14,8 +14,14 @@ class ApiService {
       final locations = <Location>[];
       
       for (var json in data) {
+        print('=== Processing Location ===');
+        print('Name: ${json['name']}');
+        print('City: ${json['city']}');
+        print('Address: ${json['address']}');
+        
         double lat = _parseDouble(json['latitude']);
         double lng = _parseDouble(json['longitude']);
+        print('DB Coordinates: lat=$lat, lng=$lng');
         
         // Если координаты отсутствуют, используем геокодинг
         if (lat == 0 && lng == 0) {
@@ -23,12 +29,14 @@ class ApiService {
           final city = json['city'] ?? '';
           final name = json['name'] ?? '';
           
+          print('Starting geocoding for: name=$name, city=$city, address=$address');
+          
           if (address.isNotEmpty || city.isNotEmpty) {
             final coords = await _geocodeAddress(address, city, name);
             if (coords != null) {
               lat = coords['lat']!;
               lng = coords['lng']!;
-              print('Geocoded location: $name -> lat: $lat, lng: $lng');
+              print('✅ Geocoded location: $name -> lat: $lat, lng: $lng');
             } else {
               // Fallback координаты (если не удалось найти)
               final cityLower = city.toLowerCase();
@@ -75,7 +83,7 @@ class ApiService {
           fullAddress = json['city'].toString();
         }
         
-        locations.add(Location(
+        final location = Location(
           id: json['id'] ?? '',
           name: json['name'] ?? '',
           address: fullAddress,
@@ -84,7 +92,10 @@ class ApiService {
           rating: 4.5, // No rating in schema
           workingHours: _formatWorkingHours(json),
           isOpen: json['isAcceptingOrders'] ?? true,
-        ));
+        );
+        
+        print('📍 Final location: ${location.name} -> lat: ${location.lat}, lng: ${location.lng}, address: ${location.address}');
+        locations.add(location);
       }
       
       return locations;
