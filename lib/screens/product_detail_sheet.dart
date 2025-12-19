@@ -149,12 +149,33 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
                   // Image
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
-                    child: CachedNetworkImage(
-                      imageUrl: widget.product.imageUrl,
-                      height: 200,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
+                    child: widget.product.imageUrl.isEmpty
+                        ? Container(
+                            height: 200,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              gradient: AppColors.gradientCoffee,
+                            ),
+                            child: const Center(
+                              child: Icon(Icons.coffee, size: 50, color: Colors.white70),
+                            ),
+                          )
+                        : CachedNetworkImage(
+                            imageUrl: widget.product.imageUrl,
+                            height: 200,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Container(
+                              height: 200,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                gradient: AppColors.gradientCoffee,
+                              ),
+                              child: const Center(
+                                child: Icon(Icons.coffee, size: 50, color: Colors.white70),
+                              ),
+                            ),
+                          ),
                   ).animate().fadeIn().scale(begin: const Offset(0.95, 0.95)),
                   const SizedBox(height: 16),
                   // Description

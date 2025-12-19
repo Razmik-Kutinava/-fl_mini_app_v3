@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:glassmorphism/glassmorphism.dart';
-import 'package:page_transition/page_transition.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../models/product.dart';
@@ -43,30 +42,39 @@ class ProductCard extends StatelessWidget {
           child: Stack(
             children: [
               // Image
-              CachedNetworkImage(
-                imageUrl: product.imageUrl,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Shimmer.fromColors(
-                  baseColor: Colors.grey[300]!,
-                  highlightColor: Colors.grey[100]!,
-                  child: Container(
-                    color: Colors.white,
-                    child: const Center(
-                      child: CircularProgressIndicator(),
+              product.imageUrl.isEmpty
+                  ? Container(
+                      decoration: BoxDecoration(
+                        gradient: AppColors.gradientCoffee,
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.coffee, size: 50, color: Colors.white70),
+                      ),
+                    )
+                  : CachedNetworkImage(
+                      imageUrl: product.imageUrl,
+                      width: double.infinity,
+                      height: double.infinity,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Shimmer.fromColors(
+                        baseColor: Colors.grey[300]!,
+                        highlightColor: Colors.grey[100]!,
+                        child: Container(
+                          color: Colors.white,
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        decoration: BoxDecoration(
+                          gradient: AppColors.gradientCoffee,
+                        ),
+                        child: const Center(
+                          child: Icon(Icons.coffee, size: 50, color: Colors.white70),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                errorWidget: (_, __, ___) => Container(
-                  decoration: BoxDecoration(
-                    gradient: AppColors.gradientCoffee,
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.coffee, size: 50, color: Colors.white70),
-                  ),
-                ),
-              ),
               // Gradient overlay
               Positioned(
                 bottom: 0,

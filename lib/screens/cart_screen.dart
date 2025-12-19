@@ -227,12 +227,39 @@ class _CartScreenState extends State<CartScreen> {
                                     children: [
                                       ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
-                                        child: CachedNetworkImage(
-                                          imageUrl: item.product.imageUrl,
-                                          width: 70,
-                                          height: 70,
-                                          fit: BoxFit.cover,
-                                        ),
+                                        child: item.product.imageUrl.isEmpty
+                                            ? Container(
+                                                width: 70,
+                                                height: 70,
+                                                decoration: BoxDecoration(
+                                                  gradient: AppColors.gradientCoffee,
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: const Icon(
+                                                  Icons.coffee,
+                                                  color: Colors.white70,
+                                                  size: 30,
+                                                ),
+                                              )
+                                            : CachedNetworkImage(
+                                                imageUrl: item.product.imageUrl,
+                                                width: 70,
+                                                height: 70,
+                                                fit: BoxFit.cover,
+                                                errorWidget: (_, __, ___) => Container(
+                                                  width: 70,
+                                                  height: 70,
+                                                  decoration: BoxDecoration(
+                                                    gradient: AppColors.gradientCoffee,
+                                                    borderRadius: BorderRadius.circular(12),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.coffee,
+                                                    color: Colors.white70,
+                                                    size: 30,
+                                                  ),
+                                                ),
+                                              ),
                                       ),
                                       const SizedBox(width: 12),
                                       Expanded(

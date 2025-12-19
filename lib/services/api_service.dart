@@ -56,12 +56,16 @@ class ApiService {
       
       final products = await Future.wait(productsData.map((json) async {
         final modifiers = await _loadProductModifiers(json['id']);
+        final imageUrl = json['imageUrl'];
+        final productName = json['name'] ?? 'Coffee';
         return Product(
           id: json['id'] ?? '',
-          name: json['name'] ?? '',
+          name: productName,
           price: (json['price'] as num?)?.toDouble() ?? 0,
           description: json['description'] ?? '',
-          imageUrl: json['imageUrl'] ?? '',
+          imageUrl: (imageUrl != null && imageUrl.toString().isNotEmpty)
+              ? imageUrl.toString()
+              : 'https://via.placeholder.com/400x400/8B4513/FFFFFF?text=${Uri.encodeComponent(productName)}',
           categoryId: json['categoryId'] ?? '',
           modifiers: modifiers,
         );
