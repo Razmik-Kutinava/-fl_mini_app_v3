@@ -74,11 +74,13 @@ class ModifierOption {
   final String label;
   final String? volume;
   final double price;
+  final String? emoji;
 
   ModifierOption({
     required this.label,
     this.volume,
     required this.price,
+    this.emoji,
   });
 
   factory ModifierOption.fromJson(Map<String, dynamic> json) {
@@ -86,6 +88,7 @@ class ModifierOption {
       label: json['label'],
       volume: json['volume'],
       price: (json['price'] as num).toDouble(),
+      emoji: json['emoji'],
     );
   }
 }

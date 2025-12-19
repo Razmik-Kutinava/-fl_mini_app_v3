@@ -315,6 +315,7 @@ class ApiService {
             label: opt['name'] ?? '',
             volume: opt['description'],
             price: (opt['price'] as num?)?.toDouble() ?? 0,
+            emoji: opt['emoji'],
           )).toList(),
         );
         

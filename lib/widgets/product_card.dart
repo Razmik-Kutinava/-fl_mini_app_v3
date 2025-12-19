@@ -6,24 +6,65 @@ import 'package:glassmorphism/glassmorphism.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
 import '../models/product.dart';
-import '../screens/product_detail_sheet.dart';
+import '../screens/product_modifiers_screen.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
 
   const ProductCard({super.key, required this.product});
 
+  /// Преобразует ModifierGroups в список экранов
+  static List<ModifierScreen> _buildModifierScreens(ModifierGroups modifiers) {
+    final List<ModifierScreen> screens = [];
+    
+    if (modifiers.size != null) {
+      screens.add(ModifierScreen(
+        groupKey: 'size',
+        title: 'Выберите размер',
+        group: modifiers.size!,
+      ));
+    }
+    
+    if (modifiers.milk != null) {
+      screens.add(ModifierScreen(
+        groupKey: 'milk',
+        title: 'Выберите молоко',
+        group: modifiers.milk!,
+      ));
+    }
+    
+    if (modifiers.extras != null) {
+      screens.add(ModifierScreen(
+        groupKey: 'extras',
+        title: 'Дополнительно (можно несколько)',
+        group: modifiers.extras!,
+      ));
+    }
+    
+    return screens;
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () async {
         HapticFeedback.selectionClick();
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (_) => ProductDetailSheet(product: product),
-        );
+        
+        // Если есть модификаторы, открываем новый экран
+        if (product.modifiers != null) {
+          final screens = _buildModifierScreens(product.modifiers!);
+          if (screens.isNotEmpty) {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProductModifiersScreen(
+                  product: product,
+                  screens: screens,
+                ),
+              ),
+            );
+          }
+        }
       },
       child: Container(
         decoration: BoxDecoration(
