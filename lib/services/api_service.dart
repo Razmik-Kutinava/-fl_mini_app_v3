@@ -1,7 +1,9 @@
+import 'dart:convert';
 import '../models/location.dart';
 import '../models/product.dart';
 import '../models/category.dart';
 import 'supabase_service.dart';
+import 'package:http/http.dart' as http;
 
 class ApiService {
   // ==================== LOCATIONS ====================
@@ -9,19 +11,127 @@ class ApiService {
   Future<List<Location>> getLocations() async {
     try {
       final data = await SupabaseService.getLocations();
-      return data.map((json) => Location(
-        id: json['id'] ?? '',
-        name: json['name'] ?? '',
-        address: json['address'] ?? json['city'] ?? '',
-        lat: _parseDouble(json['latitude']),
-        lng: _parseDouble(json['longitude']),
-        rating: 4.5, // No rating in schema
-        workingHours: _formatWorkingHours(json),
-        isOpen: json['isAcceptingOrders'] ?? true,
-      )).toList();
+      final locations = <Location>[];
+      
+      for (var json in data) {
+        double lat = _parseDouble(json['latitude']);
+        double lng = _parseDouble(json['longitude']);
+        
+        // Если координаты отсутствуют, используем геокодинг
+        if (lat == 0 && lng == 0) {
+          final address = json['address'] ?? json['city'] ?? '';
+          final city = json['city'] ?? '';
+          final name = json['name'] ?? '';
+          
+          if (address.isNotEmpty || city.isNotEmpty) {
+            final coords = await _geocodeAddress(address, city, name);
+            if (coords != null) {
+              lat = coords['lat']!;
+              lng = coords['lng']!;
+              print('Geocoded location: $name -> lat: $lat, lng: $lng');
+            } else {
+              // Fallback координаты для Самары (если не удалось найти)
+              lat = 53.2001;
+              lng = 50.1400;
+              print('Using fallback coordinates for: $name');
+            }
+          }
+        }
+        
+        locations.add(Location(
+          id: json['id'] ?? '',
+          name: json['name'] ?? '',
+          address: json['address'] ?? json['city'] ?? '',
+          lat: lat,
+          lng: lng,
+          rating: 4.5, // No rating in schema
+          workingHours: _formatWorkingHours(json),
+          isOpen: json['isAcceptingOrders'] ?? true,
+        ));
+      }
+      
+      return locations;
     } catch (e) {
       print('Error loading locations: $e');
       return _mockLocations;
+    }
+  }
+  
+  /// Геокодинг адреса через OpenStreetMap Nominatim API
+  Future<Map<String, double>?> _geocodeAddress(String address, String city, String name) async {
+    try {
+      // Проверяем известные адреса (fallback)
+      final addressLower = address.toLowerCase();
+      final cityLower = city.toLowerCase();
+      final nameLower = name.toLowerCase();
+      
+      // Координаты для "Куйбышева 98 напи бар" в Самаре
+      if (addressLower.contains('куйбышева') || 
+          nameLower.contains('напибар') || 
+          nameLower.contains('напи бар')) {
+        // Улица Куйбышева, 98, Самара (приблизительные координаты)
+        return {'lat': 53.2001, 'lng': 50.1400};
+      }
+      
+      // Формируем поисковый запрос
+      String query = '';
+      if (address.isNotEmpty) {
+        query = address;
+        if (city.isNotEmpty && !address.toLowerCase().contains(city.toLowerCase())) {
+          query += ', $city';
+        }
+      } else if (city.isNotEmpty) {
+        query = city;
+      } else if (name.isNotEmpty) {
+        query = name;
+      }
+      
+      if (query.isEmpty) return null;
+      
+      // Добавляем "Россия" для более точного поиска
+      query += ', Россия';
+      
+      final encodedQuery = Uri.encodeComponent(query);
+      final url = 'https://nominatim.openstreetmap.org/search?q=$encodedQuery&format=json&limit=1&addressdetails=1';
+      
+      print('Geocoding request: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'User-Agent': 'FlutterCoffeeApp/1.0', // Требуется Nominatim
+        },
+      );
+      
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List && data.isNotEmpty) {
+          final result = data[0];
+          final lat = double.tryParse(result['lat']?.toString() ?? '') ?? 0.0;
+          final lon = double.tryParse(result['lon']?.toString() ?? '') ?? 0.0;
+          
+          if (lat != 0 && lon != 0) {
+            return {'lat': lat, 'lng': lon};
+          }
+        }
+      }
+      
+      print('Geocoding failed for: $query');
+      
+      // Fallback: если геокодинг не удался, используем координаты Самары
+      if (cityLower.contains('самара') || cityLower.contains('samara')) {
+        return {'lat': 53.2001, 'lng': 50.1400};
+      }
+      
+      return null;
+    } catch (e) {
+      print('Geocoding error: $e');
+      // Fallback для известных городов
+      final cityLower = city.toLowerCase();
+      if (cityLower.contains('самара') || cityLower.contains('samara')) {
+        return {'lat': 53.2001, 'lng': 50.1400};
+      }
+      return null;
     }
   }
 

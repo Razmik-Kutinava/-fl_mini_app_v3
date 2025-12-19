@@ -232,8 +232,10 @@ class _CartScreenState extends State<CartScreen> {
                                                 width: 70,
                                                 height: 70,
                                                 decoration: BoxDecoration(
-                                                  gradient: AppColors.gradientCoffee,
-                                                  borderRadius: BorderRadius.circular(12),
+                                                  gradient:
+                                                      AppColors.gradientCoffee,
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
                                                 ),
                                                 child: const Icon(
                                                   Icons.coffee,
@@ -246,19 +248,24 @@ class _CartScreenState extends State<CartScreen> {
                                                 width: 70,
                                                 height: 70,
                                                 fit: BoxFit.cover,
-                                                errorWidget: (_, __, ___) => Container(
-                                                  width: 70,
-                                                  height: 70,
-                                                  decoration: BoxDecoration(
-                                                    gradient: AppColors.gradientCoffee,
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: const Icon(
-                                                    Icons.coffee,
-                                                    color: Colors.white70,
-                                                    size: 30,
-                                                  ),
-                                                ),
+                                                errorWidget: (_, __, ___) =>
+                                                    Container(
+                                                      width: 70,
+                                                      height: 70,
+                                                      decoration: BoxDecoration(
+                                                        gradient: AppColors
+                                                            .gradientCoffee,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              12,
+                                                            ),
+                                                      ),
+                                                      child: const Icon(
+                                                        Icons.coffee,
+                                                        color: Colors.white70,
+                                                        size: 30,
+                                                      ),
+                                                    ),
                                               ),
                                       ),
                                       const SizedBox(width: 12),
