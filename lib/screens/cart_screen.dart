@@ -46,7 +46,7 @@ class _CartScreenState extends State<CartScreen> {
           discountAmount,
         );
 
-        await Haptics.Haptics.lightImpact();
+        HapticFeedback.lightImpact();
         Fluttertoast.showToast(
           msg: 'Промокод применён: -$discountPercent% 🎉',
           toastLength: Toast.LENGTH_SHORT,
@@ -62,11 +62,13 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   Future<void> _checkout() async {
-    await Haptics.Haptics.mediumImpact();
+    HapticFeedback.mediumImpact();
 
+    if (!mounted) return;
     final cartProvider = context.read<CartProvider>();
     final locationProvider = context.read<LocationProvider>();
 
+    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
