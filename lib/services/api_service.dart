@@ -71,17 +71,24 @@ class ApiService {
         
         // Формируем полный адрес
         String fullAddress = '';
-        if (json['address'] != null && json['address'].toString().isNotEmpty) {
-          fullAddress = json['address'].toString();
-          if (json['city'] != null && json['city'].toString().isNotEmpty) {
-            final city = json['city'].toString();
+        final rawAddress = json['address'];
+        final rawCity = json['city'];
+        
+        print('  Raw address: $rawAddress, Raw city: $rawCity');
+        
+        if (rawAddress != null && rawAddress.toString().isNotEmpty) {
+          fullAddress = rawAddress.toString();
+          if (rawCity != null && rawCity.toString().isNotEmpty) {
+            final city = rawCity.toString();
             if (!fullAddress.toLowerCase().contains(city.toLowerCase())) {
               fullAddress += ', $city';
             }
           }
-        } else if (json['city'] != null && json['city'].toString().isNotEmpty) {
-          fullAddress = json['city'].toString();
+        } else if (rawCity != null && rawCity.toString().isNotEmpty) {
+          fullAddress = rawCity.toString();
         }
+        
+        print('  Final address: $fullAddress');
         
         final location = Location(
           id: json['id'] ?? '',
