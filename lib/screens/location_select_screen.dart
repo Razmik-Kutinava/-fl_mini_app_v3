@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:glassmorphism/glassmorphism.dart';
+import 'package:geolocator/geolocator.dart';
 import '../constants/app_colors.dart';
 import '../models/location.dart';
 import '../providers/location_provider.dart';
@@ -28,7 +29,35 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
   @override
   void initState() {
     super.initState();
+    _requestUserLocation();
     _loadLocations();
+  }
+
+  /// Запрос геолокации пользователя
+  Future<void> _requestUserLocation() async {
+    try {
+      final locationProvider = context.read<LocationProvider>();
+      // Если геолокация уже есть, не запрашиваем снова
+      if (locationProvider.userPosition != null) return;
+      
+      // Проверяем разрешение
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+      
+      // Получаем текущую позицию
+      if (await Geolocator.isLocationServiceEnabled()) {
+        final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.medium,
+        );
+        if (mounted) {
+          locationProvider.setUserPosition(position);
+        }
+      }
+    } catch (e) {
+      print('Error getting user location: $e');
+    }
   }
 
   Future<void> _loadLocations() async {
@@ -37,17 +66,91 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
       context.read<LocationProvider>().setLocations(locations);
       setState(() => _isLoading = false);
       
-      // Центрируем карту на первой локации или пользователе
-      if (locations.isNotEmpty) {
-        final firstLoc = locations.first;
-        if (firstLoc.lat != 0 && firstLoc.lng != 0) {
-          _mapController.move(
-            LatLng(firstLoc.lat, firstLoc.lng),
-            13.0,
-          );
-        }
+      // Показываем все точки на карте
+      final validLocations = locations.where((loc) => loc.lat != 0 && loc.lng != 0).toList();
+      if (validLocations.isNotEmpty) {
+        // Используем fitBounds для показа всех точек
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _fitBounds(validLocations);
+        });
       }
     }
+  }
+
+  /// Вычисляет границы всех точек и устанавливает карту так, чтобы все были видны
+  void _fitBounds(List<Location> locations) {
+    if (locations.isEmpty) return;
+    
+    final userPos = context.read<LocationProvider>().userPosition;
+    final allPoints = <LatLng>[];
+    
+    // Добавляем все точки локаций
+    for (var loc in locations) {
+      if (loc.lat != 0 && loc.lng != 0) {
+        allPoints.add(LatLng(loc.lat, loc.lng));
+      }
+    }
+    
+    // Добавляем позицию пользователя, если есть
+    if (userPos != null) {
+      allPoints.add(LatLng(userPos.latitude, userPos.longitude));
+    }
+    
+    if (allPoints.isEmpty) return;
+    
+    // Вычисляем границы
+    double minLat = allPoints.first.latitude;
+    double maxLat = allPoints.first.latitude;
+    double minLng = allPoints.first.longitude;
+    double maxLng = allPoints.first.longitude;
+    
+    for (var point in allPoints) {
+      minLat = minLat < point.latitude ? minLat : point.latitude;
+      maxLat = maxLat > point.latitude ? maxLat : point.latitude;
+      minLng = minLng < point.longitude ? minLng : point.longitude;
+      maxLng = maxLng > point.longitude ? maxLng : point.longitude;
+    }
+    
+    // Вычисляем центр
+    final centerLat = (minLat + maxLat) / 2;
+    final centerLng = (minLng + maxLng) / 2;
+    
+    // Вычисляем оптимальный зум на основе разницы координат
+    final latDiff = maxLat - minLat;
+    final lngDiff = maxLng - minLng;
+    final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
+    
+    // Вычисляем зум
+    double zoom;
+    if (maxDiff > 50) {
+      zoom = 2.0; // Весь мир
+    } else if (maxDiff > 20) {
+      zoom = 3.0; // Континент
+    } else if (maxDiff > 10) {
+      zoom = 4.0; // Большая страна
+    } else if (maxDiff > 5) {
+      zoom = 5.0; // Страна
+    } else if (maxDiff > 2) {
+      zoom = 6.0; // Регион
+    } else if (maxDiff > 1) {
+      zoom = 7.0; // Область
+    } else if (maxDiff > 0.5) {
+      zoom = 9.0; // Город
+    } else if (maxDiff > 0.1) {
+      zoom = 11.0; // Район
+    } else {
+      zoom = 13.0; // Несколько точек рядом
+    }
+    
+    // Добавляем padding (немного уменьшаем зум для лучшего отображения)
+    zoom = zoom - 0.5;
+    if (zoom < 1.0) zoom = 1.0;
+    
+    // Устанавливаем карту
+    _mapController.move(
+      LatLng(centerLat, centerLng),
+      zoom,
+    );
   }
 
   void _selectLocation(Location location) {
@@ -59,34 +162,67 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
   }
 
   LatLng _getCenterPoint(List<Location> locations) {
-    // Если есть локации с валидными координатами, используем первую
     final validLocations = locations.where((loc) => loc.lat != 0 && loc.lng != 0).toList();
-    if (validLocations.isNotEmpty) {
-      return LatLng(validLocations.first.lat, validLocations.first.lng);
+    
+    if (validLocations.isEmpty) {
+      final userPos = context.read<LocationProvider>().userPosition;
+      if (userPos != null) {
+        return LatLng(userPos.latitude, userPos.longitude);
+      }
+      // Fallback: центр мира
+      return const LatLng(40.0, 50.0);
     }
     
-    final userPos = context.read<LocationProvider>().userPosition;
-    if (userPos != null) {
-      return LatLng(userPos.latitude, userPos.longitude);
-    }
-    
-    // Центр между всеми локациями
+    // Вычисляем центр всех точек
     double sumLat = 0, sumLng = 0;
     int count = 0;
-    for (var loc in locations) {
-      if (loc.lat != 0 && loc.lng != 0) {
-        sumLat += loc.lat;
-        sumLng += loc.lng;
-        count++;
-      }
+    for (var loc in validLocations) {
+      sumLat += loc.lat;
+      sumLng += loc.lng;
+      count++;
     }
     
     if (count > 0) {
       return LatLng(sumLat / count, sumLng / count);
     }
     
-    // Fallback: Самара вместо Москвы
-    return const LatLng(53.2015, 50.1405);
+    return const LatLng(40.0, 50.0);
+  }
+
+  double _getInitialZoom(List<Location> locations) {
+    final validLocations = locations.where((loc) => loc.lat != 0 && loc.lng != 0).toList();
+    
+    if (validLocations.length <= 1) {
+      return 13.0; // Одна точка - показываем крупно
+    }
+    
+    // Вычисляем разброс точек
+    double minLat = validLocations.first.lat;
+    double maxLat = validLocations.first.lat;
+    double minLng = validLocations.first.lng;
+    double maxLng = validLocations.first.lng;
+    
+    for (var loc in validLocations) {
+      if (loc.lat < minLat) minLat = loc.lat;
+      if (loc.lat > maxLat) maxLat = loc.lat;
+      if (loc.lng < minLng) minLng = loc.lng;
+      if (loc.lng > maxLng) maxLng = loc.lng;
+    }
+    
+    final latDiff = maxLat - minLat;
+    final lngDiff = maxLng - minLng;
+    final maxDiff = latDiff > lngDiff ? latDiff : lngDiff;
+    
+    // Определяем зум на основе разброса
+    if (maxDiff > 50) return 2.0; // Весь мир
+    if (maxDiff > 20) return 3.0; // Континент
+    if (maxDiff > 10) return 4.0; // Большая страна
+    if (maxDiff > 5) return 5.0; // Страна
+    if (maxDiff > 2) return 6.0; // Регион
+    if (maxDiff > 1) return 7.0; // Область
+    if (maxDiff > 0.5) return 9.0; // Город
+    if (maxDiff > 0.1) return 11.0; // Район
+    return 13.0; // Несколько точек рядом
   }
 
   @override
@@ -104,8 +240,8 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: centerPoint,
-              initialZoom: 14.0, // Увеличиваем зум для лучшего отображения
-              minZoom: 10.0,
+              initialZoom: _getInitialZoom(locations),
+              minZoom: 1.0, // Минимальный зум для показа всего мира
               maxZoom: 18.0,
               onTap: (tapPosition, point) {
                 setState(() => _selectedLocationOnMap = null);

@@ -86,13 +86,22 @@ class ApiService {
       final cityLower = city.toLowerCase();
       final nameLower = name.toLowerCase();
       
+      // Координаты для известных адресов (fallback)
       // Координаты для "Куйбышева 98 напи бар" в Самаре
-      if (addressLower.contains('куйбышева') || 
+      if ((addressLower.contains('куйбышева') || 
           nameLower.contains('напибар') || 
-          nameLower.contains('напи бар')) {
+          nameLower.contains('напи бар')) &&
+          (cityLower.contains('самара') || cityLower.isEmpty)) {
         // Улица Куйбышева, 98, Самара (точные координаты)
-        // 53.2015, 50.1405 - более точные координаты для ул. Куйбышева, 98
         return {'lat': 53.2015, 'lng': 50.1405};
+      }
+      
+      // Координаты для Еревана
+      if (cityLower.contains('ереван') || 
+          cityLower.contains('yerevan') ||
+          addressLower.contains('ереван')) {
+        // Ереван, Армения (центр города)
+        return {'lat': 40.1811, 'lng': 44.5136};
       }
       
       // Формируем поисковый запрос
@@ -110,8 +119,22 @@ class ApiService {
       
       if (query.isEmpty) return null;
       
-      // Добавляем "Россия" для более точного поиска
-      query += ', Россия';
+      // Добавляем страну только если не указана (для международных адресов)
+      // Проверяем, содержит ли запрос название страны
+      final queryLower = query.toLowerCase();
+      if (!queryLower.contains('россия') && 
+          !queryLower.contains('russia') &&
+          !queryLower.contains('армения') &&
+          !queryLower.contains('armenia') &&
+          !queryLower.contains('ереван') &&
+          !queryLower.contains('yerevan')) {
+        // Если город содержит "самара" или "samara", добавляем "Россия"
+        if (cityLower.contains('самара') || cityLower.contains('samara')) {
+          query += ', Россия';
+        } else if (cityLower.contains('ереван') || cityLower.contains('yerevan')) {
+          query += ', Армения';
+        }
+      }
       
       final encodedQuery = Uri.encodeComponent(query);
       final url = 'https://nominatim.openstreetmap.org/search?q=$encodedQuery&format=json&limit=1&addressdetails=1';
