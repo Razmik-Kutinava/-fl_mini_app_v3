@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../constants/app_colors.dart';
 
 class PromoBanner extends StatelessWidget {
@@ -80,7 +81,8 @@ class PromoBanner extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
+                      ).animate(onPlay: (controller) => controller.repeat())
+                          .shimmer(duration: 2000.ms, color: Colors.white.withOpacity(0.5)),
                       const SizedBox(height: 8),
                       Text(
                         '-20%',
@@ -90,7 +92,10 @@ class PromoBanner extends StatelessWidget {
                           fontSize: 36,
                           height: 1,
                         ),
-                      ),
+                      ).animate()
+                          .scale(delay: 200.ms, duration: 600.ms)
+                          .then()
+                          .shake(duration: 1000.ms),
                       const SizedBox(height: 4),
                       Text(
                         'на первый заказ',
