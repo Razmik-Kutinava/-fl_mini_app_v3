@@ -59,7 +59,11 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
   }
 
   LatLng _getCenterPoint(List<Location> locations) {
-    if (locations.isEmpty) return const LatLng(55.7558, 37.6173); // Москва по умолчанию
+    // Если есть локации с валидными координатами, используем первую
+    final validLocations = locations.where((loc) => loc.lat != 0 && loc.lng != 0).toList();
+    if (validLocations.isNotEmpty) {
+      return LatLng(validLocations.first.lat, validLocations.first.lng);
+    }
     
     final userPos = context.read<LocationProvider>().userPosition;
     if (userPos != null) {
@@ -81,7 +85,8 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
       return LatLng(sumLat / count, sumLng / count);
     }
     
-    return const LatLng(55.7558, 37.6173);
+    // Fallback: Самара вместо Москвы
+    return const LatLng(53.2015, 50.1405);
   }
 
   @override
@@ -99,7 +104,7 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: centerPoint,
-              initialZoom: 12.0,
+              initialZoom: 14.0, // Увеличиваем зум для лучшего отображения
               minZoom: 10.0,
               maxZoom: 18.0,
               onTap: (tapPosition, point) {

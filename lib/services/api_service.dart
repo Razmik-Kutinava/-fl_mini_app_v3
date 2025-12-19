@@ -31,17 +31,38 @@ class ApiService {
               print('Geocoded location: $name -> lat: $lat, lng: $lng');
             } else {
               // Fallback координаты для Самары (если не удалось найти)
-              lat = 53.2001;
-              lng = 50.1400;
-              print('Using fallback coordinates for: $name');
+              final cityLower = city.toLowerCase();
+              if (cityLower.contains('самара') || cityLower.contains('samara') || 
+                  name.toLowerCase().contains('напибар')) {
+                lat = 53.2015;
+                lng = 50.1405;
+              } else {
+                lat = 53.2001;
+                lng = 50.1400;
+              }
+              print('Using fallback coordinates for: $name -> lat: $lat, lng: $lng');
             }
           }
+        }
+        
+        // Формируем полный адрес
+        String fullAddress = '';
+        if (json['address'] != null && json['address'].toString().isNotEmpty) {
+          fullAddress = json['address'].toString();
+          if (json['city'] != null && json['city'].toString().isNotEmpty) {
+            final city = json['city'].toString();
+            if (!fullAddress.toLowerCase().contains(city.toLowerCase())) {
+              fullAddress += ', $city';
+            }
+          }
+        } else if (json['city'] != null && json['city'].toString().isNotEmpty) {
+          fullAddress = json['city'].toString();
         }
         
         locations.add(Location(
           id: json['id'] ?? '',
           name: json['name'] ?? '',
-          address: json['address'] ?? json['city'] ?? '',
+          address: fullAddress,
           lat: lat,
           lng: lng,
           rating: 4.5, // No rating in schema
@@ -69,8 +90,9 @@ class ApiService {
       if (addressLower.contains('куйбышева') || 
           nameLower.contains('напибар') || 
           nameLower.contains('напи бар')) {
-        // Улица Куйбышева, 98, Самара (приблизительные координаты)
-        return {'lat': 53.2001, 'lng': 50.1400};
+        // Улица Куйбышева, 98, Самара (точные координаты)
+        // 53.2015, 50.1405 - более точные координаты для ул. Куйбышева, 98
+        return {'lat': 53.2015, 'lng': 50.1405};
       }
       
       // Формируем поисковый запрос
@@ -119,8 +141,9 @@ class ApiService {
       print('Geocoding failed for: $query');
       
       // Fallback: если геокодинг не удался, используем координаты Самары
-      if (cityLower.contains('самара') || cityLower.contains('samara')) {
-        return {'lat': 53.2001, 'lng': 50.1400};
+      if (cityLower.contains('самара') || cityLower.contains('samara') ||
+          nameLower.contains('напибар')) {
+        return {'lat': 53.2015, 'lng': 50.1405};
       }
       
       return null;
@@ -128,8 +151,10 @@ class ApiService {
       print('Geocoding error: $e');
       // Fallback для известных городов
       final cityLower = city.toLowerCase();
-      if (cityLower.contains('самара') || cityLower.contains('samara')) {
-        return {'lat': 53.2001, 'lng': 50.1400};
+      final nameLower = name.toLowerCase();
+      if (cityLower.contains('самара') || cityLower.contains('samara') ||
+          nameLower.contains('напибар')) {
+        return {'lat': 53.2015, 'lng': 50.1405};
       }
       return null;
     }
