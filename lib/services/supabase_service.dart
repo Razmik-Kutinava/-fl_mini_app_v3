@@ -126,11 +126,17 @@ class SupabaseService {
           .map((e) => e['modifierGroupId'])
           .toList();
 
+      if (groupIds.isEmpty) {
+        print('No modifier group IDs found for product: $productId');
+        return [];
+      }
+      
       final response = await client
           .from('ModifierGroup')
           .select()
-          .inFilter('id', groupIds)
-          .order('sortOrder', ascending: true);
+          .inFilter('id', groupIds);
+      
+      print('ModifierGroups response: $response');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('Supabase ModifierGroups error: $e');
