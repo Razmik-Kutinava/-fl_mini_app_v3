@@ -18,6 +18,8 @@ class ProductCard extends StatelessWidget {
     return GestureDetector(
       onTap: () async {
         HapticFeedback.selectionClick();
+        print('Opening ProductModifiersScreen for: ${product.name}');
+        print('Product modifiers: ${product.modifiers}');
         Navigator.push(
           context,
           MaterialPageRoute(

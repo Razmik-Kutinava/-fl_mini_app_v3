@@ -47,8 +47,12 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
   void _buildScreens() {
     _screens = [];
     
+    print('Building modifier screens for: ${widget.product.name}');
+    print('Modifiers: ${widget.product.modifiers}');
+    
     // Экран 1: Размер (если есть)
     if (widget.product.modifiers?.size != null) {
+      print('Adding size screen');
       _screens.add(ModifierScreenData(
         title: 'Выберите размер',
         group: widget.product.modifiers!.size!,
@@ -78,6 +82,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
 
     // Если нет модификаторов, сразу показываем финальный экран
     if (_screens.isEmpty) {
+      print('No modifiers found, adding final screen');
       _screens.add(ModifierScreenData(
         title: 'Добавить в корзину',
         group: null,
@@ -85,6 +90,8 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
         isFinal: true,
       ));
     }
+    
+    print('Total screens: ${_screens.length}');
   }
 
   bool get _canProceed {
