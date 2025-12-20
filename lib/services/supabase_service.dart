@@ -120,10 +120,31 @@ class SupabaseService {
 
       // Получаем связи продукт-модификатор
       print('📋 Querying ProductModifierGroup table...');
-      final links = await client
-          .from('ProductModifierGroup')
-          .select('modifierGroupId')
-          .eq('productId', productId);
+      print('📋 Product ID for query: "$productId"');
+      
+      // Пробуем разные варианты запроса
+      List<dynamic> links = [];
+      try {
+        links = await client
+            .from('ProductModifierGroup')
+            .select('modifierGroupId')
+            .eq('productId', productId) as List<dynamic>;
+        print('✅ Query successful');
+      } catch (e) {
+        print('❌ Query failed: $e');
+        // Пробуем без фильтра
+        try {
+          final allLinks = await client
+              .from('ProductModifierGroup')
+              .select('*') as List<dynamic>;
+          print('📋 All links without filter: $allLinks');
+          // Фильтруем вручную
+          links = allLinks.where((link) => link['productId'] == productId).toList();
+          print('📋 Filtered links: $links');
+        } catch (e2) {
+          print('❌ Fallback query also failed: $e2');
+        }
+      }
 
       print('📋 ProductModifierGroup links: $links');
       print('📋 Links type: ${links.runtimeType}');
@@ -135,13 +156,29 @@ class SupabaseService {
 
         // Попробуем получить все записи для отладки
         try {
+          print('🔍 Trying to get all ProductModifierGroup records...');
           final allLinks = await client
               .from('ProductModifierGroup')
               .select('*')
               .limit(10);
           print('📋 All ProductModifierGroup records (first 10): $allLinks');
+          print('📋 Count: ${(allLinks as List).length}');
+          
+          // Также проверим через другой запрос
+          final testQuery = await client
+              .from('ProductModifierGroup')
+              .select('id, productId, modifierGroupId');
+          print('📋 Test query result: $testQuery');
+          print('📋 Test query count: ${(testQuery as List).length}');
         } catch (e) {
           print('❌ Error getting all ProductModifierGroup: $e');
+          print('❌ Error type: ${e.runtimeType}');
+          if (e is PostgrestException) {
+            print('❌ PostgrestException details: ${e.message}');
+            print('❌ Code: ${e.code}');
+            print('❌ Details: ${e.details}');
+            print('❌ Hint: ${e.hint}');
+          }
         }
 
         return [];
