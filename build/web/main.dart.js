@@ -49908,7 +49908,8 @@ break}j=e.gL(e)
 s=10
 return A.o(A.at2(J.al(j,"id")),$async$vq)
 case 10:i=a5
-c=J.al(j,"isRequired")
+c=J.al(j,"required")
+if(c==null)c=J.al(j,"isRequired")
 if(c==null)c=!1
 b=J.d(J.al(j,"type"),"MULTIPLE")?"multiple":"single"
 a=J.jK(i,new A.a72(),d)

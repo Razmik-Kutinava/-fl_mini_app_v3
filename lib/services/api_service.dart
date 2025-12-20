@@ -309,7 +309,7 @@ class ApiService {
       for (var group in groups) {
         final options = await SupabaseService.getModifierOptions(group['id']);
         final modifierGroup = ModifierGroup(
-          required: group['isRequired'] ?? false,
+          required: group['required'] ?? group['isRequired'] ?? false,
           type: group['type'] == 'MULTIPLE' ? 'multiple' : 'single',
           options: options.map((opt) => ModifierOption(
             label: opt['name'] ?? '',
