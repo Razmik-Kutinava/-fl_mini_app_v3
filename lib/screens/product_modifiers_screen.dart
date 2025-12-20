@@ -82,7 +82,13 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
 
     // Если нет модификаторов, сразу показываем финальный экран
     if (_screens.isEmpty) {
-      print('No modifiers found, adding final screen');
+      print('⚠️ No modifiers found for product: ${widget.product.name}');
+      print('⚠️ Product ID: ${widget.product.id}');
+      print('⚠️ This usually means:');
+      print('   1. No ModifierGroups created in Supabase');
+      print('   2. No ProductModifierGroup links created');
+      print('   3. RLS policies blocking access');
+      print('⚠️ Solution: Run create_product_modifier_links.sql in Supabase SQL Editor');
       _screens.add(ModifierScreenData(
         title: 'Добавить в корзину',
         group: null,
