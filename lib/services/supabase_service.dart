@@ -115,7 +115,7 @@ class SupabaseService {
   ) async {
     try {
       print('🔍 Getting modifier groups for product: $productId');
-      
+
       // Получаем связи продукт-модификатор
       final links = await client
           .from('ProductModifierGroup')
@@ -148,11 +148,13 @@ class SupabaseService {
 
       print('✅ ModifierGroups response: $response');
       print('✅ ModifierGroups count: ${(response as List).length}');
-      
+
       for (var group in response) {
-        print('  - Group: ${group['name']}, type: ${group['type']}, required: ${group['required']}');
+        print(
+          '  - Group: ${group['name']}, type: ${group['type']}, required: ${group['required']}',
+        );
       }
-      
+
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('❌ Supabase ModifierGroups error: $e');
@@ -172,12 +174,16 @@ class SupabaseService {
           .eq('groupId', groupId)
           .eq('isActive', true)
           .order('sortOrder', ascending: true);
-      
-      print('✅ ModifierOptions for group $groupId: ${(response as List).length} options');
+
+      print(
+        '✅ ModifierOptions for group $groupId: ${(response as List).length} options',
+      );
       for (var opt in response) {
-        print('  - Option: ${opt['name']}, price: ${opt['price']}, emoji: ${opt['emoji']}');
+        print(
+          '  - Option: ${opt['name']}, price: ${opt['price']}, emoji: ${opt['emoji']}',
+        );
       }
-      
+
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('❌ Supabase ModifierOptions error: $e');
