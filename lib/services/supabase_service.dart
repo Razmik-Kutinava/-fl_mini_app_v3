@@ -121,25 +121,29 @@ class SupabaseService {
       // Получаем связи продукт-модификатор
       print('📋 Querying ProductModifierGroup table...');
       print('📋 Product ID for query: "$productId"');
-      
+
       // Пробуем разные варианты запроса
       List<dynamic> links = [];
       try {
-        links = await client
-            .from('ProductModifierGroup')
-            .select('modifierGroupId')
-            .eq('productId', productId) as List<dynamic>;
+        links =
+            await client
+                    .from('ProductModifierGroup')
+                    .select('modifierGroupId')
+                    .eq('productId', productId)
+                as List<dynamic>;
         print('✅ Query successful');
       } catch (e) {
         print('❌ Query failed: $e');
         // Пробуем без фильтра
         try {
-          final allLinks = await client
-              .from('ProductModifierGroup')
-              .select('*') as List<dynamic>;
+          final allLinks =
+              await client.from('ProductModifierGroup').select('*')
+                  as List<dynamic>;
           print('📋 All links without filter: $allLinks');
           // Фильтруем вручную
-          links = allLinks.where((link) => link['productId'] == productId).toList();
+          links = allLinks
+              .where((link) => link['productId'] == productId)
+              .toList();
           print('📋 Filtered links: $links');
         } catch (e2) {
           print('❌ Fallback query also failed: $e2');
@@ -152,32 +156,43 @@ class SupabaseService {
 
       if (links.isEmpty) {
         print('⚠️ No ProductModifierGroup links found for product: $productId');
-        print('⚠️ Checking if table exists and has data...');
-
-        // Попробуем получить все записи для отладки
+        print('🔄 FALLBACK: Loading ALL modifier groups (if ProductModifierGroup is empty)');
+        
+        // Проверяем, есть ли вообще записи в ProductModifierGroup
         try {
-          print('🔍 Trying to get all ProductModifierGroup records...');
           final allLinks = await client
               .from('ProductModifierGroup')
               .select('*')
-              .limit(10);
-          print('📋 All ProductModifierGroup records (first 10): $allLinks');
-          print('📋 Count: ${(allLinks as List).length}');
+              .limit(1) as List<dynamic>;
           
-          // Также проверим через другой запрос
-          final testQuery = await client
-              .from('ProductModifierGroup')
-              .select('id, productId, modifierGroupId');
-          print('📋 Test query result: $testQuery');
-          print('📋 Test query count: ${(testQuery as List).length}');
+          if (allLinks.isEmpty) {
+            print('📋 ProductModifierGroup table is completely empty');
+            print('🔄 Loading ALL modifier groups as fallback...');
+            
+            // Загружаем все группы модификаторов
+            final allGroups = await client
+                .from('ModifierGroup')
+                .select() as List<dynamic>;
+            
+            print('✅ Loaded ${allGroups.length} modifier groups (fallback mode)');
+            print('⚠️ WARNING: Using fallback mode - all groups will be shown for all products');
+            
+            return List<Map<String, dynamic>>.from(allGroups);
+          } else {
+            print('📋 ProductModifierGroup has ${allLinks.length} records, but none match productId');
+          }
         } catch (e) {
-          print('❌ Error getting all ProductModifierGroup: $e');
-          print('❌ Error type: ${e.runtimeType}');
-          if (e is PostgrestException) {
-            print('❌ PostgrestException details: ${e.message}');
-            print('❌ Code: ${e.code}');
-            print('❌ Details: ${e.details}');
-            print('❌ Hint: ${e.hint}');
+          print('❌ Error checking ProductModifierGroup: $e');
+          // Если даже проверка не работает, пробуем загрузить все группы
+          try {
+            print('🔄 Last resort: Loading ALL modifier groups...');
+            final allGroups = await client
+                .from('ModifierGroup')
+                .select() as List<dynamic>;
+            print('✅ Loaded ${allGroups.length} modifier groups (last resort)');
+            return List<Map<String, dynamic>>.from(allGroups);
+          } catch (e2) {
+            print('❌ Failed to load modifier groups: $e2');
           }
         }
 
