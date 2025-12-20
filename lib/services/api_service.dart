@@ -300,8 +300,10 @@ class ApiService {
   Future<ModifierGroups?> _loadProductModifiers(String productId) async {
     try {
       print('🔄 Loading modifiers for product: $productId');
+      print('🔄 Product ID in _loadProductModifiers: "$productId"');
       final groups = await SupabaseService.getModifierGroups(productId);
       print('📦 Loaded ${groups.length} modifier groups');
+      print('📦 Groups data: $groups');
       
       if (groups.isEmpty) {
         print('⚠️ No modifier groups found for product: $productId');

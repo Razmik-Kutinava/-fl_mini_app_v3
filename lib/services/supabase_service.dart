@@ -115,18 +115,35 @@ class SupabaseService {
   ) async {
     try {
       print('🔍 Getting modifier groups for product: $productId');
+      print('🔍 Product ID type: ${productId.runtimeType}');
+      print('🔍 Product ID value: "$productId"');
 
       // Получаем связи продукт-модификатор
+      print('📋 Querying ProductModifierGroup table...');
       final links = await client
           .from('ProductModifierGroup')
           .select('modifierGroupId')
           .eq('productId', productId);
 
       print('📋 ProductModifierGroup links: $links');
-      print('📋 Links count: ${links.length}');
+      print('📋 Links type: ${links.runtimeType}');
+      print('📋 Links count: ${(links as List).length}');
 
       if (links.isEmpty) {
         print('⚠️ No ProductModifierGroup links found for product: $productId');
+        print('⚠️ Checking if table exists and has data...');
+        
+        // Попробуем получить все записи для отладки
+        try {
+          final allLinks = await client
+              .from('ProductModifierGroup')
+              .select('*')
+              .limit(10);
+          print('📋 All ProductModifierGroup records (first 10): $allLinks');
+        } catch (e) {
+          print('❌ Error getting all ProductModifierGroup: $e');
+        }
+        
         return [];
       }
 
@@ -135,18 +152,21 @@ class SupabaseService {
           .toList();
 
       print('📋 Group IDs to fetch: $groupIds');
+      print('📋 Group IDs count: ${groupIds.length}');
 
       if (groupIds.isEmpty) {
         print('⚠️ No modifier group IDs found for product: $productId');
         return [];
       }
 
+      print('📋 Querying ModifierGroup table with IDs: $groupIds');
       final response = await client
           .from('ModifierGroup')
           .select()
           .inFilter('id', groupIds);
 
       print('✅ ModifierGroups response: $response');
+      print('✅ ModifierGroups type: ${response.runtimeType}');
       print('✅ ModifierGroups count: ${(response as List).length}');
 
       for (var group in response) {
@@ -158,7 +178,10 @@ class SupabaseService {
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       print('❌ Supabase ModifierGroups error: $e');
-      print('❌ Stack trace: ${StackTrace.current}');
+      print('❌ Error type: ${e.runtimeType}');
+      if (e is Exception) {
+        print('❌ Error message: ${e.toString()}');
+      }
       return [];
     }
   }
