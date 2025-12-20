@@ -130,12 +130,12 @@ class SupabaseService {
         print('No modifier group IDs found for product: $productId');
         return [];
       }
-      
+
       final response = await client
           .from('ModifierGroup')
           .select()
           .inFilter('id', groupIds);
-      
+
       print('ModifierGroups response: $response');
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
