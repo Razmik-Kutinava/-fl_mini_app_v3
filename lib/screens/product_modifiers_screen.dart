@@ -1,95 +1,119 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import 'package:confetti/confetti.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../constants/app_colors.dart';
 import '../models/product.dart';
 import '../models/cart_item.dart';
-import '../widgets/modifier_cube.dart';
 import '../providers/cart_provider.dart';
+import '../widgets/modifier_cube.dart';
 
-/// Экран выбора модификаторов с кубиками
-/// Верхняя часть (60%) - выбранные кубики
-/// Нижняя часть (40%) - grid кубиков для выбора
 class ProductModifiersScreen extends StatefulWidget {
   final Product product;
-  final List<ModifierScreen> screens;
 
-  const ProductModifiersScreen({
-    super.key,
-    required this.product,
-    required this.screens,
-  });
+  const ProductModifiersScreen({super.key, required this.product});
 
   @override
   State<ProductModifiersScreen> createState() => _ProductModifiersScreenState();
 }
 
 class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
-  int _currentScreenIndex = 0;
-  Map<String, dynamic> _selectedModifiers = {};
-  int _quantity = 1;
+  late PageController _pageController;
+  int _currentPage = 0;
+  late List<ModifierScreenData> _screens;
+  late Map<String, dynamic> _selectedModifiers;
   late ConfettiController _confettiController;
 
   @override
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 1));
-    // Инициализируем пустые выборы для каждого экрана
-    for (var screen in widget.screens) {
-      if (screen.group.type == 'single') {
-        _selectedModifiers[screen.groupKey] = null;
-      } else {
-        _selectedModifiers[screen.groupKey] = [];
-      }
-    }
+    _selectedModifiers = {};
+    _buildScreens();
+    _pageController = PageController();
   }
 
   @override
   void dispose() {
+    _pageController.dispose();
     _confettiController.dispose();
     super.dispose();
   }
 
-  ModifierScreen get currentScreen => widget.screens[_currentScreenIndex];
-
-  bool get canProceed {
-    final screen = currentScreen;
-    if (screen.group.required) {
-      if (screen.group.type == 'single') {
-        return _selectedModifiers[screen.groupKey] != null;
-      } else {
-        final selected = _selectedModifiers[screen.groupKey] as List;
-        return selected.isNotEmpty;
-      }
+  void _buildScreens() {
+    _screens = [];
+    
+    // Экран 1: Размер (если есть)
+    if (widget.product.modifiers?.size != null) {
+      _screens.add(ModifierScreenData(
+        title: 'Выберите размер',
+        group: widget.product.modifiers!.size!,
+        key: 'size',
+      ));
     }
-    return true; // Опциональные можно пропустить
+
+    // Экран 2: Молоко (если есть)
+    if (widget.product.modifiers?.milk != null) {
+      _screens.add(ModifierScreenData(
+        title: 'Выберите молоко',
+        group: widget.product.modifiers!.milk!,
+        key: 'milk',
+        isOptional: !widget.product.modifiers!.milk!.required,
+      ));
+    }
+
+    // Экран 3: Дополнительно (если есть)
+    if (widget.product.modifiers?.extras != null) {
+      _screens.add(ModifierScreenData(
+        title: 'Дополнительно',
+        group: widget.product.modifiers!.extras!,
+        key: 'extras',
+        isOptional: !widget.product.modifiers!.extras!.required,
+      ));
+    }
+
+    // Если нет модификаторов, сразу показываем финальный экран
+    if (_screens.isEmpty) {
+      _screens.add(ModifierScreenData(
+        title: 'Добавить в корзину',
+        group: null,
+        key: 'final',
+        isFinal: true,
+      ));
+    }
   }
 
-  bool get isLastScreen => _currentScreenIndex == widget.screens.length - 1;
+  bool get _canProceed {
+    if (_currentPage >= _screens.length) return false;
+    final screen = _screens[_currentPage];
+    
+    if (screen.isFinal) return true;
+    if (screen.isOptional) return true;
+    
+    // Проверяем обязательные модификаторы
+    return _selectedModifiers.containsKey(screen.key) &&
+        _selectedModifiers[screen.key] != null;
+  }
 
-  double get totalPrice {
-    double total = widget.product.price * _quantity;
+  double get _totalPrice {
+    double total = widget.product.price;
 
-    for (var screen in widget.screens) {
-      final selected = _selectedModifiers[screen.groupKey];
-      if (selected != null) {
-        if (screen.group.type == 'single') {
-          final idx = selected as int;
-          if (idx < screen.group.options.length) {
-            total += screen.group.options[idx].price * _quantity;
-          }
-        } else {
-          final indices = selected as List<int>;
-          for (var idx in indices) {
-            if (idx < screen.group.options.length) {
-              total += screen.group.options[idx].price * _quantity;
-            }
-          }
+    // Добавляем цену выбранных модификаторов
+    for (var screen in _screens) {
+      if (screen.key == 'size' && _selectedModifiers['size'] != null) {
+        final index = _selectedModifiers['size'] as int;
+        total += screen.group!.options[index].price;
+      } else if (screen.key == 'milk' && _selectedModifiers['milk'] != null) {
+        final index = _selectedModifiers['milk'] as int;
+        total += screen.group!.options[index].price;
+      } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
+        final indices = _selectedModifiers['extras'] as List<int>;
+        for (var idx in indices) {
+          total += screen.group!.options[idx].price;
         }
       }
     }
@@ -97,77 +121,100 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     return total;
   }
 
-  List<SelectedModifier> get selectedModifiersList {
-    final List<SelectedModifier> list = [];
+  List<SelectedCube> get _selectedCubes {
+    final cubes = <SelectedCube>[];
 
-    for (var screen in widget.screens) {
-      final selected = _selectedModifiers[screen.groupKey];
-      if (selected != null) {
-        if (screen.group.type == 'single') {
-          final idx = selected as int;
-          if (idx < screen.group.options.length) {
-            list.add(SelectedModifier(
-              groupKey: screen.groupKey,
-              option: screen.group.options[idx],
-            ));
-          }
-        } else {
-          final indices = selected as List<int>;
-          for (var idx in indices) {
-            if (idx < screen.group.options.length) {
-              list.add(SelectedModifier(
-                groupKey: screen.groupKey,
-                option: screen.group.options[idx],
-              ));
-            }
-          }
+    for (var screen in _screens) {
+      if (screen.key == 'size' && _selectedModifiers['size'] != null) {
+        final index = _selectedModifiers['size'] as int;
+        final option = screen.group!.options[index];
+        cubes.add(SelectedCube(
+          label: option.label,
+          volume: option.volume,
+          price: option.price,
+        ));
+      } else if (screen.key == 'milk' && _selectedModifiers['milk'] != null) {
+        final index = _selectedModifiers['milk'] as int;
+        final option = screen.group!.options[index];
+        cubes.add(SelectedCube(
+          label: option.label,
+          price: option.price,
+        ));
+      } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
+        final indices = _selectedModifiers['extras'] as List<int>;
+        for (var idx in indices) {
+          final option = screen.group!.options[idx];
+          cubes.add(SelectedCube(
+            label: option.label,
+            emoji: option.emoji,
+            price: option.price,
+          ));
         }
       }
     }
 
-    return list;
+    return cubes;
   }
 
-  void _selectModifier(int index) {
+  void _onModifierTap(ModifierScreenData screen, int index) {
     setState(() {
-      final screen = currentScreen;
-      if (screen.group.type == 'single') {
-        // Одиночный выбор - заменяем предыдущий
-        _selectedModifiers[screen.groupKey] = index;
-        HapticFeedback.selectionClick();
+      if (screen.group!.type == 'single') {
+        // Одиночный выбор
+        _selectedModifiers[screen.key] = index;
       } else {
-        // Множественный выбор - добавляем/убираем
-        final selected = _selectedModifiers[screen.groupKey] as List<int>;
-        if (selected.contains(index)) {
-          selected.remove(index);
+        // Множественный выбор
+        final current = _selectedModifiers[screen.key] as List<int>? ?? [];
+        if (current.contains(index)) {
+          current.remove(index);
         } else {
-          selected.add(index);
+          current.add(index);
         }
-        HapticFeedback.selectionClick();
+        _selectedModifiers[screen.key] = current;
       }
     });
+    HapticFeedback.selectionClick();
   }
 
-  void _nextScreen() {
-    if (isLastScreen) {
-      // Добавляем в корзину
-      _addToCart();
+  void _nextPage() {
+    if (_currentPage < _screens.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     } else {
-      setState(() {
-        _currentScreenIndex++;
-      });
-      HapticFeedback.lightImpact();
+      _addToCart();
     }
   }
 
-  void _addToCart() {
+  void _skipPage() {
+    if (_currentPage < _screens.length - 1) {
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  Future<void> _addToCart() async {
     HapticFeedback.mediumImpact();
     
+    // Формируем модификаторы для корзины
+    final modifiers = <String, dynamic>{};
+    if (_selectedModifiers['size'] != null) {
+      modifiers['size'] = _selectedModifiers['size'];
+    }
+    if (_selectedModifiers['milk'] != null) {
+      modifiers['milk'] = _selectedModifiers['milk'];
+    }
+    if (_selectedModifiers['extras'] != null) {
+      modifiers['extras'] = _selectedModifiers['extras'];
+    }
+
     final cartItem = CartItem(
       product: widget.product,
-      modifiers: _selectedModifiers,
-      quantity: _quantity,
-      totalPrice: totalPrice,
+      modifiers: modifiers,
+      quantity: 1,
+      totalPrice: _totalPrice,
     );
 
     context.read<CartProvider>().addItem(cartItem);
@@ -186,22 +233,9 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     );
     
     // Close after short delay
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        Navigator.pop(context);
-      }
-    });
-  }
-
-
-  void _skipScreen() {
-    if (isLastScreen) {
-      _nextScreen();
-    } else {
-      setState(() {
-        _currentScreenIndex++;
-      });
-      HapticFeedback.lightImpact();
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (mounted) {
+      Navigator.pop(context);
     }
   }
 
@@ -212,342 +246,27 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     final bottomHeight = screenHeight * 0.4;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          SafeArea(
-        child: Column(
-          children: [
-            // ВЕРХНЯЯ ЧАСТЬ (60%)
-            Container(
-              height: topHeight,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppColors.primary.withOpacity(0.05),
-                    Colors.white,
-                  ],
-                ),
-              ),
-              child: Column(
-                children: [
-                  // Header
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.textPrimary),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                        Expanded(
-                          child: Text(
-                            widget.product.name,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.textPrimary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        const SizedBox(width: 48), // Balance for close button
-                      ],
-                    ),
-                  ),
-
-                  // Image
-                  Container(
-                    height: 180,
-                    margin: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: widget.product.imageUrl.isNotEmpty
-                          ? CachedNetworkImage(
-                              imageUrl: widget.product.imageUrl,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                color: Colors.grey[200],
-                                child: const Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              ),
-                              errorWidget: (context, url, error) => Container(
-                                color: Colors.grey[200],
-                                child: const Icon(
-                                  Icons.coffee,
-                                  size: 80,
-                                  color: Colors.brown,
-                                ),
-                              ),
-                            )
-                          : Container(
-                              color: Colors.grey[200],
-                              child: const Icon(
-                                Icons.coffee,
-                                size: 80,
-                                color: Colors.brown,
-                              ),
-                            ),
-                    ),
-                  ).animate().fadeIn(duration: 300.ms).scale(begin: const Offset(0.9, 0.9)),
-
-                  const SizedBox(height: 20),
-
-                  // Выбранные кубики
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'Вы добавили:',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: selectedModifiersList.isEmpty
-                              ? Center(
-                                  child: Text(
-                                    'Выберите ${currentScreen.title.toLowerCase()}',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      color: Colors.grey[400],
-                                    ),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                                  itemCount: selectedModifiersList.length,
-                                  itemBuilder: (context, index) {
-                                    final selected = selectedModifiersList[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 12),
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 12,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          gradient: AppColors.gradient1,
-                                          borderRadius: BorderRadius.circular(12),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: AppColors.primary.withOpacity(0.3),
-                                              blurRadius: 8,
-                                              offset: const Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            if (selected.option.emoji != null) ...[
-                                              Text(
-                                                selected.option.emoji!,
-                                                style: const TextStyle(fontSize: 20),
-                                              ),
-                                              const SizedBox(width: 8),
-                                            ],
-                                            Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Text(
-                                                  selected.option.label,
-                                                  style: GoogleFonts.montserrat(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.white,
-                                                  ),
-                                                ),
-                                                if (selected.option.volume != null)
-                                                  Text(
-                                                    selected.option.volume!,
-                                                    style: GoogleFonts.inter(
-                                                      fontSize: 11,
-                                                      color: Colors.white70,
-                                                    ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ],
-                                        ),
-                                      ).animate(key: ValueKey(selected))
-                                          .fadeIn(duration: 200.ms)
-                                          .scale(begin: const Offset(0.8, 0.8)),
-                                    );
-                                  },
-                                ),
-                        ),
-                        const SizedBox(height: 12),
-                        // Итоговая цена
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Итого:',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              Text(
-                                '${totalPrice.toInt()}₽',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Разделитель
-            Container(
-              height: 1,
-              color: Colors.grey[200],
-            ),
-
-            // НИЖНЯЯ ЧАСТЬ (40%)
-            Container(
-              height: bottomHeight,
-              color: Colors.white,
-              child: Column(
-                children: [
-                  const SizedBox(height: 16),
-                  // Заголовок секции
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          currentScreen.title,
-                          style: GoogleFonts.montserrat(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        if (!currentScreen.group.required)
-                          TextButton(
-                            onPressed: _skipScreen,
-                            child: Text(
-                              'Пропустить',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Grid кубиков
-                  Expanded(
-                    child: GridView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.9,
-                      ),
-                      itemCount: currentScreen.group.options.length,
-                      itemBuilder: (context, index) {
-                        final option = currentScreen.group.options[index];
-                        final isSelected = currentScreen.group.type == 'single'
-                            ? _selectedModifiers[currentScreen.groupKey] == index
-                            : (_selectedModifiers[currentScreen.groupKey] as List<int>)
-                                .contains(index);
-
-                        return ModifierCube(
-                          label: option.label,
-                          emoji: option.emoji,
-                          volume: option.volume,
-                          price: option.price,
-                          isSelected: isSelected,
-                          onTap: () => _selectModifier(index),
-                        );
-                      },
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Кнопка "Далее" или "Добавить в корзину"
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: canProceed ? _nextScreen : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          disabledBackgroundColor: Colors.grey[300],
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: canProceed ? 8 : 0,
-                        ),
-                        child: Text(
-                          isLastScreen ? 'Добавить в корзину' : 'Далее',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-          // Confetti overlay
+          // Верхняя часть (60%)
+          _buildTopSection(topHeight),
+          
+          // Нижняя часть (40%)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: bottomHeight,
+            child: _buildBottomSection(bottomHeight),
+          ),
+          
+          // Confetti
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
               confettiController: _confettiController,
-              blastDirection: 3.14 / 2,
+              blastDirection: 1.57, // Down
               maxBlastForce: 5,
               minBlastForce: 2,
               emissionFrequency: 0.05,
@@ -559,29 +278,448 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
       ),
     );
   }
+
+  Widget _buildTopSection(double height) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        gradient: AppColors.gradient1,
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.product.name,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(width: 48), // Balance for close button
+                ],
+              ),
+            ),
+            
+            // Image
+            Container(
+              height: 200,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: widget.product.imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: widget.product.imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          color: Colors.white.withOpacity(0.2),
+                          child: const Center(
+                            child: CircularProgressIndicator(color: Colors.white),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          color: Colors.white.withOpacity(0.2),
+                          child: const Icon(
+                            Icons.coffee,
+                            size: 80,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: Colors.white.withOpacity(0.2),
+                        child: const Icon(
+                          Icons.coffee,
+                          size: 80,
+                          color: Colors.white70,
+                        ),
+                      ),
+              ),
+            )
+                .animate()
+                .fadeIn(duration: 300.ms)
+                .scale(begin: const Offset(0.9, 0.9)),
+            
+            const SizedBox(height: 24),
+            
+            // Selected cubes section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Вы добавили:',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _selectedCubes.isEmpty
+                      ? Text(
+                          'Выберите опции ниже',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: Colors.white60,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        )
+                      : Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _selectedCubes.map((cube) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.3),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (cube.emoji != null)
+                                    Text(
+                                      cube.emoji!,
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  if (cube.emoji != null)
+                                    const SizedBox(width: 4),
+                                  Text(
+                                    cube.label,
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  if (cube.volume != null) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      cube.volume!,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                  if (cube.price > 0) ...[
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '+${cube.price.toStringAsFixed(0)}₽',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            )
+                                .animate()
+                                .fadeIn()
+                                .scale(begin: const Offset(0.8, 0.8));
+                          }).toList(),
+                        ),
+                  if (_selectedCubes.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Итого:',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            '${_totalPrice.toStringAsFixed(0)}₽',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                        .animate()
+                        .fadeIn()
+                        .scale(begin: const Offset(0.9, 0.9)),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomSection(double height) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Page indicator
+          if (_screens.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  _screens.length,
+                  (index) => Container(
+                    width: index == _currentPage ? 24 : 8,
+                    height: 8,
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    decoration: BoxDecoration(
+                      color: index == _currentPage
+                          ? AppColors.primary
+                          : Colors.grey[300],
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  )
+                      .animate()
+                      .scale(duration: 200.ms),
+                ),
+              ),
+            ),
+          
+          // Content
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentPage = index;
+                });
+              },
+              itemCount: _screens.length,
+              itemBuilder: (context, index) {
+                final screen = _screens[index];
+                return _buildModifierGrid(screen);
+              },
+            ),
+          ),
+          
+          // Button
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: _buildActionButton(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModifierGrid(ModifierScreenData screen) {
+    if (screen.isFinal) {
+      return Center(
+        child: Text(
+          'Готово! Нажмите "Добавить в корзину"',
+          style: GoogleFonts.montserrat(
+            fontSize: 16,
+            color: AppColors.textSecondary,
+          ),
+        ),
+      );
+    }
+
+    final group = screen.group!;
+    final isMultiple = group.type == 'multiple';
+    final currentSelection = _selectedModifiers[screen.key];
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            screen.title,
+            style: GoogleFonts.montserrat(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: GridView.builder(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 4,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 1.0,
+              ),
+              itemCount: group.options.length,
+              itemBuilder: (context, index) {
+                final option = group.options[index];
+                final isSelected = isMultiple
+                    ? (currentSelection as List<int>? ?? []).contains(index)
+                    : currentSelection == index;
+
+                return ModifierCube(
+                  label: option.label,
+                  emoji: option.emoji,
+                  volume: option.volume,
+                  price: option.price,
+                  isSelected: isSelected,
+                  onTap: () => _onModifierTap(screen, index),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton() {
+    final isLastPage = _currentPage >= _screens.length - 1;
+    final screen = _currentPage < _screens.length ? _screens[_currentPage] : null;
+    final canSkip = screen?.isOptional ?? false;
+
+    return Column(
+      children: [
+        if (canSkip && !isLastPage)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: TextButton(
+              onPressed: _skipPage,
+              child: Text(
+                'Пропустить',
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ),
+        Container(
+          width: double.infinity,
+          height: 56,
+          decoration: BoxDecoration(
+            gradient: _canProceed ? AppColors.gradient1 : null,
+            color: _canProceed ? null : Colors.grey[300],
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: _canProceed
+                ? [
+                    BoxShadow(
+                      color: AppColors.primary.withOpacity(0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _canProceed ? _nextPage : null,
+              borderRadius: BorderRadius.circular(16),
+              child: Center(
+                child: Text(
+                  isLastPage ? 'Добавить в корзину' : 'Далее',
+                  style: GoogleFonts.montserrat(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: _canProceed ? Colors.white : Colors.grey[600],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        )
+            .animate(target: _canProceed ? 1 : 0)
+            .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.02, 1.02)),
+      ],
+    );
+  }
 }
 
-/// Модель экрана модификаторов
-class ModifierScreen {
-  final String groupKey;
+class ModifierScreenData {
   final String title;
-  final ModifierGroup group;
+  final ModifierGroup? group;
+  final String key;
+  final bool isOptional;
+  final bool isFinal;
 
-  ModifierScreen({
-    required this.groupKey,
+  ModifierScreenData({
     required this.title,
     required this.group,
+    required this.key,
+    this.isOptional = false,
+    this.isFinal = false,
   });
 }
 
-/// Модель выбранного модификатора
-class SelectedModifier {
-  final String groupKey;
-  final ModifierOption option;
+class SelectedCube {
+  final String label;
+  final String? emoji;
+  final String? volume;
+  final double price;
 
-  SelectedModifier({
-    required this.groupKey,
-    required this.option,
+  SelectedCube({
+    required this.label,
+    this.emoji,
+    this.volume,
+    required this.price,
   });
 }
 
