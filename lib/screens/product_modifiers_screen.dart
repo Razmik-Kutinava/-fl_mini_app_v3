@@ -387,66 +387,88 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
                   ),
                   const SizedBox(height: 12),
                   _selectedCubes.isEmpty
-                      ? Text(
-                          'Выберите опции ниже',
-                          style: GoogleFonts.inter(
-                            fontSize: 14,
-                            color: Colors.white60,
-                            fontStyle: FontStyle.italic,
+                      ? Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                              style: BorderStyle.solid,
+                            ),
+                          ),
+                          child: Text(
+                            'Выберите опции ниже',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white60,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
                         )
                       : Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                          spacing: 10,
+                          runSpacing: 10,
                           children: _selectedCubes.map((cube) {
                             return Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
+                              width: 70,
+                              height: 70,
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
+                                color: Colors.white.withOpacity(0.25),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.3),
-                                  width: 1,
+                                  color: Colors.white.withOpacity(0.5),
+                                  width: 2,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   if (cube.emoji != null)
                                     Text(
                                       cube.emoji!,
-                                      style: const TextStyle(fontSize: 16),
-                                    ),
-                                  if (cube.emoji != null)
-                                    const SizedBox(width: 4),
+                                      style: const TextStyle(fontSize: 20),
+                                    )
+                                        .animate()
+                                        .scale(begin: const Offset(0.5, 0.5), duration: 200.ms),
+                                  if (cube.emoji != null) const SizedBox(height: 4),
                                   Text(
                                     cube.label,
+                                    textAlign: TextAlign.center,
                                     style: GoogleFonts.montserrat(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
                                       color: Colors.white,
                                     ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                   if (cube.volume != null) ...[
-                                    const SizedBox(width: 4),
+                                    const SizedBox(height: 2),
                                     Text(
                                       cube.volume!,
                                       style: GoogleFonts.inter(
-                                        fontSize: 10,
+                                        fontSize: 8,
                                         color: Colors.white70,
                                       ),
                                     ),
                                   ],
                                   if (cube.price > 0) ...[
-                                    const SizedBox(width: 4),
+                                    const SizedBox(height: 2),
                                     Text(
                                       '+${cube.price.toStringAsFixed(0)}₽',
                                       style: GoogleFonts.inter(
-                                        fontSize: 10,
-                                        color: Colors.white70,
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
                                       ),
                                     ),
                                   ],
@@ -454,8 +476,10 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
                               ),
                             )
                                 .animate()
-                                .fadeIn()
-                                .scale(begin: const Offset(0.8, 0.8));
+                                .fadeIn(duration: 200.ms)
+                                .scale(begin: const Offset(0.5, 0.5), duration: 200.ms)
+                                .then()
+                                .shake(duration: 100.ms);
                           }).toList(),
                         ),
                   if (_selectedCubes.isNotEmpty) ...[
@@ -605,7 +629,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Expanded(
             child: GridView.builder(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -628,7 +652,10 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
                   price: option.price,
                   isSelected: isSelected,
                   onTap: () => _onModifierTap(screen, index),
-                );
+                )
+                    .animate(delay: (index * 50).ms)
+                    .fadeIn(duration: 300.ms)
+                    .slideY(begin: 0.2, end: 0, duration: 300.ms);
               },
             ),
           ),
