@@ -139,6 +139,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
           label: option.label,
           volume: option.volume,
           price: option.price,
+          emoji: option.emoji,
         ));
       } else if (screen.key == 'milk' && _selectedModifiers['milk'] != null) {
         final index = _selectedModifiers['milk'] as int;
@@ -146,6 +147,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
         cubes.add(SelectedCube(
           label: option.label,
           price: option.price,
+          emoji: option.emoji,
         ));
       } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
         final indices = _selectedModifiers['extras'] as List<int>;
