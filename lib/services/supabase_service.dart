@@ -114,20 +114,30 @@ class SupabaseService {
     String productId,
   ) async {
     try {
+      print('🔍 Getting modifier groups for product: $productId');
+      
       // Получаем связи продукт-модификатор
       final links = await client
           .from('ProductModifierGroup')
           .select('modifierGroupId')
           .eq('productId', productId);
 
-      if (links.isEmpty) return [];
+      print('📋 ProductModifierGroup links: $links');
+      print('📋 Links count: ${links.length}');
+
+      if (links.isEmpty) {
+        print('⚠️ No ProductModifierGroup links found for product: $productId');
+        return [];
+      }
 
       final groupIds = (links as List)
           .map((e) => e['modifierGroupId'])
           .toList();
 
+      print('📋 Group IDs to fetch: $groupIds');
+
       if (groupIds.isEmpty) {
-        print('No modifier group IDs found for product: $productId');
+        print('⚠️ No modifier group IDs found for product: $productId');
         return [];
       }
 
@@ -136,10 +146,17 @@ class SupabaseService {
           .select()
           .inFilter('id', groupIds);
 
-      print('ModifierGroups response: $response');
+      print('✅ ModifierGroups response: $response');
+      print('✅ ModifierGroups count: ${(response as List).length}');
+      
+      for (var group in response) {
+        print('  - Group: ${group['name']}, type: ${group['type']}, required: ${group['required']}');
+      }
+      
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('Supabase ModifierGroups error: $e');
+      print('❌ Supabase ModifierGroups error: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
       return [];
     }
   }
@@ -148,15 +165,22 @@ class SupabaseService {
     String groupId,
   ) async {
     try {
+      print('🔍 Getting modifier options for group: $groupId');
       final response = await client
           .from('ModifierOption')
           .select()
           .eq('groupId', groupId)
           .eq('isActive', true)
           .order('sortOrder', ascending: true);
+      
+      print('✅ ModifierOptions for group $groupId: ${(response as List).length} options');
+      for (var opt in response) {
+        print('  - Option: ${opt['name']}, price: ${opt['price']}, emoji: ${opt['emoji']}');
+      }
+      
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
-      print('Supabase ModifierOptions error: $e');
+      print('❌ Supabase ModifierOptions error: $e');
       return [];
     }
   }

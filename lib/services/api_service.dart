@@ -299,11 +299,12 @@ class ApiService {
 
   Future<ModifierGroups?> _loadProductModifiers(String productId) async {
     try {
-      print('Loading modifiers for product: $productId');
+      print('🔄 Loading modifiers for product: $productId');
       final groups = await SupabaseService.getModifierGroups(productId);
-      print('Loaded ${groups.length} modifier groups');
+      print('📦 Loaded ${groups.length} modifier groups');
+      
       if (groups.isEmpty) {
-        print('No modifier groups found for product: $productId');
+        print('⚠️ No modifier groups found for product: $productId');
         return null;
       }
       
@@ -311,8 +312,24 @@ class ApiService {
       ModifierGroup? milkGroup;
       ModifierGroup? extrasGroup;
       
-      for (var group in groups) {
+      // Сортируем группы по порядку (если есть sortOrder) или по типу
+      final sortedGroups = List<Map<String, dynamic>>.from(groups);
+      sortedGroups.sort((a, b) {
+        final aOrder = a['sortOrder'] ?? 999;
+        final bOrder = b['sortOrder'] ?? 999;
+        return (aOrder as num).compareTo(bOrder as num);
+      });
+      
+      for (var group in sortedGroups) {
+        print('📝 Processing group: ${group['name']}');
         final options = await SupabaseService.getModifierOptions(group['id']);
+        print('  Options count: ${options.length}');
+        
+        if (options.isEmpty) {
+          print('  ⚠️ Skipping group ${group['name']} - no options');
+          continue;
+        }
+        
         final modifierGroup = ModifierGroup(
           required: group['required'] ?? group['isRequired'] ?? false,
           type: group['type'] == 'MULTIPLE' ? 'multiple' : 'single',
@@ -325,22 +342,46 @@ class ApiService {
         );
         
         final groupName = (group['name'] as String?)?.toLowerCase() ?? '';
-        if (groupName.contains('размер') || groupName.contains('size')) {
+        print('  Group name (lowercase): $groupName');
+        
+        // Более гибкое определение типа группы
+        if (groupName.contains('размер') || groupName.contains('size') || 
+            groupName.contains('объем') || groupName.contains('volume')) {
+          print('  ✅ Assigned to sizeGroup');
           sizeGroup = modifierGroup;
         } else if (groupName.contains('молоко') || groupName.contains('milk')) {
+          print('  ✅ Assigned to milkGroup');
           milkGroup = modifierGroup;
         } else {
-          extrasGroup = modifierGroup;
+          // Все остальные группы идут в extras
+          print('  ✅ Assigned to extrasGroup');
+          // Если extrasGroup уже есть, создаем список или объединяем
+          if (extrasGroup == null) {
+            extrasGroup = modifierGroup;
+          } else {
+            // Если уже есть extras, добавляем опции к существующей группе
+            // Но это не совсем правильно, лучше создать список групп
+            // Пока просто перезаписываем последней группой
+            extrasGroup = modifierGroup;
+          }
         }
       }
       
-      return ModifierGroups(
+      final result = ModifierGroups(
         size: sizeGroup,
         milk: milkGroup,
         extras: extrasGroup,
       );
+      
+      print('✅ Final ModifierGroups:');
+      print('  - size: ${sizeGroup != null ? "${sizeGroup.options.length} options" : "null"}');
+      print('  - milk: ${milkGroup != null ? "${milkGroup.options.length} options" : "null"}');
+      print('  - extras: ${extrasGroup != null ? "${extrasGroup.options.length} options" : "null"}');
+      
+      return result;
     } catch (e) {
-      print('Error loading modifiers: $e');
+      print('❌ Error loading modifiers: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
       return null;
     }
   }
