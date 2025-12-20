@@ -132,7 +132,7 @@ class SupabaseService {
       if (links.isEmpty) {
         print('⚠️ No ProductModifierGroup links found for product: $productId');
         print('⚠️ Checking if table exists and has data...');
-        
+
         // Попробуем получить все записи для отладки
         try {
           final allLinks = await client
@@ -143,7 +143,7 @@ class SupabaseService {
         } catch (e) {
           print('❌ Error getting all ProductModifierGroup: $e');
         }
-        
+
         return [];
       }
 
