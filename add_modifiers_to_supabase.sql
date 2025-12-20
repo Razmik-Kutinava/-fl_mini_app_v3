@@ -24,12 +24,13 @@ BEGIN
   VALUES (gen_random_uuid(), 'Дополнительно', false, 'MULTIPLE', 0, 10, NOW(), NOW())
   RETURNING id INTO extras_group_id;
 
-  -- 4. Связываем группы с продуктом
+  -- 4. Связываем группы с продуктом (ВАЖНО: эти связи обязательны!)
   INSERT INTO "ProductModifierGroup" (id, "productId", "modifierGroupId", "createdAt", "updatedAt")
   VALUES 
     (gen_random_uuid(), product_id, size_group_id, NOW(), NOW()),
     (gen_random_uuid(), product_id, milk_group_id, NOW(), NOW()),
-    (gen_random_uuid(), product_id, extras_group_id, NOW(), NOW());
+    (gen_random_uuid(), product_id, extras_group_id, NOW(), NOW())
+  ON CONFLICT DO NOTHING; -- Если связь уже есть, не создаем дубликат
 
   -- 5. Создаем опции для группы "Размер"
   INSERT INTO "ModifierOption" (id, "groupId", name, description, price, emoji, "isActive", "sortOrder", "createdAt", "updatedAt")
@@ -79,11 +80,12 @@ BEGIN
   VALUES (gen_random_uuid(), 'Добавки', false, 'MULTIPLE', 0, 10, NOW(), NOW())
   RETURNING id INTO tea_extras_group_id;
 
-  -- 3. Связываем с продуктом
+  -- 3. Связываем с продуктом (ВАЖНО: эти связи обязательны!)
   INSERT INTO "ProductModifierGroup" (id, "productId", "modifierGroupId", "createdAt", "updatedAt")
   VALUES 
     (gen_random_uuid(), product_id, tea_type_group_id, NOW(), NOW()),
-    (gen_random_uuid(), product_id, tea_extras_group_id, NOW(), NOW());
+    (gen_random_uuid(), product_id, tea_extras_group_id, NOW(), NOW())
+  ON CONFLICT DO NOTHING; -- Если связь уже есть, не создаем дубликат
 
   -- 4. Опции для типа чая
   INSERT INTO "ModifierOption" (id, "groupId", name, description, price, emoji, "isActive", "sortOrder", "createdAt", "updatedAt")
