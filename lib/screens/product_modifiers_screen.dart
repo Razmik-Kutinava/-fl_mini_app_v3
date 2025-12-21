@@ -191,7 +191,18 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
         _selectedModifiers[screen.key] = index;
       } else {
         // Множественный выбор
-        final current = _selectedModifiers[screen.key] as List<int>? ?? [];
+        final currentValue = _selectedModifiers[screen.key];
+        List<int> current;
+        
+        if (currentValue is List<int>) {
+          current = List<int>.from(currentValue);
+        } else if (currentValue is int) {
+          // Если было сохранено как int, преобразуем в список
+          current = [currentValue];
+        } else {
+          current = [];
+        }
+        
         if (current.contains(index)) {
           current.remove(index);
         } else {
@@ -680,11 +691,28 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               itemCount: group.options.length,
               itemBuilder: (context, index) {
                 final option = group.options[index];
-                final isSelected = isMultiple
-                    ? (currentSelection is List<int> 
-                        ? currentSelection.contains(index)
-                        : false)
-                    : currentSelection == index;
+                bool isSelected;
+                
+                if (isMultiple) {
+                  if (currentSelection is List<int>) {
+                    isSelected = currentSelection.contains(index);
+                  } else if (currentSelection is int) {
+                    // Если группа multiple, но сохранено как int (старая версия)
+                    isSelected = currentSelection == index;
+                  } else {
+                    isSelected = false;
+                  }
+                } else {
+                  // Одиночный выбор
+                  if (currentSelection is int) {
+                    isSelected = currentSelection == index;
+                  } else if (currentSelection is List<int> && currentSelection.length == 1) {
+                    // Если группа single, но сохранено как List (старая версия)
+                    isSelected = currentSelection[0] == index;
+                  } else {
+                    isSelected = false;
+                  }
+                }
 
                 return ModifierCube(
                   label: option.label,
