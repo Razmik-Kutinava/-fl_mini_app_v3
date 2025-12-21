@@ -152,7 +152,7 @@ class SupabaseService {
 
       print('📋 ProductModifierGroup links: $links');
       print('📋 Links type: ${links.runtimeType}');
-      print('📋 Links count: ${(links as List).length}');
+      print('📋 Links count: ${links.length}');
 
       if (links.isEmpty) {
         print('⚠️ No ProductModifierGroup links found for product: $productId');
@@ -204,7 +204,7 @@ class SupabaseService {
         return [];
       }
 
-      final groupIds = (links as List)
+      final groupIds = links
           .map((e) => e['modifierGroupId'])
           .toList();
 
