@@ -122,13 +122,22 @@ class _AppInitializerState extends State<AppInitializer> {
       print('⚠️ This is normal if app is opened in browser, not in Telegram');
       // Для тестирования создаем тестового пользователя
       print('🧪 Creating test user for development...');
-      final testUser = await SupabaseService.getOrCreateUser(
-        telegramId: 'test_${DateTime.now().millisecondsSinceEpoch}',
-        username: 'test_user',
-      );
-      if (testUser != null) {
-        userProvider.setUser(testUser);
-        print('✅ Test user created: ${testUser['id']}');
+      try {
+        final testUser = await SupabaseService.getOrCreateUser(
+          telegramId: 'test_${DateTime.now().millisecondsSinceEpoch}',
+          username: 'test_user',
+        );
+        if (testUser != null) {
+          print('✅ Test user created: ${testUser['id']}');
+          print('✅ Test user data: $testUser');
+          userProvider.setUser(testUser);
+          print('✅ UserProvider.setUser called with test user');
+          print('✅ UserProvider.userName after setUser: ${userProvider.userName}');
+        } else {
+          print('❌ Failed to create test user');
+        }
+      } catch (e) {
+        print('❌ Error creating test user: $e');
       }
     }
     
