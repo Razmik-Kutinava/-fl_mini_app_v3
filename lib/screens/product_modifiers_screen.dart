@@ -108,8 +108,15 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     if (screen.isOptional) return true;
     
     // Проверяем обязательные модификаторы
-    return _selectedModifiers.containsKey(screen.key) &&
-        _selectedModifiers[screen.key] != null;
+    final value = _selectedModifiers[screen.key];
+    if (value == null) return false;
+    
+    // Для single типа должно быть int, для multiple - List<int> (не пустой)
+    if (screen.group!.type == 'single') {
+      return value is int || (value is List<int> && value.isNotEmpty);
+    } else {
+      return value is List<int> && value.isNotEmpty;
+    }
   }
 
   double get _totalPrice {
