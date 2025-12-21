@@ -198,8 +198,13 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
       ),
-      floatingActionButton: cartProvider.itemCount > 0
-          ? badges.Badge(
+      floatingActionButton: Builder(
+        builder: (context) {
+          final cartProvider = context.watch<CartProvider>();
+          print('🛒 MainScreen rebuild - itemCount: ${cartProvider.itemCount}, total: ${cartProvider.total}');
+          
+          if (cartProvider.itemCount > 0) {
+            return badges.Badge(
               badgeContent: Text(
                 '${cartProvider.itemCount}',
                 style: const TextStyle(color: Colors.white, fontSize: 12),
@@ -210,6 +215,7 @@ class _MainScreenState extends State<MainScreen> {
               position: badges.BadgePosition.topEnd(top: -8, end: -8),
               child: FloatingActionButton.extended(
                 onPressed: () async {
+                  print('🛒 Cart button pressed, items: ${cartProvider.items.length}');
                   HapticFeedback.lightImpact();
                   Navigator.push(
                     context,
@@ -231,8 +237,12 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ),
               ),
-            ).animate().fadeIn().slideY(begin: 0.5)
-          : null,
+            ).animate().fadeIn().slideY(begin: 0.5);
+          }
+          print('🛒 Cart is empty, not showing FAB');
+          return null;
+        },
+      ),
     );
   }
 }

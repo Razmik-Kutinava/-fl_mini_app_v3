@@ -15,8 +15,20 @@ class CartProvider with ChangeNotifier {
   int get itemCount => _items.fold(0, (sum, item) => sum + item.quantity);
 
   void addItem(CartItem item) {
+    print('🛒 CartProvider.addItem called');
+    print('🛒 Item: ${item.product.name}, quantity: ${item.quantity}, price: ${item.totalPrice}');
+    print('🛒 Items before add: ${_items.length}');
+    
     _items.add(item);
+    
+    print('🛒 Items after add: ${_items.length}');
+    print('🛒 Total items in cart: ${_items.length}');
+    print('🛒 Cart subtotal: $subtotal');
+    print('🛒 Cart total: $total');
+    print('🛒 Cart itemCount: $itemCount');
+    
     notifyListeners();
+    print('🛒 Listeners notified');
   }
 
   void removeItem(CartItem item) {

@@ -224,6 +224,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
   }
 
   Future<void> _addToCart() async {
+    print('🛒 _addToCart called for product: ${widget.product.name}');
     HapticFeedback.mediumImpact();
     
     // Формируем модификаторы для корзины
@@ -238,6 +239,9 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
       modifiers['extras'] = _selectedModifiers['extras'];
     }
 
+    print('🛒 Modifiers: $modifiers');
+    print('🛒 Total price: $_totalPrice');
+
     final cartItem = CartItem(
       product: widget.product,
       modifiers: modifiers,
@@ -245,7 +249,20 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
       totalPrice: _totalPrice,
     );
 
-    context.read<CartProvider>().addItem(cartItem);
+    print('🛒 CartItem created: ${cartItem.product.name}, price: ${cartItem.totalPrice}');
+    
+    try {
+      final cartProvider = context.read<CartProvider>();
+      print('🛒 CartProvider found, current items count: ${cartProvider.items.length}');
+      
+      cartProvider.addItem(cartItem);
+      
+      print('🛒 Item added to cart, new items count: ${cartProvider.items.length}');
+      print('🛒 Cart total: ${cartProvider.total}, itemCount: ${cartProvider.itemCount}');
+    } catch (e, stackTrace) {
+      print('❌ Error adding to cart: $e');
+      print('❌ Stack trace: $stackTrace');
+    }
     
     // Confetti animation
     _confettiController.play();
@@ -263,6 +280,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     // Close after short delay
     await Future.delayed(const Duration(milliseconds: 500));
     if (mounted) {
+      print('🛒 Closing ProductModifiersScreen');
       Navigator.pop(context);
     }
   }
