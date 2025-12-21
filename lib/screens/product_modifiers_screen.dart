@@ -118,11 +118,19 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     // Добавляем цену выбранных модификаторов
     for (var screen in _screens) {
       if (screen.key == 'size' && _selectedModifiers['size'] != null) {
-        final index = _selectedModifiers['size'] as int;
-        total += screen.group!.options[index].price;
+        final sizeValue = _selectedModifiers['size'];
+        if (sizeValue is int) {
+          total += screen.group!.options[sizeValue].price;
+        } else if (sizeValue is List<int> && sizeValue.isNotEmpty) {
+          total += screen.group!.options[sizeValue[0]].price;
+        }
       } else if (screen.key == 'milk' && _selectedModifiers['milk'] != null) {
-        final index = _selectedModifiers['milk'] as int;
-        total += screen.group!.options[index].price;
+        final milkValue = _selectedModifiers['milk'];
+        if (milkValue is int) {
+          total += screen.group!.options[milkValue].price;
+        } else if (milkValue is List<int> && milkValue.isNotEmpty) {
+          total += screen.group!.options[milkValue[0]].price;
+        }
       } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
         final extrasValue = _selectedModifiers['extras'];
         if (extrasValue is List<int>) {
@@ -143,40 +151,60 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
 
     for (var screen in _screens) {
       if (screen.key == 'size' && _selectedModifiers['size'] != null) {
-        final index = _selectedModifiers['size'] as int;
-        final option = screen.group!.options[index];
-        cubes.add(SelectedCube(
-          label: option.label,
-          volume: option.volume,
-          price: option.price,
-          emoji: option.emoji,
-        ));
+        final sizeValue = _selectedModifiers['size'];
+        int? index;
+        if (sizeValue is int) {
+          index = sizeValue;
+        } else if (sizeValue is List<int> && sizeValue.isNotEmpty) {
+          index = sizeValue[0];
+        }
+        if (index != null && index < screen.group!.options.length) {
+          final option = screen.group!.options[index];
+          cubes.add(SelectedCube(
+            label: option.label,
+            volume: option.volume,
+            price: option.price,
+            emoji: option.emoji,
+          ));
+        }
       } else if (screen.key == 'milk' && _selectedModifiers['milk'] != null) {
-        final index = _selectedModifiers['milk'] as int;
-        final option = screen.group!.options[index];
-        cubes.add(SelectedCube(
-          label: option.label,
-          price: option.price,
-          emoji: option.emoji,
-        ));
+        final milkValue = _selectedModifiers['milk'];
+        int? index;
+        if (milkValue is int) {
+          index = milkValue;
+        } else if (milkValue is List<int> && milkValue.isNotEmpty) {
+          index = milkValue[0];
+        }
+        if (index != null && index < screen.group!.options.length) {
+          final option = screen.group!.options[index];
+          cubes.add(SelectedCube(
+            label: option.label,
+            price: option.price,
+            emoji: option.emoji,
+          ));
+        }
       } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
         final extrasValue = _selectedModifiers['extras'];
         if (extrasValue is List<int>) {
           for (var idx in extrasValue) {
-            final option = screen.group!.options[idx];
+            if (idx < screen.group!.options.length) {
+              final option = screen.group!.options[idx];
+              cubes.add(SelectedCube(
+                label: option.label,
+                emoji: option.emoji,
+                price: option.price,
+              ));
+            }
+          }
+        } else if (extrasValue is int) {
+          if (extrasValue < screen.group!.options.length) {
+            final option = screen.group!.options[extrasValue];
             cubes.add(SelectedCube(
               label: option.label,
               emoji: option.emoji,
               price: option.price,
             ));
           }
-        } else if (extrasValue is int) {
-          final option = screen.group!.options[extrasValue];
-          cubes.add(SelectedCube(
-            label: option.label,
-            emoji: option.emoji,
-            price: option.price,
-          ));
         }
       }
     }
