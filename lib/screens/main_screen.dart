@@ -50,7 +50,6 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final locationProvider = context.watch<LocationProvider>();
     final menuProvider = context.watch<MenuProvider>();
-    final cartProvider = context.watch<CartProvider>();
     final location = locationProvider.selectedLocation;
 
     return Scaffold(
@@ -198,9 +197,8 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
       ),
-      floatingActionButton: Builder(
-        builder: (context) {
-          final cartProvider = context.watch<CartProvider>();
+      floatingActionButton: Consumer<CartProvider>(
+        builder: (context, cartProvider, _) {
           print('🛒 MainScreen rebuild - itemCount: ${cartProvider.itemCount}, total: ${cartProvider.total}');
           
           if (cartProvider.itemCount > 0) {
@@ -240,7 +238,7 @@ class _MainScreenState extends State<MainScreen> {
             ).animate().fadeIn().slideY(begin: 0.5);
           }
           print('🛒 Cart is empty, not showing FAB');
-          return null;
+          return const SizedBox.shrink();
         },
       ),
     );
