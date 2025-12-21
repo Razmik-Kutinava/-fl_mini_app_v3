@@ -33,8 +33,11 @@ class UserProvider with ChangeNotifier {
   String? get userId => _user?['id'] as String?;
 
   void setUser(Map<String, dynamic>? user) {
+    print('👤 UserProvider.setUser called with: $user');
     _user = user;
+    print('👤 _user updated, notifying listeners...');
     notifyListeners();
+    print('👤 Listeners notified. Current userName: $userName');
   }
 
   void setLoading(bool loading) {

@@ -86,8 +86,10 @@ class _MainScreenState extends State<MainScreen> {
                         ),
                         Consumer<UserProvider>(
                           builder: (context, userProvider, _) {
+                            print('🔄 Consumer rebuild - userProvider.user: ${userProvider.user}');
                             final userName = userProvider.userName;
-                            if (userName != null) {
+                            print('🔄 Consumer rebuild - userName: $userName');
+                            if (userName != null && userName.isNotEmpty) {
                               return Text(
                                 userName,
                                 style: GoogleFonts.inter(
