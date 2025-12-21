@@ -124,9 +124,13 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
         final index = _selectedModifiers['milk'] as int;
         total += screen.group!.options[index].price;
       } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
-        final indices = _selectedModifiers['extras'] as List<int>;
-        for (var idx in indices) {
-          total += screen.group!.options[idx].price;
+        final extrasValue = _selectedModifiers['extras'];
+        if (extrasValue is List<int>) {
+          for (var idx in extrasValue) {
+            total += screen.group!.options[idx].price;
+          }
+        } else if (extrasValue is int) {
+          total += screen.group!.options[extrasValue].price;
         }
       }
     }
@@ -156,9 +160,18 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
           emoji: option.emoji,
         ));
       } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
-        final indices = _selectedModifiers['extras'] as List<int>;
-        for (var idx in indices) {
-          final option = screen.group!.options[idx];
+        final extrasValue = _selectedModifiers['extras'];
+        if (extrasValue is List<int>) {
+          for (var idx in extrasValue) {
+            final option = screen.group!.options[idx];
+            cubes.add(SelectedCube(
+              label: option.label,
+              emoji: option.emoji,
+              price: option.price,
+            ));
+          }
+        } else if (extrasValue is int) {
+          final option = screen.group!.options[extrasValue];
           cubes.add(SelectedCube(
             label: option.label,
             emoji: option.emoji,
@@ -650,7 +663,9 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               itemBuilder: (context, index) {
                 final option = group.options[index];
                 final isSelected = isMultiple
-                    ? (currentSelection as List<int>? ?? []).contains(index)
+                    ? (currentSelection is List<int> 
+                        ? currentSelection.contains(index)
+                        : false)
                     : currentSelection == index;
 
                 return ModifierCube(

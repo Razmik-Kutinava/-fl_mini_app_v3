@@ -34,10 +34,16 @@ class CartItem {
     }
     
     if (modifiers['extras'] != null && product.modifiers?.extras != null) {
-      final extras = modifiers['extras'] as List;
-      for (var idx in extras) {
-        if (idx < product.modifiers!.extras!.options.length) {
-          list.add('+ ${product.modifiers!.extras!.options[idx].label}');
+      final extras = modifiers['extras'];
+      if (extras is List) {
+        for (var idx in extras) {
+          if (idx is int && idx < product.modifiers!.extras!.options.length) {
+            list.add('+ ${product.modifiers!.extras!.options[idx].label}');
+          }
+        }
+      } else if (extras is int) {
+        if (extras < product.modifiers!.extras!.options.length) {
+          list.add('+ ${product.modifiers!.extras!.options[extras].label}');
         }
       }
     }
@@ -63,10 +69,16 @@ class CartItem {
     }
 
     if (modifiers['extras'] != null && product.modifiers?.extras != null) {
-      final extras = modifiers['extras'] as List;
-      for (var idx in extras) {
-        if (idx < product.modifiers!.extras!.options.length) {
-          total += product.modifiers!.extras!.options[idx].price;
+      final extras = modifiers['extras'];
+      if (extras is List) {
+        for (var idx in extras) {
+          if (idx is int && idx < product.modifiers!.extras!.options.length) {
+            total += product.modifiers!.extras!.options[idx].price;
+          }
+        }
+      } else if (extras is int) {
+        if (extras < product.modifiers!.extras!.options.length) {
+          total += product.modifiers!.extras!.options[extras].price;
         }
       }
     }
