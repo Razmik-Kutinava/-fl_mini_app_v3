@@ -73,18 +73,40 @@ class TelegramService {
   }
 
   Map<String, dynamic>? getUser() {
-    if (!isInTelegram) return null;
+    print('🔍 Checking Telegram availability...');
+    print('🔍 isInTelegram: $isInTelegram');
+    
+    if (!isInTelegram) {
+      print('⚠️ Not in Telegram context');
+      return null;
+    }
+    
     try {
-      final user = telegramWebApp?.initDataUnsafe?.user;
+      print('🔍 Accessing telegramWebApp...');
+      final webApp = telegramWebApp;
+      print('🔍 telegramWebApp: ${webApp != null ? "exists" : "null"}');
+      
+      final initData = webApp?.initDataUnsafe;
+      print('🔍 initDataUnsafe: ${initData != null ? "exists" : "null"}');
+      
+      final user = initData?.user;
+      print('🔍 user: ${user != null ? "exists" : "null"}');
+      
       if (user != null) {
-        return {
+        final userData = {
           'id': user.id,
           'firstName': user.firstName,
           'lastName': user.lastName,
           'username': user.username,
         };
+        print('✅ Telegram user data retrieved: $userData');
+        return userData;
+      } else {
+        print('⚠️ Telegram user is null');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Telegram getUser error: $e');
+      print('❌ Stack trace: $stackTrace');
       debugPrint('Telegram getUser error: $e');
     }
     return null;

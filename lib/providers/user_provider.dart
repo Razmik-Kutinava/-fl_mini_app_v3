@@ -8,15 +8,24 @@ class UserProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   
   String? get userName {
-    if (_user == null) return null;
+    print('🔍 Getting userName, _user: $_user');
+    if (_user == null) {
+      print('⚠️ _user is null');
+      return null;
+    }
     final username = _user!['telegramUsername'] as String?;
+    print('🔍 telegramUsername: $username');
     if (username != null && username.isNotEmpty) {
+      print('✅ Returning @$username');
       return '@$username';
     }
     final telegramId = _user!['telegramId'] as String?;
+    print('🔍 telegramId: $telegramId');
     if (telegramId != null) {
+      print('✅ Returning User $telegramId');
       return 'User $telegramId';
     }
+    print('⚠️ No username or telegramId found');
     return null;
   }
   

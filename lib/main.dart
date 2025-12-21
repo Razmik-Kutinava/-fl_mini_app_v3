@@ -68,11 +68,17 @@ class _AppInitializerState extends State<AppInitializer> {
   }
 
   Future<void> _initializeUser() async {
+    print('🚀 Starting user initialization...');
     final userProvider = context.read<UserProvider>();
     userProvider.setLoading(true);
     
+    // Небольшая задержка для инициализации Telegram WebApp
+    await Future.delayed(const Duration(milliseconds: 500));
+    
     // Получаем данные из Telegram
+    print('📱 Getting Telegram user data...');
     final tgUser = TelegramService.instance.getUser();
+    print('📱 tgUser result: $tgUser');
     
     if (tgUser != null && tgUser['id'] != null) {
       final telegramId = tgUser['id'].toString();
@@ -87,6 +93,7 @@ class _AppInitializerState extends State<AppInitializer> {
       print('  - Last Name: $lastName');
       
       // Создаем или получаем пользователя
+      print('💾 Creating/getting user in Supabase...');
       final user = await SupabaseService.getOrCreateUser(
         telegramId: telegramId,
         firstName: firstName,
@@ -95,8 +102,11 @@ class _AppInitializerState extends State<AppInitializer> {
       );
       
       if (user != null) {
+        print('✅ User data from Supabase: $user');
         userProvider.setUser(user);
+        print('✅ UserProvider updated with user data');
         print('✅ User initialized: ${user['id']}');
+        print('✅ UserName will be: ${userProvider.userName}');
         
         // Логируем активность
         await SupabaseService.logUserActivity(
@@ -109,9 +119,21 @@ class _AppInitializerState extends State<AppInitializer> {
       }
     } else {
       print('⚠️ No Telegram user data available');
+      print('⚠️ This is normal if app is opened in browser, not in Telegram');
+      // Для тестирования создаем тестового пользователя
+      print('🧪 Creating test user for development...');
+      final testUser = await SupabaseService.getOrCreateUser(
+        telegramId: 'test_${DateTime.now().millisecondsSinceEpoch}',
+        username: 'test_user',
+      );
+      if (testUser != null) {
+        userProvider.setUser(testUser);
+        print('✅ Test user created: ${testUser['id']}');
+      }
     }
     
     userProvider.setLoading(false);
+    print('✅ User initialization complete');
     if (mounted) {
       setState(() => _initialized = true);
     }
