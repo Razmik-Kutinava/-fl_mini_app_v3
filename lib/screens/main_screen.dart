@@ -9,6 +9,7 @@ import '../constants/app_colors.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/menu_provider.dart';
+import '../providers/user_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/product_card.dart';
 import '../widgets/category_chip.dart';
@@ -83,12 +84,27 @@ class _MainScreenState extends State<MainScreen> {
                             fontSize: 16,
                           ),
                         ),
-                        Text(
-                          location?.address ?? '',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
+                        Consumer<UserProvider>(
+                          builder: (context, userProvider, _) {
+                            final userName = userProvider.userName;
+                            if (userName != null) {
+                              return Text(
+                                userName,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              );
+                            }
+                            return Text(
+                              location?.address ?? '',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

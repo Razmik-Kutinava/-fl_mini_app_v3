@@ -408,4 +408,87 @@ class SupabaseService {
       return null;
     }
   }
+
+  // ==================== USER ====================
+
+  static Future<Map<String, dynamic>?> getOrCreateUser({
+    required String telegramId,
+    String? firstName,
+    String? lastName,
+    String? username,
+  }) async {
+    try {
+      print('🔍 Looking for user with telegramId: $telegramId');
+      
+      // Ищем существующего пользователя
+      final existing = await client
+          .from('User')
+          .select()
+          .eq('telegramId', telegramId)
+          .maybeSingle();
+      
+      final now = DateTime.now().toIso8601String();
+      
+      if (existing != null) {
+        print('✅ User found, updating...');
+        // Обновляем данные пользователя
+        final updated = await client
+            .from('User')
+            .update({
+              'telegramUsername': username,
+              'lastSeenAt': now,
+              'updatedAt': now,
+            })
+            .eq('telegramId', telegramId)
+            .select()
+            .single();
+        
+        return updated;
+      } else {
+        print('🆕 Creating new user...');
+        // Создаем нового пользователя
+        final newUser = await client
+            .from('User')
+            .insert({
+              'id': _generateUuid(),
+              'telegramId': telegramId,
+              'telegramUsername': username,
+              'status': 'active',
+              'role': 'customer',
+              'acceptsMarketing': false,
+              'createdAt': now,
+              'updatedAt': now,
+              'lastSeenAt': now,
+            })
+            .select()
+            .single();
+        
+        print('✅ New user created: ${newUser['id']}');
+        return newUser;
+      }
+    } catch (e) {
+      print('❌ User getOrCreate error: $e');
+      return null;
+    }
+  }
+
+  static Future<void> logUserActivity({
+    required String userId,
+    required String activityType,
+    Map<String, dynamic>? activityData,
+  }) async {
+    try {
+      await client.from('UserActivity').insert({
+        'id': _generateUuid(),
+        'userId': userId,
+        'activityType': activityType,
+        'activityData': activityData,
+        'createdAt': DateTime.now().toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+      print('✅ Activity logged: $activityType');
+    } catch (e) {
+      print('❌ Log activity error: $e');
+    }
+  }
 }
