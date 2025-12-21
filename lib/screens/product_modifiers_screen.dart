@@ -32,7 +32,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
   void initState() {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 1));
-    _selectedModifiers = {};
+    _selectedModifiers = <String, dynamic>{}; // Явно указываем тип
     _buildScreens();
     _pageController = PageController();
   }
@@ -222,20 +222,17 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
   void _onModifierTap(ModifierScreenData screen, int index) {
     setState(() {
       if (screen.group!.type == 'single') {
-        // Одиночный выбор
+        // Для single всегда сохраняем как int
         _selectedModifiers[screen.key] = index;
       } else {
-        // Множественный выбор
+        // Для multiple всегда сохраняем как List<int>
         final currentValue = _selectedModifiers[screen.key];
         List<int> current;
         
         if (currentValue is List<int>) {
-          current = List<int>.from(currentValue);
-        } else if (currentValue is int) {
-          // Если было сохранено как int, преобразуем в список
-          current = [currentValue];
+          current = List<int>.from(currentValue); // Создаем копию
         } else {
-          current = [];
+          current = []; // Если не List, создаем новый список
         }
         
         if (current.contains(index)) {
@@ -243,7 +240,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
         } else {
           current.add(index);
         }
-        _selectedModifiers[screen.key] = current;
+        _selectedModifiers[screen.key] = current; // Всегда List<int>
       }
     });
     HapticFeedback.selectionClick();
@@ -726,26 +723,32 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               itemCount: group.options.length,
               itemBuilder: (context, index) {
                 final option = group.options[index];
-                bool isSelected;
+                bool isSelected = false;
+                
+                // Безопасная проверка типа с явным приведением
+                final selection = currentSelection;
                 
                 if (isMultiple) {
-                  if (currentSelection is List<int>) {
-                    isSelected = currentSelection.contains(index);
-                  } else if (currentSelection is int) {
-                    // Если группа multiple, но сохранено как int (старая версия)
-                    isSelected = currentSelection == index;
-                  } else {
-                    isSelected = false;
+                  // Для multiple типа ожидаем List<int>
+                  if (selection != null) {
+                    if (selection is List<int>) {
+                      isSelected = selection.contains(index);
+                    } else {
+                      // Если по ошибке сохранено как int, игнорируем
+                      isSelected = false;
+                    }
                   }
                 } else {
-                  // Одиночный выбор
-                  if (currentSelection is int) {
-                    isSelected = currentSelection == index;
-                  } else if (currentSelection is List<int> && currentSelection.length == 1) {
-                    // Если группа single, но сохранено как List (старая версия)
-                    isSelected = currentSelection[0] == index;
-                  } else {
-                    isSelected = false;
+                  // Для single типа ожидаем int
+                  if (selection != null) {
+                    if (selection is int) {
+                      isSelected = selection == index;
+                    } else if (selection is List<int> && selection.length == 1) {
+                      // Fallback для старой версии
+                      isSelected = selection[0] == index;
+                    } else {
+                      isSelected = false;
+                    }
                   }
                 }
 
