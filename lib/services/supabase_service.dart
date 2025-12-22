@@ -418,13 +418,13 @@ class SupabaseService {
     String? username,
   }) async {
     try {
-      print('🔍 Looking for user with telegramId: $telegramId');
+      print('🔍 Looking for user with telegram_user_id: $telegramId');
       
-      // Ищем существующего пользователя
+      // Ищем существующего пользователя по telegram_user_id
       final existing = await client
           .from('User')
           .select()
-          .eq('telegramId', telegramId)
+          .eq('telegram_user_id', telegramId)
           .maybeSingle();
       
       final now = DateTime.now().toIso8601String();
@@ -435,24 +435,29 @@ class SupabaseService {
         final updated = await client
             .from('User')
             .update({
-              'telegramUsername': username,
+              'username': username,
+              'first_name': firstName,
               'lastSeenAt': now,
               'updatedAt': now,
             })
-            .eq('telegramId', telegramId)
+            .eq('telegram_user_id', telegramId)
             .select()
             .single();
         
+        print('✅ User updated: ${updated['id']}');
+        print('✅ first_name: ${updated['first_name']}');
+        print('✅ username: ${updated['username']}');
         return updated;
       } else {
         print('🆕 Creating new user...');
-        // Создаем нового пользователя
+        // Создаем нового пользователя с новыми колонками
         final newUser = await client
             .from('User')
             .insert({
               'id': _generateUuid(),
-              'telegramId': telegramId,
-              'telegramUsername': username,
+              'telegram_user_id': telegramId,
+              'username': username,
+              'first_name': firstName,
               'status': 'active',
               'role': 'customer',
               'acceptsMarketing': false,
@@ -464,6 +469,8 @@ class SupabaseService {
             .single();
         
         print('✅ New user created: ${newUser['id']}');
+        print('✅ first_name: ${newUser['first_name']}');
+        print('✅ username: ${newUser['username']}');
         return newUser;
       }
     } catch (e) {
