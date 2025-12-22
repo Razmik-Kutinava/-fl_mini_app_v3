@@ -112,7 +112,8 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     if (value == null) return false;
     
     // Для single типа должно быть int, для multiple - List<int> (не пустой)
-    if (screen.group!.type == 'single') {
+    final isSingle = screen.group!.type.toLowerCase() == 'single';
+    if (isSingle) {
       return value is int || (value is List<int> && value.isNotEmpty);
     } else {
       return value is List<int> && value.isNotEmpty;
@@ -221,7 +222,10 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
 
   void _onModifierTap(ModifierScreenData screen, int index) {
     setState(() {
-      if (screen.group!.type == 'single') {
+      // Проверяем тип без учета регистра
+      final isSingle = screen.group!.type.toLowerCase() == 'single';
+      
+      if (isSingle) {
         // Для single всегда сохраняем как int
         _selectedModifiers[screen.key] = index;
       } else {
@@ -695,7 +699,8 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     }
 
     final group = screen.group!;
-    final isMultiple = group.type == 'multiple';
+    // Проверяем тип без учета регистра
+    final isMultiple = group.type.toLowerCase() == 'multiple';
     final currentSelection = _selectedModifiers[screen.key];
 
     return Padding(
