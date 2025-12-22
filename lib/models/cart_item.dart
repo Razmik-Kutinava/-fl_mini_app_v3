@@ -13,10 +13,18 @@ class CartItem {
     required this.totalPrice,
   });
 
+  // Безопасно извлекает индекс из значения (может быть int или List<int>)
+  int? _getIndex(dynamic value) {
+    if (value is int) return value;
+    if (value is List<int> && value.isNotEmpty) return value[0];
+    if (value is List && value.isNotEmpty && value[0] is int) return value[0] as int;
+    return null;
+  }
+
   String get sizeLabel {
     if (modifiers['size'] != null && product.modifiers?.size != null) {
-      final idx = modifiers['size'] as int;
-      if (idx < product.modifiers!.size!.options.length) {
+      final idx = _getIndex(modifiers['size']);
+      if (idx != null && idx < product.modifiers!.size!.options.length) {
         return product.modifiers!.size!.options[idx].label;
       }
     }
@@ -27,8 +35,8 @@ class CartItem {
     List<String> list = [];
     
     if (modifiers['milk'] != null && product.modifiers?.milk != null) {
-      final idx = modifiers['milk'] as int;
-      if (idx < product.modifiers!.milk!.options.length && idx > 0) {
+      final idx = _getIndex(modifiers['milk']);
+      if (idx != null && idx < product.modifiers!.milk!.options.length && idx > 0) {
         list.add('+ ${product.modifiers!.milk!.options[idx].label}');
       }
     }
@@ -36,8 +44,9 @@ class CartItem {
     if (modifiers['extras'] != null && product.modifiers?.extras != null) {
       final extras = modifiers['extras'];
       if (extras is List) {
-        for (var idx in extras) {
-          if (idx is int && idx < product.modifiers!.extras!.options.length) {
+        for (var item in extras) {
+          final idx = (item is int) ? item : null;
+          if (idx != null && idx < product.modifiers!.extras!.options.length) {
             list.add('+ ${product.modifiers!.extras!.options[idx].label}');
           }
         }
@@ -55,15 +64,15 @@ class CartItem {
     double total = product.price;
 
     if (modifiers['size'] != null && product.modifiers?.size != null) {
-      final idx = modifiers['size'] as int;
-      if (idx < product.modifiers!.size!.options.length) {
+      final idx = _getIndex(modifiers['size']);
+      if (idx != null && idx < product.modifiers!.size!.options.length) {
         total += product.modifiers!.size!.options[idx].price;
       }
     }
 
     if (modifiers['milk'] != null && product.modifiers?.milk != null) {
-      final idx = modifiers['milk'] as int;
-      if (idx < product.modifiers!.milk!.options.length) {
+      final idx = _getIndex(modifiers['milk']);
+      if (idx != null && idx < product.modifiers!.milk!.options.length) {
         total += product.modifiers!.milk!.options[idx].price;
       }
     }
@@ -71,8 +80,9 @@ class CartItem {
     if (modifiers['extras'] != null && product.modifiers?.extras != null) {
       final extras = modifiers['extras'];
       if (extras is List) {
-        for (var idx in extras) {
-          if (idx is int && idx < product.modifiers!.extras!.options.length) {
+        for (var item in extras) {
+          final idx = (item is int) ? item : null;
+          if (idx != null && idx < product.modifiers!.extras!.options.length) {
             total += product.modifiers!.extras!.options[idx].price;
           }
         }
