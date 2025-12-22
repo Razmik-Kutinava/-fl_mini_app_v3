@@ -9,6 +9,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import '../constants/app_colors.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
+import '../providers/user_provider.dart';
 import '../services/api_service.dart';
 
 class CartScreen extends StatefulWidget {
@@ -67,6 +68,7 @@ class _CartScreenState extends State<CartScreen> {
     if (!mounted) return;
     final cartProvider = context.read<CartProvider>();
     final locationProvider = context.read<LocationProvider>();
+    final userProvider = context.read<UserProvider>();
 
     if (!mounted) return;
     showDialog(
@@ -79,6 +81,9 @@ class _CartScreenState extends State<CartScreen> {
     print('Location: ${locationProvider.selectedLocation?.id}');
     print('Items count: ${cartProvider.items.length}');
     print('Total: ${cartProvider.total}');
+    print('User: ${userProvider.user}');
+    print('User Name: ${userProvider.userName}');
+    print('Telegram ID: ${userProvider.telegramId}');
 
     await _apiService.createOrder({
       'locationId': locationProvider.selectedLocation?.id ?? '',
@@ -97,6 +102,9 @@ class _CartScreenState extends State<CartScreen> {
       'promoCode': cartProvider.promoCode,
       'discount': cartProvider.discount,
       'total': cartProvider.total,
+      'telegramUserId': userProvider.telegramId,
+      'userId': userProvider.userId,
+      'customerName': userProvider.userName,
     });
 
     if (mounted) {
@@ -162,6 +170,7 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     final cartProvider = context.watch<CartProvider>();
+    final userProvider = context.watch<UserProvider>();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -172,12 +181,27 @@ class _CartScreenState extends State<CartScreen> {
           onPressed: () => Navigator.pop(context),
           icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
         ),
-        title: Text(
-          'Корзина',
-          style: GoogleFonts.montserrat(
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Корзина',
+              style: GoogleFonts.montserrat(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+                fontSize: 18,
+              ),
+            ),
+            if (userProvider.userName != null && userProvider.userName!.isNotEmpty)
+              Text(
+                userProvider.userName!,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
         ),
         centerTitle: true,
       ),

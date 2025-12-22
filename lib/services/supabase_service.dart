@@ -280,6 +280,7 @@ class SupabaseService {
     String? promocodeId,
     double? discount,
     String? telegramUserId,
+    String? userId,
     String? customerName,
     String? customerPhone,
     String? comment,
@@ -289,6 +290,9 @@ class SupabaseService {
       print('locationId: $locationId');
       print('items: $items');
       print('total: $total');
+      print('telegramUserId: $telegramUserId');
+      print('userId: $userId');
+      print('customerName: $customerName');
 
       // Генерируем UUID для id
       final orderId = _generateUuid();
@@ -298,6 +302,7 @@ class SupabaseService {
       final orderData = {
         'id': orderId,
         'locationId': locationId,
+        'userId': userId,
         'status': 'paid',
         'subtotal': total + (discount ?? 0),
         'discountAmount': discount ?? 0,

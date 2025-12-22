@@ -334,7 +334,7 @@ class ApiService {
         
         final modifierGroup = ModifierGroup(
           required: group['required'] ?? group['isRequired'] ?? false,
-          type: group['type'] == 'MULTIPLE' ? 'multiple' : 'single',
+          type: (group['type']?.toString().toUpperCase() == 'MULTIPLE') ? 'multiple' : 'single',
           options: options.map((opt) => ModifierOption(
             label: opt['name'] ?? '',
             volume: opt['description'],
@@ -422,6 +422,8 @@ class ApiService {
         promocodeId: orderData['promocodeId'],
         discount: orderData['discount']?.toDouble(),
         telegramUserId: orderData['telegramUserId'],
+        userId: orderData['userId'],
+        customerName: orderData['customerName'],
       );
       
       return {
