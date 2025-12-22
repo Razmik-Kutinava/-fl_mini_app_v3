@@ -125,27 +125,38 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
 
     // Добавляем цену выбранных модификаторов
     for (var screen in _screens) {
+      if (screen.group == null) continue;
+
       if (screen.key == 'size' && _selectedModifiers['size'] != null) {
         final sizeValue = _selectedModifiers['size'];
-        if (sizeValue is int) {
+        if (sizeValue is int && sizeValue >= 0 && sizeValue < screen.group!.options.length) {
           total += screen.group!.options[sizeValue].price;
-        } else if (sizeValue is List<int> && sizeValue.isNotEmpty) {
-          total += screen.group!.options[sizeValue[0]].price;
+        } else if (sizeValue is List && sizeValue.isNotEmpty) {
+          final idx = (sizeValue[0] is int) ? sizeValue[0] as int : -1;
+          if (idx >= 0 && idx < screen.group!.options.length) {
+            total += screen.group!.options[idx].price;
+          }
         }
       } else if (screen.key == 'milk' && _selectedModifiers['milk'] != null) {
         final milkValue = _selectedModifiers['milk'];
-        if (milkValue is int) {
+        if (milkValue is int && milkValue >= 0 && milkValue < screen.group!.options.length) {
           total += screen.group!.options[milkValue].price;
-        } else if (milkValue is List<int> && milkValue.isNotEmpty) {
-          total += screen.group!.options[milkValue[0]].price;
+        } else if (milkValue is List && milkValue.isNotEmpty) {
+          final idx = (milkValue[0] is int) ? milkValue[0] as int : -1;
+          if (idx >= 0 && idx < screen.group!.options.length) {
+            total += screen.group!.options[idx].price;
+          }
         }
       } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
         final extrasValue = _selectedModifiers['extras'];
-        if (extrasValue is List<int>) {
-          for (var idx in extrasValue) {
-            total += screen.group!.options[idx].price;
+        if (extrasValue is List) {
+          for (var item in extrasValue) {
+            final idx = (item is int) ? item : -1;
+            if (idx >= 0 && idx < screen.group!.options.length) {
+              total += screen.group!.options[idx].price;
+            }
           }
-        } else if (extrasValue is int) {
+        } else if (extrasValue is int && extrasValue >= 0 && extrasValue < screen.group!.options.length) {
           total += screen.group!.options[extrasValue].price;
         }
       }
@@ -158,15 +169,17 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     final cubes = <SelectedCube>[];
 
     for (var screen in _screens) {
+      if (screen.group == null) continue;
+
       if (screen.key == 'size' && _selectedModifiers['size'] != null) {
         final sizeValue = _selectedModifiers['size'];
         int? index;
         if (sizeValue is int) {
           index = sizeValue;
-        } else if (sizeValue is List<int> && sizeValue.isNotEmpty) {
-          index = sizeValue[0];
+        } else if (sizeValue is List && sizeValue.isNotEmpty && sizeValue[0] is int) {
+          index = sizeValue[0] as int;
         }
-        if (index != null && index < screen.group!.options.length) {
+        if (index != null && index >= 0 && index < screen.group!.options.length) {
           final option = screen.group!.options[index];
           cubes.add(SelectedCube(
             label: option.label,
@@ -180,10 +193,10 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
         int? index;
         if (milkValue is int) {
           index = milkValue;
-        } else if (milkValue is List<int> && milkValue.isNotEmpty) {
-          index = milkValue[0];
+        } else if (milkValue is List && milkValue.isNotEmpty && milkValue[0] is int) {
+          index = milkValue[0] as int;
         }
-        if (index != null && index < screen.group!.options.length) {
+        if (index != null && index >= 0 && index < screen.group!.options.length) {
           final option = screen.group!.options[index];
           cubes.add(SelectedCube(
             label: option.label,
@@ -193,10 +206,10 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
         }
       } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
         final extrasValue = _selectedModifiers['extras'];
-        if (extrasValue is List<int>) {
-          for (var idx in extrasValue) {
-            if (idx < screen.group!.options.length) {
-              final option = screen.group!.options[idx];
+        if (extrasValue is List) {
+          for (var item in extrasValue) {
+            if (item is int && item >= 0 && item < screen.group!.options.length) {
+              final option = screen.group!.options[item];
               cubes.add(SelectedCube(
                 label: option.label,
                 emoji: option.emoji,
@@ -204,15 +217,13 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               ));
             }
           }
-        } else if (extrasValue is int) {
-          if (extrasValue < screen.group!.options.length) {
-            final option = screen.group!.options[extrasValue];
-            cubes.add(SelectedCube(
-              label: option.label,
-              emoji: option.emoji,
-              price: option.price,
-            ));
-          }
+        } else if (extrasValue is int && extrasValue >= 0 && extrasValue < screen.group!.options.length) {
+          final option = screen.group!.options[extrasValue];
+          cubes.add(SelectedCube(
+            label: option.label,
+            emoji: option.emoji,
+            price: option.price,
+          ));
         }
       }
     }
