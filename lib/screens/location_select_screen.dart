@@ -12,6 +12,7 @@ import '../providers/location_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/location_card.dart';
 import 'main_screen.dart';
+import '../services/telegram_service.dart';
 
 class LocationSelectScreen extends StatefulWidget {
   const LocationSelectScreen({super.key});
@@ -175,6 +176,13 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
 
   void _selectLocation(Location location) {
     context.read<LocationProvider>().selectLocation(location);
+    // Отправляем выбор в бота, если в Telegram
+    final tg = TelegramService.instance;
+    if (tg.isInTelegram) {
+      tg.sendData(
+        '{"action":"set_location","location_id":"${location.id}"}',
+      );
+    }
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const MainScreen()),

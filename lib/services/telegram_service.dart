@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'package:flutter/foundation.dart';
 
@@ -12,8 +13,20 @@ extension TelegramWebAppExt on TelegramWebApp {
   external void ready();
   external void expand();
   external void close();
+  external void sendData(String data);
+  @JS('requestLocation')
+  external void requestLocationRaw(JSFunction? callback);
   external TelegramInitDataUnsafe? get initDataUnsafe;
   external TelegramMainButton get MainButton;
+}
+
+@JS()
+@staticInterop
+class TelegramLocationResult {}
+
+extension TelegramLocationResultExt on TelegramLocationResult {
+  external double? get latitude;
+  external double? get longitude;
 }
 
 @JS()
@@ -138,5 +151,44 @@ class TelegramService {
     } catch (e) {
       debugPrint('Telegram close error: $e');
     }
+  }
+
+  /// Отправка данных в бота (web_app_data)
+  void sendData(String data) {
+    if (!isInTelegram) return;
+    try {
+      telegramWebApp?.sendData(data);
+      debugPrint('Telegram sendData: $data');
+    } catch (e) {
+      debugPrint('Telegram sendData error: $e');
+    }
+  }
+
+  /// Запрос геопозиции через Telegram WebApp
+  Future<Map<String, double>?> requestLocation() async {
+    if (!isInTelegram) return null;
+    final completer = Completer<Map<String, double>?>();
+    try {
+      telegramWebApp?.requestLocationRaw(
+        ((JSAny? result) {
+          try {
+            final res = result as TelegramLocationResult?;
+            final lat = res?.latitude;
+            final lon = res?.longitude;
+            if (lat != null && lon != null) {
+              completer.complete({'lat': lat, 'lon': lon});
+            } else {
+              completer.complete(null);
+            }
+          } catch (_) {
+            completer.complete(null);
+          }
+        }).toJS,
+      );
+    } catch (e, st) {
+      debugPrint('Telegram requestLocation error: $e\n$st');
+      return null;
+    }
+    return completer.future;
   }
 }
