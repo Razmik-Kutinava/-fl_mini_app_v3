@@ -1,0 +1,20 @@
+﻿Compiling lib\main.dart for the Web...                          
+flutter : Wasm dry run findings:
+строка:1 знак:1
++ flutter build web --release 2>&1 | Out-File -FilePath build_log.txt - ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Wasm dry run findings::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Found incompatibilities with WebAssembly.
+
+package:geolocator_web/src/html_geolocation_manager.dart 1:1 - dart:html unsupported (0)
+package:geolocator_web/src/html_permissions_manager.dart 1:1 - dart:html unsupported (0)
+package:geolocator_web/src/utils.dart 2:1 - dart:html unsupported (0)
+
+Consider addressing these issues to enable wasm builds. See docs for more info: https://docs.flut
+ter.dev/platform-integration/web/wasm
+
+Use --no-wasm-dry-run to disable these warnings.
+Compiling lib\main.dart for the Web...                             88,0s
+тИЪ Built build\web

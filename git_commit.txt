@@ -1,0 +1,2 @@
+﻿[main 1bf60ea] feat: Add URL parameters support for direct location selection from Telegram bot
+ 4 files changed, 29333 insertions(+), 29171 deletions(-)

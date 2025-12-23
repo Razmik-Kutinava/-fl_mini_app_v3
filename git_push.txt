@@ -1,0 +1,9 @@
+﻿git : To https://github.com/Razmik-Kutinava/-fl_mini_app_v3.git
+строка:1 знак:1
++ git push origin main 2>&1 | Out-File -FilePath git_push.txt -Encoding ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (To https://gith...mini_app_v3.git:String) [], Remot 
+   eException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   eedabe4..1bf60ea  main -> main
