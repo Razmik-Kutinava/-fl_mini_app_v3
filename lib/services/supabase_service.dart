@@ -204,9 +204,7 @@ class SupabaseService {
         return [];
       }
 
-      final groupIds = links
-          .map((e) => e['modifierGroupId'])
-          .toList();
+      final groupIds = links.map((e) => e['modifierGroupId']).toList();
 
       print('📋 Group IDs to fetch: $groupIds');
       print('📋 Group IDs count: ${groupIds.length}');
@@ -424,16 +422,16 @@ class SupabaseService {
   }) async {
     try {
       print('🔍 Looking for user with telegram_user_id: $telegramId');
-      
+
       // Ищем существующего пользователя по telegram_user_id
       final existing = await client
           .from('User')
           .select()
           .eq('telegram_user_id', telegramId)
           .maybeSingle();
-      
+
       final now = DateTime.now().toIso8601String();
-      
+
       if (existing != null) {
         print('✅ User found, updating...');
         // Обновляем данные пользователя
@@ -448,7 +446,7 @@ class SupabaseService {
             .eq('telegram_user_id', telegramId)
             .select()
             .single();
-        
+
         print('✅ User updated: ${updated['id']}');
         print('✅ first_name: ${updated['first_name']}');
         print('✅ username: ${updated['username']}');
@@ -456,6 +454,7 @@ class SupabaseService {
       } else {
         print('🆕 Creating new user...');
         // Создаем нового пользователя с новыми колонками
+        // НЕ указываем role - пусть используется default значение из БД
         final newUser = await client
             .from('User')
             .insert({
@@ -464,7 +463,7 @@ class SupabaseService {
               'username': username,
               'first_name': firstName,
               'status': 'active',
-              'role': 'customer',
+              // 'role' убран - enum UserRole не содержит 'customer'
               'acceptsMarketing': false,
               'createdAt': now,
               'updatedAt': now,
@@ -472,7 +471,7 @@ class SupabaseService {
             })
             .select()
             .single();
-        
+
         print('✅ New user created: ${newUser['id']}');
         print('✅ first_name: ${newUser['first_name']}');
         print('✅ username: ${newUser['username']}');

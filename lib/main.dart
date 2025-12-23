@@ -5,9 +5,11 @@ import 'providers/location_provider.dart';
 import 'providers/menu_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/permissions_screen.dart';
+import 'screens/main_screen.dart';
 import 'services/telegram_service.dart';
 import 'services/supabase_service.dart';
 import 'constants/app_colors.dart';
+import 'models/location.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -70,6 +72,7 @@ class _AppInitializerState extends State<AppInitializer> {
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
     final userProvider = context.read<UserProvider>();
+    final locationProvider = context.read<LocationProvider>();
     userProvider.setLoading(true);
     
     // Небольшая задержка для инициализации Telegram WebApp
@@ -141,6 +144,29 @@ class _AppInitializerState extends State<AppInitializer> {
       }
     }
     
+    // Проверяем сохраненную локацию
+    print('📍 Checking for saved location...');
+    final lastLocationId = await locationProvider.getLastLocationId();
+    if (lastLocationId != null) {
+      print('📍 Found saved location: $lastLocationId');
+      // Загружаем локации
+      try {
+        final locationsData = await SupabaseService.getLocations();
+        final locations = locationsData
+            .map((data) => Location.fromJson(data))
+            .toList();
+        locationProvider.setLocations(locations);
+        
+        // Восстанавливаем последнюю выбранную локацию
+        locationProvider.restoreLastLocation(lastLocationId);
+        print('✅ Location restored, will skip location selection');
+      } catch (e) {
+        print('⚠️ Error loading locations: $e');
+      }
+    } else {
+      print('📍 No saved location found');
+    }
+    
     userProvider.setLoading(false);
     print('✅ User initialization complete');
     if (mounted) {
@@ -156,6 +182,15 @@ class _AppInitializerState extends State<AppInitializer> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    
+    // Если есть сохраненная локация, сразу переходим на главное меню
+    final locationProvider = context.watch<LocationProvider>();
+    if (locationProvider.selectedLocation != null) {
+      print('🎯 Location already selected, going to main screen');
+      return const MainScreen();
+    }
+    
+    // Иначе запрашиваем разрешения
     return const PermissionsScreen();
   }
 }

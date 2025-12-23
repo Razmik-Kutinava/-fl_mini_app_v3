@@ -109,6 +109,16 @@ class _CartScreenState extends State<CartScreen> {
 
     if (mounted) {
       Navigator.pop(context); // Close loading
+
+      // Получаем имя пользователя ДО очистки корзины
+      final userName = userProvider.userName ?? userProvider.firstName;
+      final displayName = (userName != null && userName.isNotEmpty)
+          ? userName.replaceAll('@', '') // Убираем @ если это username
+          : null;
+
+      print('📱 User name for success dialog: $displayName');
+      print('📱 From Telegram: ${userProvider.telegramId}');
+
       cartProvider.clear();
 
       showDialog(
@@ -142,11 +152,42 @@ class _CartScreenState extends State<CartScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+              // Показываем имя пользователя из Telegram
               Text(
-                'Ваш заказ будет готов через ~15 минут',
+                displayName != null
+                    ? '$displayName, ваш заказ будет готов через ~15 минут 🎉'
+                    : 'Ваш заказ будет готов через ~15 минут',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.inter(color: AppColors.textSecondary),
               ),
+              // Показываем Telegram ID для отладки
+              if (userProvider.telegramId != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.telegram, color: Colors.blue, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Telegram: ${userProvider.telegramId}',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -192,7 +233,8 @@ class _CartScreenState extends State<CartScreen> {
                 fontSize: 18,
               ),
             ),
-            if (userProvider.userName != null && userProvider.userName!.isNotEmpty)
+            if (userProvider.userName != null &&
+                userProvider.userName!.isNotEmpty)
               Text(
                 userProvider.userName!,
                 style: GoogleFonts.inter(

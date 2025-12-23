@@ -72,3 +72,4 @@ LEFT JOIN "ModifierOption" mo ON mg.id::uuid = mo."groupId"::uuid AND mo."isActi
 WHERE p.id::uuid IN ('5a83c268-d7de-47cd-9464-85ad086e2266'::uuid, 'b368b7a0-26cb-4751-8746-d30025d215ed'::uuid)
 GROUP BY p.name, mg.name, mg.type, pmg.position
 ORDER BY p.name, pmg.position;
+

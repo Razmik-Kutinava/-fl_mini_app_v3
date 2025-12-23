@@ -15,6 +15,7 @@ import '../widgets/product_card.dart';
 import '../widgets/category_chip.dart';
 import '../widgets/promo_banner.dart';
 import 'cart_screen.dart';
+import 'location_select_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -111,7 +112,14 @@ class _MainScreenState extends State<MainScreen> {
                     ),
                   ),
                   IconButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const LocationSelectScreen(),
+                        ),
+                      );
+                    },
                     icon: const Icon(Icons.location_on_outlined),
                     color: AppColors.primary,
                   ),
