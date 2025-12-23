@@ -5,15 +5,12 @@ import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:page_transition/page_transition.dart';
 import 'package:flutter/services.dart';
-import 'package:geolocator/geolocator.dart';
 import '../constants/app_colors.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/menu_provider.dart';
 import '../providers/user_provider.dart';
 import '../services/api_service.dart';
-import '../services/telegram_service.dart';
-import '../models/location.dart';
 import '../widgets/product_card.dart';
 import '../widgets/category_chip.dart';
 import '../widgets/promo_banner.dart';
@@ -50,75 +47,13 @@ class _MainScreenState extends State<MainScreen> {
     menuProvider.setLoading(false);
   }
 
-  /// Обработка нажатия на иконку геолокации.
-  /// 1) Пробуем запросить гео через Telegram WebApp (для сортировки).
-  /// 2) Всегда открываем экран выбора локации (пользователь сам выбирает точку).
-  Future<void> _handleGeoRequest() async {
-    final locationProvider = context.read<LocationProvider>();
-
-    // Попытка через Telegram WebApp с таймаутом
-    final tg = TelegramService.instance;
-    if (tg.isInTelegram) {
-      try {
-        final coords = await tg.requestLocation().timeout(
-          const Duration(seconds: 2),
-          onTimeout: () => null,
-        );
-        if (coords != null) {
-          final lat = coords['lat']!;
-          final lon = coords['lon']!;
-
-          // Сохраняем позицию пользователя для сортировки (без автоселекта)
-          locationProvider.setUserPosition(
-            Position(
-              latitude: lat,
-              longitude: lon,
-              timestamp: DateTime.now(),
-              accuracy: 30,
-              altitude: 0,
-              heading: 0,
-              speed: 0,
-              speedAccuracy: 0,
-              headingAccuracy: 0,
-              altitudeAccuracy: 0,
-            ),
-          );
-        }
-      } catch (e) {
-        print('⚠️ Не удалось получить гео: $e');
-        // игнорируем ошибку, перейдем на экран выбора
-      }
-    }
-
-    // Всегда переходим на экран выбора локации
-    if (mounted) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const LocationSelectScreen(),
-        ),
-      );
-    }
-  }
-
-  Location _findNearest(double lat, double lon, List<Location> locations) {
-    Location? nearest;
-    double minDist = double.infinity;
-
-    for (final loc in locations) {
-      final dist = Geolocator.distanceBetween(lat, lon, loc.lat, loc.lng);
-      if (dist < minDist) {
-        minDist = dist;
-        nearest = loc;
-      }
-    }
-    return nearest ?? locations.first;
-  }
-
-  void _showSnack(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+  /// Обработка нажатия на иконку геолокации — открываем экран выбора кофейни.
+  void _handleGeoRequest() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LocationSelectScreen(),
+      ),
     );
   }
 
