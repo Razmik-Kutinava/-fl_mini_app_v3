@@ -189,70 +189,92 @@ class _AppInitializerState extends State<AppInitializer> {
     }
     
     // =====================================================
-    // ПРИОРИТЕТ 1: Загружаем preferredLocationId из Supabase!
-    // Telegram НЕ передаёт URL параметры - используем БД
+    // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    String? telegramIdForLocation;
-    if (tgUser != null && tgUser['id'] != null) {
-      telegramIdForLocation = tgUser['id'].toString();
-    }
+    print('🚀 VERSION: 2.0 - Direct DB lookup');
     
-    print('🔗 Loading user location from Supabase...');
-    await UserLocationContext.loadFromDatabase(telegramIdForLocation);
-    
-    if (UserLocationContext.hasPreferredLocation) {
-      print('✅ Found preferredLocationId from DB: ${UserLocationContext.preferredLocationId}');
+    try {
+      // СНАЧАЛА загружаем все активные локации
+      print('📍 Loading active locations from Supabase...');
+      final locationsData = await SupabaseService.getLocations();
+      final locations = locationsData
+          .map((data) => Location.fromJson(data))
+          .toList();
       
-      // Загружаем локации и выбираем нужную
-      try {
-        final locationsData = await SupabaseService.getLocations();
-        final locations = locationsData
-            .map((data) => Location.fromJson(data))
-            .toList();
+      print('📍 Loaded ${locations.length} active locations:');
+      for (var loc in locations) {
+        print('   - ${loc.name} (${loc.id})');
+      }
+      
+      if (locations.isEmpty) {
+        print('❌ No active locations found!');
+      } else {
         locationProvider.setLocations(locations);
         
-        print('📍 Available locations: ${locations.map((l) => "${l.name} (${l.id})").join(", ")}');
-        
-        // Ищем локацию по preferredLocationId
-        final targetLocation = locations.firstWhere(
-          (loc) => loc.id == UserLocationContext.preferredLocationId,
-          orElse: () {
-            print('⚠️ preferredLocationId not found in active locations, using first available');
-            return locations.isNotEmpty ? locations.first : throw StateError('No locations');
-          },
-        );
-        
-        print('✅ Auto-selecting location: ${targetLocation.name}');
-        await locationProvider.selectLocation(targetLocation);
-        print('✅ Location selected from database, skipping location selection screen!');
-      } catch (e) {
-        print('⚠️ Error loading location from database: $e');
-      }
-    } else {
-      // =====================================================
-      // ПРИОРИТЕТ 2: Проверяем локально сохраненную локацию
-      // =====================================================
-      print('📍 No preferredLocationId in DB, checking local storage...');
-      final lastLocationId = await locationProvider.getLastLocationId();
-      if (lastLocationId != null) {
-        print('📍 Found saved location locally: $lastLocationId');
-        // Загружаем локации
-        try {
-          final locationsData = await SupabaseService.getLocations();
-          final locations = locationsData
-              .map((data) => Location.fromJson(data))
-              .toList();
-          locationProvider.setLocations(locations);
-          
-          // Восстанавливаем последнюю выбранную локацию
-          locationProvider.restoreLastLocation(lastLocationId);
-          print('✅ Location restored from local storage');
-        } catch (e) {
-          print('⚠️ Error loading locations: $e');
+        // Пытаемся найти preferredLocationId
+        String? telegramIdForLocation;
+        if (tgUser != null && tgUser['id'] != null) {
+          telegramIdForLocation = tgUser['id'].toString();
+          print('📱 Telegram user ID: $telegramIdForLocation');
+        } else {
+          print('⚠️ No Telegram user ID available');
         }
-      } else {
-        print('📍 No saved location found anywhere');
+        
+        Location? targetLocation;
+        
+        // ПРИОРИТЕТ 1: preferredLocationId из БД
+        if (telegramIdForLocation != null) {
+          print('🔍 Looking up preferredLocationId in database...');
+          await UserLocationContext.loadFromDatabase(telegramIdForLocation);
+          
+          if (UserLocationContext.hasPreferredLocation) {
+            print('✅ Found preferredLocationId: ${UserLocationContext.preferredLocationId}');
+            
+            // Ищем эту локацию в списке активных
+            try {
+              targetLocation = locations.firstWhere(
+                (loc) => loc.id == UserLocationContext.preferredLocationId,
+              );
+              print('✅ Location matched: ${targetLocation.name}');
+            } catch (e) {
+              print('⚠️ preferredLocationId not in active locations list');
+            }
+          }
+        }
+        
+        // ПРИОРИТЕТ 2: Локально сохранённая локация
+        if (targetLocation == null) {
+          print('🔍 Checking local storage for last location...');
+          final lastLocationId = await locationProvider.getLastLocationId();
+          if (lastLocationId != null) {
+            print('📍 Found local lastLocationId: $lastLocationId');
+            try {
+              targetLocation = locations.firstWhere(
+                (loc) => loc.id == lastLocationId,
+              );
+              print('✅ Local location matched: ${targetLocation.name}');
+            } catch (e) {
+              print('⚠️ Local location not in active locations list');
+            }
+          }
+        }
+        
+        // ПРИОРИТЕТ 3: Если ничего не нашли - берём первую локацию
+        if (targetLocation == null && locations.isNotEmpty) {
+          print('📍 No saved location found, using first available');
+          targetLocation = locations.first;
+          print('📍 Default location: ${targetLocation.name}');
+        }
+        
+        // Выбираем локацию
+        if (targetLocation != null) {
+          print('🎯 AUTO-SELECTING: ${targetLocation.name}');
+          await locationProvider.selectLocation(targetLocation);
+          print('✅ Location selected! Will skip permissions screen.');
+        }
       }
+    } catch (e) {
+      print('❌ Error in location auto-selection: $e');
     }
     
     userProvider.setLoading(false);
