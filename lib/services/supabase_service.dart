@@ -502,4 +502,92 @@ class SupabaseService {
       print('❌ Log activity error: $e');
     }
   }
+
+  /// Получает preferredLocationId пользователя по telegram_id
+  /// Это ключевой метод для автоматического выбора локации при открытии из бота
+  static Future<String?> getUserPreferredLocationId(String telegramId) async {
+    try {
+      print('🔍 Getting preferredLocationId for telegram_id: $telegramId');
+      
+      // Сначала ищем по telegramId (BigInt в Prisma схеме)
+      var response = await client
+          .from('User')
+          .select('preferredLocationId')
+          .eq('telegramId', int.tryParse(telegramId) ?? 0)
+          .maybeSingle();
+      
+      // Если не нашли, пробуем по telegram_user_id
+      if (response == null) {
+        print('🔍 Not found by telegramId, trying telegram_user_id...');
+        response = await client
+            .from('User')
+            .select('preferredLocationId')
+            .eq('telegram_user_id', telegramId)
+            .maybeSingle();
+      }
+      
+      if (response != null && response['preferredLocationId'] != null) {
+        final locationId = response['preferredLocationId'] as String;
+        print('✅ Found preferredLocationId: $locationId');
+        return locationId;
+      }
+      
+      print('⚠️ No preferredLocationId found for user');
+      return null;
+    } catch (e) {
+      print('❌ Error getting preferredLocationId: $e');
+      return null;
+    }
+  }
+
+  /// Получает последнюю локацию из заказов пользователя
+  static Future<String?> getUserLastOrderLocationId(String visitorId) async {
+    try {
+      print('🔍 Getting last order location for user: $visitorId');
+      
+      // Сначала находим UUID пользователя
+      var userResponse = await client
+          .from('User')
+          .select('id')
+          .eq('telegramId', int.tryParse(visitorId) ?? 0)
+          .maybeSingle();
+      
+      if (userResponse == null) {
+        userResponse = await client
+            .from('User')
+            .select('id')
+            .eq('telegram_user_id', visitorId)
+            .maybeSingle();
+      }
+      
+      if (userResponse == null) {
+        print('⚠️ User not found');
+        return null;
+      }
+      
+      final userId = userResponse['id'] as String;
+      print('🔍 Found user UUID: $userId');
+      
+      // Ищем последний оплаченный заказ
+      final orderResponse = await client
+          .from('Order')
+          .select('locationId')
+          .eq('userId', userId)
+          .order('createdAt', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      
+      if (orderResponse != null && orderResponse['locationId'] != null) {
+        final locationId = orderResponse['locationId'] as String;
+        print('✅ Found last order locationId: $locationId');
+        return locationId;
+      }
+      
+      print('⚠️ No orders found for user');
+      return null;
+    } catch (e) {
+      print('❌ Error getting last order location: $e');
+      return null;
+    }
+  }
 }

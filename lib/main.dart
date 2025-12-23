@@ -12,62 +12,53 @@ import 'services/supabase_service.dart';
 import 'constants/app_colors.dart';
 import 'models/location.dart';
 
-/// Глобальные параметры из URL (для передачи из бота)
-class UrlParams {
-  static String? locationId;
-  static String? latitude;
-  static String? longitude;
-  static String? action;
+/// Глобальный класс для хранения preferredLocationId из БД
+class UserLocationContext {
+  static String? preferredLocationId;
+  static String? telegramUserId;
   
-  /// Читает параметры из URL при запуске в браузере
-  static void parseFromUrl() {
-    if (!kIsWeb) return;
+  /// Загружает preferredLocationId из Supabase по telegram_id
+  /// Это основной метод для автоматического выбора локации!
+  static Future<void> loadFromDatabase(String? telegramId) async {
+    if (telegramId == null || telegramId.isEmpty) {
+      print('⚠️ No telegram_id available for location lookup');
+      return;
+    }
+    
+    telegramUserId = telegramId;
+    print('🔍 Loading preferredLocationId from database for telegram_id: $telegramId');
     
     try {
-      final uri = Uri.base;
-      print('🔗 URL Parameters Parser:');
-      print('  Full URL: ${uri.toString()}');
-      print('  Query: ${uri.query}');
-      print('  Fragment: ${uri.fragment}');
+      // Получаем preferredLocationId из Supabase
+      preferredLocationId = await SupabaseService.getUserPreferredLocationId(telegramId);
       
-      // Читаем из query string (?param=value)
-      if (uri.queryParameters.isNotEmpty) {
-        locationId = uri.queryParameters['location_id'];
-        latitude = uri.queryParameters['latitude'];
-        longitude = uri.queryParameters['longitude'];
-        action = uri.queryParameters['action'];
-        print('  📍 Parsed from query: locationId=$locationId, action=$action');
-      }
-      
-      // Если нет в query, пробуем из hash (#param=value)
-      if (locationId == null && uri.fragment.isNotEmpty) {
-        final hashParams = Uri.splitQueryString(uri.fragment);
-        locationId = hashParams['location_id'];
-        latitude = hashParams['latitude'];
-        longitude = hashParams['longitude'];
-        action = hashParams['action'];
-        print('  📍 Parsed from hash: locationId=$locationId, action=$action');
-      }
-      
-      if (locationId != null) {
-        print('✅ URL contains location_id: $locationId - will skip location selection!');
+      if (preferredLocationId != null) {
+        print('✅ Found preferredLocationId from DB: $preferredLocationId');
+      } else {
+        // Если нет preferredLocationId, пробуем взять из последнего заказа
+        print('🔍 No preferredLocationId, checking last order...');
+        preferredLocationId = await SupabaseService.getUserLastOrderLocationId(telegramId);
+        
+        if (preferredLocationId != null) {
+          print('✅ Found locationId from last order: $preferredLocationId');
+        } else {
+          print('⚠️ No location found for user');
+        }
       }
     } catch (e) {
-      print('⚠️ Error parsing URL parameters: $e');
+      print('❌ Error loading location from database: $e');
     }
   }
   
-  /// Проверяет есть ли location_id в URL
-  static bool get hasLocationFromUrl => locationId != null && locationId!.isNotEmpty;
+  /// Проверяет есть ли сохранённая локация
+  static bool get hasPreferredLocation => 
+      preferredLocationId != null && preferredLocationId!.isNotEmpty;
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Парсим URL параметры ПЕРВЫМ ДЕЛОМ
-  UrlParams.parseFromUrl();
-  
-  // Initialize Supabase
+  // Initialize Supabase FIRST
   await SupabaseService.initialize();
   
   // Initialize Telegram WebApp
@@ -198,14 +189,19 @@ class _AppInitializerState extends State<AppInitializer> {
     }
     
     // =====================================================
-    // ПРИОРИТЕТ 1: Проверяем URL параметры от бота!
+    // ПРИОРИТЕТ 1: Загружаем preferredLocationId из Supabase!
+    // Telegram НЕ передаёт URL параметры - используем БД
     // =====================================================
-    print('🔗 Checking URL parameters from bot...');
-    if (UrlParams.hasLocationFromUrl) {
-      print('✅ Found location_id from URL: ${UrlParams.locationId}');
-      print('   Action: ${UrlParams.action}');
-      print('   Latitude: ${UrlParams.latitude}');
-      print('   Longitude: ${UrlParams.longitude}');
+    String? telegramIdForLocation;
+    if (tgUser != null && tgUser['id'] != null) {
+      telegramIdForLocation = tgUser['id'].toString();
+    }
+    
+    print('🔗 Loading user location from Supabase...');
+    await UserLocationContext.loadFromDatabase(telegramIdForLocation);
+    
+    if (UserLocationContext.hasPreferredLocation) {
+      print('✅ Found preferredLocationId from DB: ${UserLocationContext.preferredLocationId}');
       
       // Загружаем локации и выбираем нужную
       try {
@@ -215,26 +211,31 @@ class _AppInitializerState extends State<AppInitializer> {
             .toList();
         locationProvider.setLocations(locations);
         
-        // Ищем локацию по ID из URL
+        print('📍 Available locations: ${locations.map((l) => "${l.name} (${l.id})").join(", ")}');
+        
+        // Ищем локацию по preferredLocationId
         final targetLocation = locations.firstWhere(
-          (loc) => loc.id == UrlParams.locationId,
-          orElse: () => locations.isNotEmpty ? locations.first : throw StateError('No locations'),
+          (loc) => loc.id == UserLocationContext.preferredLocationId,
+          orElse: () {
+            print('⚠️ preferredLocationId not found in active locations, using first available');
+            return locations.isNotEmpty ? locations.first : throw StateError('No locations');
+          },
         );
         
-        print('✅ Found location from URL: ${targetLocation.name}');
+        print('✅ Auto-selecting location: ${targetLocation.name}');
         await locationProvider.selectLocation(targetLocation);
-        print('✅ Location selected from URL, skipping location selection screen!');
+        print('✅ Location selected from database, skipping location selection screen!');
       } catch (e) {
-        print('⚠️ Error loading location from URL: $e');
+        print('⚠️ Error loading location from database: $e');
       }
     } else {
       // =====================================================
-      // ПРИОРИТЕТ 2: Проверяем сохраненную локацию
+      // ПРИОРИТЕТ 2: Проверяем локально сохраненную локацию
       // =====================================================
-      print('📍 Checking for saved location...');
+      print('📍 No preferredLocationId in DB, checking local storage...');
       final lastLocationId = await locationProvider.getLastLocationId();
       if (lastLocationId != null) {
-        print('📍 Found saved location: $lastLocationId');
+        print('📍 Found saved location locally: $lastLocationId');
         // Загружаем локации
         try {
           final locationsData = await SupabaseService.getLocations();
@@ -245,12 +246,12 @@ class _AppInitializerState extends State<AppInitializer> {
           
           // Восстанавливаем последнюю выбранную локацию
           locationProvider.restoreLastLocation(lastLocationId);
-          print('✅ Location restored, will skip location selection');
+          print('✅ Location restored from local storage');
         } catch (e) {
           print('⚠️ Error loading locations: $e');
         }
       } else {
-        print('📍 No saved location found');
+        print('📍 No saved location found anywhere');
       }
     }
     
