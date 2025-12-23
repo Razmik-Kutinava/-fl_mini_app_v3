@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/location_provider.dart';
@@ -11,8 +12,60 @@ import 'services/supabase_service.dart';
 import 'constants/app_colors.dart';
 import 'models/location.dart';
 
+/// Глобальные параметры из URL (для передачи из бота)
+class UrlParams {
+  static String? locationId;
+  static String? latitude;
+  static String? longitude;
+  static String? action;
+  
+  /// Читает параметры из URL при запуске в браузере
+  static void parseFromUrl() {
+    if (!kIsWeb) return;
+    
+    try {
+      final uri = Uri.base;
+      print('🔗 URL Parameters Parser:');
+      print('  Full URL: ${uri.toString()}');
+      print('  Query: ${uri.query}');
+      print('  Fragment: ${uri.fragment}');
+      
+      // Читаем из query string (?param=value)
+      if (uri.queryParameters.isNotEmpty) {
+        locationId = uri.queryParameters['location_id'];
+        latitude = uri.queryParameters['latitude'];
+        longitude = uri.queryParameters['longitude'];
+        action = uri.queryParameters['action'];
+        print('  📍 Parsed from query: locationId=$locationId, action=$action');
+      }
+      
+      // Если нет в query, пробуем из hash (#param=value)
+      if (locationId == null && uri.fragment.isNotEmpty) {
+        final hashParams = Uri.splitQueryString(uri.fragment);
+        locationId = hashParams['location_id'];
+        latitude = hashParams['latitude'];
+        longitude = hashParams['longitude'];
+        action = hashParams['action'];
+        print('  📍 Parsed from hash: locationId=$locationId, action=$action');
+      }
+      
+      if (locationId != null) {
+        print('✅ URL contains location_id: $locationId - will skip location selection!');
+      }
+    } catch (e) {
+      print('⚠️ Error parsing URL parameters: $e');
+    }
+  }
+  
+  /// Проверяет есть ли location_id в URL
+  static bool get hasLocationFromUrl => locationId != null && locationId!.isNotEmpty;
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Парсим URL параметры ПЕРВЫМ ДЕЛОМ
+  UrlParams.parseFromUrl();
   
   // Initialize Supabase
   await SupabaseService.initialize();
@@ -144,12 +197,17 @@ class _AppInitializerState extends State<AppInitializer> {
       }
     }
     
-    // Проверяем сохраненную локацию
-    print('📍 Checking for saved location...');
-    final lastLocationId = await locationProvider.getLastLocationId();
-    if (lastLocationId != null) {
-      print('📍 Found saved location: $lastLocationId');
-      // Загружаем локации
+    // =====================================================
+    // ПРИОРИТЕТ 1: Проверяем URL параметры от бота!
+    // =====================================================
+    print('🔗 Checking URL parameters from bot...');
+    if (UrlParams.hasLocationFromUrl) {
+      print('✅ Found location_id from URL: ${UrlParams.locationId}');
+      print('   Action: ${UrlParams.action}');
+      print('   Latitude: ${UrlParams.latitude}');
+      print('   Longitude: ${UrlParams.longitude}');
+      
+      // Загружаем локации и выбираем нужную
       try {
         final locationsData = await SupabaseService.getLocations();
         final locations = locationsData
@@ -157,14 +215,43 @@ class _AppInitializerState extends State<AppInitializer> {
             .toList();
         locationProvider.setLocations(locations);
         
-        // Восстанавливаем последнюю выбранную локацию
-        locationProvider.restoreLastLocation(lastLocationId);
-        print('✅ Location restored, will skip location selection');
+        // Ищем локацию по ID из URL
+        final targetLocation = locations.firstWhere(
+          (loc) => loc.id == UrlParams.locationId,
+          orElse: () => locations.isNotEmpty ? locations.first : throw StateError('No locations'),
+        );
+        
+        print('✅ Found location from URL: ${targetLocation.name}');
+        await locationProvider.selectLocation(targetLocation);
+        print('✅ Location selected from URL, skipping location selection screen!');
       } catch (e) {
-        print('⚠️ Error loading locations: $e');
+        print('⚠️ Error loading location from URL: $e');
       }
     } else {
-      print('📍 No saved location found');
+      // =====================================================
+      // ПРИОРИТЕТ 2: Проверяем сохраненную локацию
+      // =====================================================
+      print('📍 Checking for saved location...');
+      final lastLocationId = await locationProvider.getLastLocationId();
+      if (lastLocationId != null) {
+        print('📍 Found saved location: $lastLocationId');
+        // Загружаем локации
+        try {
+          final locationsData = await SupabaseService.getLocations();
+          final locations = locationsData
+              .map((data) => Location.fromJson(data))
+              .toList();
+          locationProvider.setLocations(locations);
+          
+          // Восстанавливаем последнюю выбранную локацию
+          locationProvider.restoreLastLocation(lastLocationId);
+          print('✅ Location restored, will skip location selection');
+        } catch (e) {
+          print('⚠️ Error loading locations: $e');
+        }
+      } else {
+        print('📍 No saved location found');
+      }
     }
     
     userProvider.setLoading(false);
