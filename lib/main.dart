@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/location_provider.dart';
@@ -195,7 +194,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 2.0 - Direct DB lookup');
+    print('🚀 VERSION: 3.0 - Enhanced with retry and synchronized order lookup');
     
     try {
       // СНАЧАЛА загружаем все активные локации
@@ -227,11 +226,16 @@ class _AppInitializerState extends State<AppInitializer> {
         
         Location? targetLocation;
 
-        // ПРИОРИТЕТ 0: location_id из hash параметров URL (от бота)
-        print('🔍 PRIORITY 0: Checking hash parameters for location_id...');
+        // ПРИОРИТЕТ 0: location_id из hash параметров URL (от бота) с retry механизмом
+        print('🔍 PRIORITY 0: Checking hash parameters for location_id with retry...');
         print('   Current URL: ${Uri.base.toString()}');
+        print('   Current hash (immediate check): ${Uri.base.fragment}');
 
-        final hashLocationId = TelegramService.instance.getLocationIdFromHash();
+        // Используем retry механизм, так как Telegram может устанавливать hash асинхронно
+        final hashLocationId = await TelegramService.instance.getLocationIdFromHashWithRetry(
+          maxAttempts: 5,
+          initialDelay: const Duration(milliseconds: 300),
+        );
 
         if (hashLocationId != null && hashLocationId.isNotEmpty) {
           print('✅ Found location_id in hash: $hashLocationId');
@@ -245,12 +249,13 @@ class _AppInitializerState extends State<AppInitializer> {
             print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
           }
         } else {
-          print('ℹ️ No location_id found in hash, will use other priorities');
+          print('ℹ️ No location_id found in hash after retries, will use other priorities');
         }
 
-        // ПРИОРИТЕТ 1: preferredLocationId из БД
+        // ПРИОРИТЕТ 1: preferredLocationId из БД или последний заказ (синхронизировано с ботом)
         if (targetLocation == null && telegramIdForLocation != null) {
-          print('🔍 PRIORITY 1: Looking up preferredLocationId in database...');
+          print('🔍 PRIORITY 1: Looking up preferredLocationId in database or last order...');
+          print('   Telegram ID: $telegramIdForLocation');
           await UserLocationContext.loadFromDatabase(telegramIdForLocation);
 
           if (UserLocationContext.hasPreferredLocation) {
@@ -261,11 +266,16 @@ class _AppInitializerState extends State<AppInitializer> {
               targetLocation = locations.firstWhere(
                 (loc) => loc.id == UserLocationContext.preferredLocationId,
               );
-              print('✅ Location matched: ${targetLocation.name}');
+              print('✅ Location matched from DB: ${targetLocation.name} (${targetLocation.id})');
             } catch (e) {
-              print('⚠️ preferredLocationId not in active locations list');
+              print('⚠️ preferredLocationId "${UserLocationContext.preferredLocationId}" not in active locations list');
+              print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
             }
+          } else {
+            print('⚠️ No preferredLocationId found in database and no last order location');
           }
+        } else if (targetLocation == null) {
+          print('⚠️ Cannot use PRIORITY 1: telegramIdForLocation is null');
         }
         
         // ПРИОРИТЕТ 2: Если ничего не нашли - берём первую локацию (НЕ используем локальное хранилище!)
@@ -276,9 +286,9 @@ class _AppInitializerState extends State<AppInitializer> {
           print('📍 Default location: ${targetLocation.name}');
         }
         
-        // Выбираем локацию
+        // Выбираем локацию (если нашли на любом этапе)
         if (targetLocation != null) {
-          print('🎯 AUTO-SELECTING: ${targetLocation.name}');
+          print('🎯 AUTO-SELECTING: ${targetLocation.name} (${targetLocation.id})');
           
           // КРИТИЧНО: Сохраняем локацию напрямую в состояние
           _autoSelectedLocation = targetLocation;
@@ -288,27 +298,23 @@ class _AppInitializerState extends State<AppInitializer> {
           
           // Проверяем что локация установлена
           if (locationProvider.selectedLocation != null) {
-            print('✅ Location confirmed selected: ${locationProvider.selectedLocation!.name}');
+            print('✅ Location confirmed selected in provider: ${locationProvider.selectedLocation!.name}');
             _locationSelected = true;
           } else {
-            print('⚠️ Location not set in provider, using direct reference');
-            // Используем прямую ссылку
+            print('⚠️ Location not set in provider, but we have direct reference');
+            // Используем прямую ссылку - локация всё равно будет работать
             _locationSelected = true;
           }
+          print('✅ Location selection complete: _locationSelected=$_locationSelected, location=${targetLocation.name}');
         } else {
-          // ФИНАЛЬНЫЙ FALLBACK: Если ничего не нашли, но есть локации - берём первую
-          if (locations.isNotEmpty) {
-            print('🔄 FINAL FALLBACK: Selecting first available location');
-            targetLocation = locations.first;
-            _autoSelectedLocation = targetLocation;
-            await locationProvider.selectLocation(targetLocation);
-            _locationSelected = true;
-            print('✅ Fallback location selected: ${targetLocation.name}');
-          } else {
-            print('⚠️ No target location found, will show permissions screen');
-            _locationSelected = false;
-            _autoSelectedLocation = null;
+          // Если даже после всех попыток не нашли локацию
+          print('❌ CRITICAL: No target location found after all priorities');
+          print('   Locations available: ${locations.length}');
+          if (locations.isEmpty) {
+            print('   ⚠️ No locations in database - will show permissions screen');
           }
+          _locationSelected = false;
+          _autoSelectedLocation = null;
         }
       }
     } catch (e, stackTrace) {
@@ -318,17 +324,19 @@ class _AppInitializerState extends State<AppInitializer> {
       _autoSelectedLocation = null;
       
       // Последняя попытка - если есть локации, выбираем первую
-      try {
-        final locationProvider = context.read<LocationProvider>();
-        if (locationProvider.locations.isNotEmpty) {
-          print('🆘 EMERGENCY FALLBACK: Selecting first location after error');
-          final firstLoc = locationProvider.locations.first;
-          _autoSelectedLocation = firstLoc;
-          await locationProvider.selectLocation(firstLoc);
-          _locationSelected = true;
+      if (mounted) {
+        try {
+          final locationProvider = context.read<LocationProvider>();
+          if (locationProvider.locations.isNotEmpty) {
+            print('🆘 EMERGENCY FALLBACK: Selecting first location after error');
+            final firstLoc = locationProvider.locations.first;
+            _autoSelectedLocation = firstLoc;
+            await locationProvider.selectLocation(firstLoc);
+            _locationSelected = true;
+          }
+        } catch (e2) {
+          print('❌ Emergency fallback also failed: $e2');
         }
-      } catch (e2) {
-        print('❌ Emergency fallback also failed: $e2');
       }
     }
     
@@ -360,16 +368,26 @@ class _AppInitializerState extends State<AppInitializer> {
     if (hasLocation) {
       // Убеждаемся что локация установлена в провайдер
       if (locationProvider.selectedLocation == null && _autoSelectedLocation != null) {
-        print('⚠️ Location not in provider, restoring...');
-        locationProvider.restoreLastLocation(_autoSelectedLocation!.id);
+        print('⚠️ Location not in provider, restoring from _autoSelectedLocation...');
+        try {
+          locationProvider.restoreLastLocation(_autoSelectedLocation!.id);
+          print('✅ Location restored in provider: ${_autoSelectedLocation!.name}');
+        } catch (e) {
+          print('❌ Failed to restore location: $e');
+          // Если не удалось восстановить, устанавливаем напрямую
+          locationProvider.selectLocation(_autoSelectedLocation!);
+        }
       }
       
       final locationName = locationProvider.selectedLocation?.name ?? _autoSelectedLocation?.name ?? 'Unknown';
-      print('🎯 → Going to MainScreen with location: $locationName');
+      final locationId = locationProvider.selectedLocation?.id ?? _autoSelectedLocation?.id ?? 'unknown';
+      print('🎯 → Going to MainScreen with location: $locationName (ID: $locationId)');
+      print('✅ SUCCESS: App will show MainScreen instead of PermissionsScreen');
       return const MainScreen();
     }
     
     print('📍 → Going to PermissionsScreen (no location selected)');
+    print('⚠️ WARNING: No location was selected, user will see permissions screen');
     return const PermissionsScreen();
   }
 }

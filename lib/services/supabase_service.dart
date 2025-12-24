@@ -558,9 +558,10 @@ class SupabaseService {
   }
 
   /// Получает последнюю локацию из заказов пользователя
+  /// СИНХРОНИЗИРОВАНО С БОТОМ: ищет оплаченные заказы сначала, потом любой последний
   static Future<String?> getUserLastOrderLocationId(String visitorId) async {
     try {
-      print('🔍 Getting last order location for user: $visitorId');
+      print('🔍 [getUserLastOrderLocationId] Getting last order location for user: $visitorId');
       
       // Сначала находим UUID пользователя
       var userResponse = await client
@@ -570,6 +571,7 @@ class SupabaseService {
           .maybeSingle();
       
       if (userResponse == null) {
+        print('🔍 [getUserLastOrderLocationId] User not found by telegramId, trying telegram_user_id...');
         userResponse = await client
             .from('User')
             .select('id')
@@ -578,32 +580,90 @@ class SupabaseService {
       }
       
       if (userResponse == null) {
-        print('⚠️ User not found');
+        print('⚠️ [getUserLastOrderLocationId] User not found');
         return null;
       }
       
       final userId = userResponse['id'] as String;
-      print('🔍 Found user UUID: $userId');
+      print('✅ [getUserLastOrderLocationId] Found user UUID: $userId');
       
-      // Ищем последний оплаченный заказ
-      final orderResponse = await client
-          .from('Order')
-          .select('locationId')
-          .eq('userId', userId)
-          .order('createdAt', ascending: false)
-          .limit(1)
-          .maybeSingle();
+      // СИНХРОНИЗАЦИЯ С БОТОМ: Сначала ищем оплаченные заказы (paymentStatus)
+      // Бот использует: ["succeeded", "paid", "PAID", "SUCCEEDED"]
+      final paymentStatuses = ["succeeded", "paid", "PAID", "SUCCEEDED"];
+      String? locationId;
       
-      if (orderResponse != null && orderResponse['locationId'] != null) {
-        final locationId = orderResponse['locationId'] as String;
-        print('✅ Found last order locationId: $locationId');
-        return locationId;
+      for (final status in paymentStatuses) {
+        try {
+          print('🔍 [getUserLastOrderLocationId] Searching order with paymentStatus=$status...');
+          final orderResponse = await client
+              .from('Order')
+              .select('locationId, createdAt')
+              .eq('userId', userId)
+              .eq('paymentStatus', status)
+              .order('createdAt', ascending: false)
+              .limit(1)
+              .maybeSingle();
+          
+          if (orderResponse != null && orderResponse['locationId'] != null) {
+            locationId = orderResponse['locationId'] as String;
+            print('✅ [getUserLastOrderLocationId] Found paid order with paymentStatus=$status, locationId: $locationId');
+            return locationId;
+          }
+        } catch (e) {
+          print('⚠️ [getUserLastOrderLocationId] Error searching by paymentStatus=$status: $e');
+        }
       }
       
-      print('⚠️ No orders found for user');
+      // Если не нашли по paymentStatus, пробуем по status
+      // Бот использует: ["paid", "completed", "ready", "PAID", "COMPLETED", "READY"]
+      final orderStatuses = ["paid", "completed", "ready", "PAID", "COMPLETED", "READY"];
+      for (final status in orderStatuses) {
+        try {
+          print('🔍 [getUserLastOrderLocationId] Searching order with status=$status...');
+          final orderResponse = await client
+              .from('Order')
+              .select('locationId, createdAt')
+              .eq('userId', userId)
+              .eq('status', status)
+              .order('createdAt', ascending: false)
+              .limit(1)
+              .maybeSingle();
+          
+          if (orderResponse != null && orderResponse['locationId'] != null) {
+            locationId = orderResponse['locationId'] as String;
+            print('✅ [getUserLastOrderLocationId] Found order with status=$status, locationId: $locationId');
+            return locationId;
+          }
+        } catch (e) {
+          print('⚠️ [getUserLastOrderLocationId] Error searching by status=$status: $e');
+        }
+      }
+      
+      // Если так и не нашли оплаченные - берем просто последний заказ (как в боте)
+      print('🔍 [getUserLastOrderLocationId] No paid orders found, searching any last order...');
+      try {
+        final orderResponse = await client
+            .from('Order')
+            .select('locationId, createdAt')
+            .eq('userId', userId)
+            .order('createdAt', ascending: false)
+            .limit(1)
+            .maybeSingle();
+        
+        if (orderResponse != null && orderResponse['locationId'] != null) {
+          locationId = orderResponse['locationId'] as String;
+          print('✅ [getUserLastOrderLocationId] Found last order (any status), locationId: $locationId');
+          return locationId;
+        }
+      } catch (e) {
+        print('⚠️ [getUserLastOrderLocationId] Error searching last order: $e');
+      }
+      
+      print('⚠️ [getUserLastOrderLocationId] No orders found for user');
       return null;
-    } catch (e) {
-      print('❌ Error getting last order location: $e');
+    } catch (e, stackTrace) {
+      print('❌ [getUserLastOrderLocationId] Error: $e');
+      print('❌ [getUserLastOrderLocationId] Stack: $stackTrace');
       return null;
     }
   }

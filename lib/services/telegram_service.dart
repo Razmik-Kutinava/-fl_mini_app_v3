@@ -193,7 +193,40 @@ class TelegramService {
     return completer.future;
   }
 
-  /// Получает location_id из hash параметров URL
+  /// Получает location_id из hash параметров URL с повторными попытками
+  /// Бот передаёт параметры через fragment (#) вида:
+  /// #location_id=xxx&latitude=55.7558&longitude=37.6173&location_name=Арбак
+  /// Telegram может устанавливать hash асинхронно, поэтому нужны повторные попытки
+  Future<String?> getLocationIdFromHashWithRetry({
+    int maxAttempts = 5,
+    Duration initialDelay = const Duration(milliseconds: 300),
+  }) async {
+    if (!kIsWeb) return null;
+
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      if (attempt > 0) {
+        // Увеличиваем задержку с каждой попыткой: 300ms, 600ms, 900ms, 1200ms, 1500ms
+        final delay = initialDelay * (attempt + 1);
+        print('🔄 Retry attempt $attempt/$maxAttempts for reading hash, waiting ${delay.inMilliseconds}ms...');
+        await Future.delayed(delay);
+      }
+
+      final locationId = getLocationIdFromHash();
+      if (locationId != null && locationId.isNotEmpty) {
+        print('✅ Successfully read location_id from hash on attempt ${attempt + 1}: $locationId');
+        return locationId;
+      }
+
+      if (attempt < maxAttempts - 1) {
+        print('⚠️ Hash not available yet (attempt ${attempt + 1}/$maxAttempts)');
+      }
+    }
+
+    print('❌ Failed to read location_id from hash after $maxAttempts attempts');
+    return null;
+  }
+
+  /// Получает location_id из hash параметров URL (синхронная версия)
   /// Бот передаёт параметры через fragment (#) вида:
   /// #location_id=xxx&latitude=55.7558&longitude=37.6173&location_name=Арбак
   String? getLocationIdFromHash() {
@@ -210,7 +243,7 @@ class TelegramService {
         if (jsHash != null && jsHash.isNotEmpty) {
           // Убираем # в начале если есть
           hash = jsHash.startsWith('#') ? jsHash.substring(1) : jsHash;
-          print('🔍 Hash from window.location.hash: $hash');
+          print('🔍 Hash from window.location.hash (length: ${hash.length}): ${hash.length > 150 ? hash.substring(0, 150) + "..." : hash}');
         }
       } catch (e) {
         print('⚠️ Failed to read from window.location.hash: $e');
@@ -219,26 +252,36 @@ class TelegramService {
       // Fallback: пробуем Uri.base.fragment
       if (hash.isEmpty) {
         hash = Uri.base.fragment;
-        print('🔍 Hash from Uri.base.fragment: $hash');
+        if (hash.isNotEmpty) {
+          print('🔍 Hash from Uri.base.fragment (length: ${hash.length}): ${hash.length > 150 ? hash.substring(0, 150) + "..." : hash}');
+        }
       }
 
       if (hash.isEmpty) {
         print('⚠️ No hash parameters found in URL');
+        print('   Full URL: ${Uri.base.toString()}');
+        print('   Fragment: ${Uri.base.fragment}');
         return null;
       }
 
-      print('🔍 Parsing hash: $hash');
+      print('🔍 Parsing hash (length: ${hash.length})');
 
       // Парсим параметры из hash
       final params = Uri.splitQueryString(hash);
+      print('🔍 Parsed hash parameters: ${params.keys.join(", ")}');
+
       final locationId = params['location_id'];
 
-      if (locationId != null) {
+      if (locationId != null && locationId.isNotEmpty) {
         print('✅ Found location_id in hash: $locationId');
         return locationId;
       } else {
         print('⚠️ No location_id parameter in hash');
         print('   Available parameters: ${params.keys.join(", ")}');
+        // Если есть параметр data (base64), логируем это
+        if (params.containsKey('data')) {
+          print('   ℹ️ Found "data" parameter (base64 encoded), but location_id should be in plain params');
+        }
       }
     } catch (e) {
       print('❌ Error parsing hash parameters: $e');
