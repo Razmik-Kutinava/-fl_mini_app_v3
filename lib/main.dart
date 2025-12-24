@@ -106,6 +106,7 @@ class AppInitializer extends StatefulWidget {
 
 class _AppInitializerState extends State<AppInitializer> {
   bool _initialized = false;
+  bool _locationSelected = false; // Флаг успешного выбора локации
 
   @override
   void initState() {
@@ -208,6 +209,7 @@ class _AppInitializerState extends State<AppInitializer> {
       
       if (locations.isEmpty) {
         print('❌ No active locations found!');
+        _locationSelected = false;
       } else {
         locationProvider.setLocations(locations);
         
@@ -270,17 +272,44 @@ class _AppInitializerState extends State<AppInitializer> {
         if (targetLocation != null) {
           print('🎯 AUTO-SELECTING: ${targetLocation.name}');
           await locationProvider.selectLocation(targetLocation);
-          print('✅ Location selected! Will skip permissions screen.');
+          
+          // КРИТИЧНО: Даём время на обновление состояния
+          await Future.delayed(const Duration(milliseconds: 200));
+          
+          // Проверяем что локация действительно выбрана
+          if (locationProvider.selectedLocation != null) {
+            print('✅ Location confirmed selected: ${locationProvider.selectedLocation!.name}');
+            _locationSelected = true;
+          } else {
+            print('⚠️ Location selection failed, forcing restore...');
+            // Принудительно восстанавливаем
+            locationProvider.restoreLastLocation(targetLocation.id);
+            await Future.delayed(const Duration(milliseconds: 100));
+            if (locationProvider.selectedLocation != null) {
+              print('✅ Location restored: ${locationProvider.selectedLocation!.name}');
+              _locationSelected = true;
+            } else {
+              print('❌ Failed to restore location');
+              _locationSelected = false;
+            }
+          }
+        } else {
+          print('⚠️ No target location found, will show permissions screen');
+          _locationSelected = false;
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('❌ Error in location auto-selection: $e');
+      print('❌ Stack trace: $stackTrace');
+      _locationSelected = false;
     }
     
     userProvider.setLoading(false);
-    print('✅ User initialization complete');
+    print('✅ User initialization complete. _locationSelected=$_locationSelected');
     if (mounted) {
-      setState(() => _initialized = true);
+      setState(() {
+        _initialized = true;
+      });
     }
   }
 
@@ -293,14 +322,19 @@ class _AppInitializerState extends State<AppInitializer> {
       );
     }
     
-    // Если есть сохраненная локация, сразу переходим на главное меню
     final locationProvider = context.watch<LocationProvider>();
-    if (locationProvider.selectedLocation != null) {
-      print('🎯 Location already selected, going to main screen');
+    
+    // КРИТИЧНО: Проверяем флаг + selectedLocation
+    final shouldShowMain = _locationSelected && locationProvider.selectedLocation != null;
+    
+    print('🔍 Build check: _locationSelected=$_locationSelected, selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, shouldShowMain=$shouldShowMain');
+    
+    if (shouldShowMain) {
+      print('🎯 → Going to MainScreen with location: ${locationProvider.selectedLocation!.name}');
       return const MainScreen();
     }
     
-    // Иначе запрашиваем разрешения
+    print('📍 → Going to PermissionsScreen (no location selected)');
     return const PermissionsScreen();
   }
 }

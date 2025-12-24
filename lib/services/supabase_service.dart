@@ -507,35 +507,52 @@ class SupabaseService {
   /// Это ключевой метод для автоматического выбора локации при открытии из бота
   static Future<String?> getUserPreferredLocationId(String telegramId) async {
     try {
-      print('🔍 Getting preferredLocationId for telegram_id: $telegramId');
+      print('🔍 [getUserPreferredLocationId] Starting lookup for: $telegramId');
+      print('🔍 [getUserPreferredLocationId] Type: ${telegramId.runtimeType}');
       
       // Сначала ищем по telegramId (BigInt в Prisma схеме)
-      var response = await client
-          .from('User')
-          .select('preferredLocationId')
-          .eq('telegramId', int.tryParse(telegramId) ?? 0)
-          .maybeSingle();
+      final telegramIdInt = int.tryParse(telegramId);
+      print('🔍 [getUserPreferredLocationId] Parsed as int: $telegramIdInt');
       
-      // Если не нашли, пробуем по telegram_user_id
-      if (response == null) {
-        print('🔍 Not found by telegramId, trying telegram_user_id...');
+      var response;
+      if (telegramIdInt != null) {
+        print('🔍 [getUserPreferredLocationId] Searching by telegramId (int)...');
         response = await client
             .from('User')
-            .select('preferredLocationId')
-            .eq('telegram_user_id', telegramId)
+            .select('preferredLocationId, telegramId, telegram_user_id')
+            .eq('telegramId', telegramIdInt)
             .maybeSingle();
+        
+        print('🔍 [getUserPreferredLocationId] Response by telegramId: $response');
+        
+        if (response != null && response['preferredLocationId'] != null) {
+          final locationId = response['preferredLocationId'] as String;
+          print('✅ [getUserPreferredLocationId] Found by telegramId: $locationId');
+          return locationId;
+        }
       }
+      
+      // Если не нашли, пробуем по telegram_user_id (string)
+      print('🔍 [getUserPreferredLocationId] Searching by telegram_user_id (string)...');
+      response = await client
+          .from('User')
+          .select('preferredLocationId, telegramId, telegram_user_id')
+          .eq('telegram_user_id', telegramId)
+          .maybeSingle();
+      
+      print('🔍 [getUserPreferredLocationId] Response by telegram_user_id: $response');
       
       if (response != null && response['preferredLocationId'] != null) {
         final locationId = response['preferredLocationId'] as String;
-        print('✅ Found preferredLocationId: $locationId');
+        print('✅ [getUserPreferredLocationId] Found by telegram_user_id: $locationId');
         return locationId;
       }
       
-      print('⚠️ No preferredLocationId found for user');
+      print('⚠️ [getUserPreferredLocationId] No preferredLocationId found for user');
       return null;
-    } catch (e) {
-      print('❌ Error getting preferredLocationId: $e');
+    } catch (e, stackTrace) {
+      print('❌ [getUserPreferredLocationId] Error: $e');
+      print('❌ [getUserPreferredLocationId] Stack: $stackTrace');
       return null;
     }
   }
