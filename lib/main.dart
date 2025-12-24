@@ -120,9 +120,11 @@ class _AppInitializerState extends State<AppInitializer> {
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
     userProvider.setLoading(true);
-    
-    // Небольшая задержка для инициализации Telegram WebApp
-    await Future.delayed(const Duration(milliseconds: 500));
+
+    // ИСПРАВЛЕНИЕ: Увеличена задержка для полной инициализации Telegram WebApp и URL
+    // Telegram может устанавливать hash параметры асинхронно после загрузки
+    print('⏳ Waiting for Telegram WebApp initialization...');
+    await Future.delayed(const Duration(milliseconds: 800));
     
     // Получаем данные из Telegram
     print('📱 Getting Telegram user data...');
@@ -224,15 +226,36 @@ class _AppInitializerState extends State<AppInitializer> {
         }
         
         Location? targetLocation;
-        
+
+        // ПРИОРИТЕТ 0: location_id из hash параметров URL (от бота)
+        print('🔍 PRIORITY 0: Checking hash parameters for location_id...');
+        print('   Current URL: ${Uri.base.toString()}');
+
+        final hashLocationId = TelegramService.instance.getLocationIdFromHash();
+
+        if (hashLocationId != null && hashLocationId.isNotEmpty) {
+          print('✅ Found location_id in hash: $hashLocationId');
+          try {
+            targetLocation = locations.firstWhere(
+              (loc) => loc.id == hashLocationId,
+            );
+            print('✅ SUCCESS! Location from hash matched: ${targetLocation.name} (${targetLocation.id})');
+          } catch (e) {
+            print('⚠️ Hash location_id "$hashLocationId" not found in active locations list');
+            print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
+          }
+        } else {
+          print('ℹ️ No location_id found in hash, will use other priorities');
+        }
+
         // ПРИОРИТЕТ 1: preferredLocationId из БД
-        if (telegramIdForLocation != null) {
-          print('🔍 Looking up preferredLocationId in database...');
+        if (targetLocation == null && telegramIdForLocation != null) {
+          print('🔍 PRIORITY 1: Looking up preferredLocationId in database...');
           await UserLocationContext.loadFromDatabase(telegramIdForLocation);
-          
+
           if (UserLocationContext.hasPreferredLocation) {
             print('✅ Found preferredLocationId: ${UserLocationContext.preferredLocationId}');
-            
+
             // Ищем эту локацию в списке активных
             try {
               targetLocation = locations.firstWhere(
@@ -245,26 +268,10 @@ class _AppInitializerState extends State<AppInitializer> {
           }
         }
         
-        // ПРИОРИТЕТ 2: Локально сохранённая локация
-        if (targetLocation == null) {
-          print('🔍 Checking local storage for last location...');
-          final lastLocationId = await locationProvider.getLastLocationId();
-          if (lastLocationId != null) {
-            print('📍 Found local lastLocationId: $lastLocationId');
-            try {
-              targetLocation = locations.firstWhere(
-                (loc) => loc.id == lastLocationId,
-              );
-              print('✅ Local location matched: ${targetLocation.name}');
-            } catch (e) {
-              print('⚠️ Local location not in active locations list');
-            }
-          }
-        }
-        
-        // ПРИОРИТЕТ 3: Если ничего не нашли - берём первую локацию
+        // ПРИОРИТЕТ 2: Если ничего не нашли - берём первую локацию (НЕ используем локальное хранилище!)
+        // УБРАЛИ ПРИОРИТЕТ с локальным хранилищем, чтобы не выбирался "последний магазин"
         if (targetLocation == null && locations.isNotEmpty) {
-          print('📍 No saved location found, using first available');
+          print('📍 PRIORITY 2: No location from hash or DB, using first available location');
           targetLocation = locations.first;
           print('📍 Default location: ${targetLocation.name}');
         }
