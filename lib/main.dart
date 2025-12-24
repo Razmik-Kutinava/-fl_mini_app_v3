@@ -107,6 +107,7 @@ class AppInitializer extends StatefulWidget {
 class _AppInitializerState extends State<AppInitializer> {
   bool _initialized = false;
   bool _locationSelected = false; // Флаг успешного выбора локации
+  Location? _autoSelectedLocation; // Сохраняем выбранную локацию напрямую
 
   @override
   void initState() {
@@ -271,37 +272,57 @@ class _AppInitializerState extends State<AppInitializer> {
         // Выбираем локацию
         if (targetLocation != null) {
           print('🎯 AUTO-SELECTING: ${targetLocation.name}');
+          
+          // КРИТИЧНО: Сохраняем локацию напрямую в состояние
+          _autoSelectedLocation = targetLocation;
+          
+          // Устанавливаем в провайдер
           await locationProvider.selectLocation(targetLocation);
           
-          // КРИТИЧНО: Даём время на обновление состояния
-          await Future.delayed(const Duration(milliseconds: 200));
-          
-          // Проверяем что локация действительно выбрана
+          // Проверяем что локация установлена
           if (locationProvider.selectedLocation != null) {
             print('✅ Location confirmed selected: ${locationProvider.selectedLocation!.name}');
             _locationSelected = true;
           } else {
-            print('⚠️ Location selection failed, forcing restore...');
-            // Принудительно восстанавливаем
-            locationProvider.restoreLastLocation(targetLocation.id);
-            await Future.delayed(const Duration(milliseconds: 100));
-            if (locationProvider.selectedLocation != null) {
-              print('✅ Location restored: ${locationProvider.selectedLocation!.name}');
-              _locationSelected = true;
-            } else {
-              print('❌ Failed to restore location');
-              _locationSelected = false;
-            }
+            print('⚠️ Location not set in provider, using direct reference');
+            // Используем прямую ссылку
+            _locationSelected = true;
           }
         } else {
-          print('⚠️ No target location found, will show permissions screen');
-          _locationSelected = false;
+          // ФИНАЛЬНЫЙ FALLBACK: Если ничего не нашли, но есть локации - берём первую
+          if (locations.isNotEmpty) {
+            print('🔄 FINAL FALLBACK: Selecting first available location');
+            targetLocation = locations.first;
+            _autoSelectedLocation = targetLocation;
+            await locationProvider.selectLocation(targetLocation);
+            _locationSelected = true;
+            print('✅ Fallback location selected: ${targetLocation.name}');
+          } else {
+            print('⚠️ No target location found, will show permissions screen');
+            _locationSelected = false;
+            _autoSelectedLocation = null;
+          }
         }
       }
     } catch (e, stackTrace) {
       print('❌ Error in location auto-selection: $e');
       print('❌ Stack trace: $stackTrace');
       _locationSelected = false;
+      _autoSelectedLocation = null;
+      
+      // Последняя попытка - если есть локации, выбираем первую
+      try {
+        final locationProvider = context.read<LocationProvider>();
+        if (locationProvider.locations.isNotEmpty) {
+          print('🆘 EMERGENCY FALLBACK: Selecting first location after error');
+          final firstLoc = locationProvider.locations.first;
+          _autoSelectedLocation = firstLoc;
+          await locationProvider.selectLocation(firstLoc);
+          _locationSelected = true;
+        }
+      } catch (e2) {
+        print('❌ Emergency fallback also failed: $e2');
+      }
     }
     
     userProvider.setLoading(false);
@@ -324,13 +345,20 @@ class _AppInitializerState extends State<AppInitializer> {
     
     final locationProvider = context.watch<LocationProvider>();
     
-    // КРИТИЧНО: Проверяем флаг + selectedLocation
-    final shouldShowMain = _locationSelected && locationProvider.selectedLocation != null;
+    // КРИТИЧНО: Проверяем флаг + сохранённую локацию ИЛИ selectedLocation из провайдера
+    final hasLocation = _locationSelected && (_autoSelectedLocation != null || locationProvider.selectedLocation != null);
     
-    print('🔍 Build check: _locationSelected=$_locationSelected, selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, shouldShowMain=$shouldShowMain');
+    print('🔍 Build check: _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation');
     
-    if (shouldShowMain) {
-      print('🎯 → Going to MainScreen with location: ${locationProvider.selectedLocation!.name}');
+    if (hasLocation) {
+      // Убеждаемся что локация установлена в провайдер
+      if (locationProvider.selectedLocation == null && _autoSelectedLocation != null) {
+        print('⚠️ Location not in provider, restoring...');
+        locationProvider.restoreLastLocation(_autoSelectedLocation!.id);
+      }
+      
+      final locationName = locationProvider.selectedLocation?.name ?? _autoSelectedLocation?.name ?? 'Unknown';
+      print('🎯 → Going to MainScreen with location: $locationName');
       return const MainScreen();
     }
     
