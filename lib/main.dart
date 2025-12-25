@@ -194,7 +194,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 4.0 - Added local storage restore for second visit');
+    print('🚀 VERSION: 5.0 - Fixed build() logic and parallel loading for faster restore');
     
     try {
       // СНАЧАЛА загружаем все активные локации
@@ -256,12 +256,19 @@ class _AppInitializerState extends State<AppInitializer> {
         if (targetLocation == null && telegramIdForLocation != null) {
           print('🔍 PRIORITY 1: Looking up preferredLocationId in database or last order...');
           print('   Telegram ID: $telegramIdForLocation');
-          await UserLocationContext.loadFromDatabase(telegramIdForLocation);
-
+          
+          // ИСПРАВЛЕНИЕ: Запускаем БД запрос и локальное хранилище параллельно
+          // Это ускоряет восстановление при втором заходе
+          final dbFuture = UserLocationContext.loadFromDatabase(telegramIdForLocation);
+          final localStorageFuture = locationProvider.getLastLocationId();
+          
+          // Ждём оба запроса параллельно
+          final results = await Future.wait([dbFuture, localStorageFuture]);
+          final lastLocationId = results[1] as String?;
+          
+          // Сначала проверяем БД результат
           if (UserLocationContext.hasPreferredLocation) {
             print('✅ Found preferredLocationId: ${UserLocationContext.preferredLocationId}');
-
-            // Ищем эту локацию в списке активных
             try {
               targetLocation = locations.firstWhere(
                 (loc) => loc.id == UserLocationContext.preferredLocationId,
@@ -273,6 +280,19 @@ class _AppInitializerState extends State<AppInitializer> {
             }
           } else {
             print('⚠️ No preferredLocationId found in database and no last order location');
+          }
+          
+          // Если БД не дала результат, но локальное хранилище уже загружено - используем его
+          if (targetLocation == null && lastLocationId != null && lastLocationId.isNotEmpty) {
+            print('✅ Using location from local storage (fast path): $lastLocationId');
+            try {
+              targetLocation = locations.firstWhere(
+                (loc) => loc.id == lastLocationId,
+              );
+              print('✅ Location restored from local storage: ${targetLocation.name}');
+            } catch (e) {
+              print('⚠️ Last location "$lastLocationId" not found in active locations');
+            }
           }
         } else if (targetLocation == null) {
           print('⚠️ Cannot use PRIORITY 1: telegramIdForLocation is null');
@@ -381,8 +401,11 @@ class _AppInitializerState extends State<AppInitializer> {
     
     final locationProvider = context.watch<LocationProvider>();
     
-    // КРИТИЧНО: Проверяем флаг + сохранённую локацию ИЛИ selectedLocation из провайдера
-    final hasLocation = _locationSelected && (_autoSelectedLocation != null || locationProvider.selectedLocation != null);
+    // ИСПРАВЛЕНИЕ: Проверяем наличие локации независимо от флага _locationSelected
+    // Это решает проблему второго захода, когда флаг может быть false, но локация есть
+    final hasLocationFromProvider = locationProvider.selectedLocation != null;
+    final hasLocationFromState = _autoSelectedLocation != null;
+    final hasLocation = hasLocationFromProvider || hasLocationFromState;
     
     print('🔍 Build check: _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation');
     
