@@ -120,10 +120,11 @@ class _AppInitializerState extends State<AppInitializer> {
     final locationProvider = context.read<LocationProvider>();
     userProvider.setLoading(true);
 
-    // ИСПРАВЛЕНИЕ: Увеличена задержка для полной инициализации Telegram WebApp и URL
+    // ИСПРАВЛЕНИЕ: Небольшая задержка для инициализации Telegram WebApp
     // Telegram может устанавливать hash параметры асинхронно после загрузки
-    print('⏳ Waiting for Telegram WebApp initialization...');
-    await Future.delayed(const Duration(milliseconds: 800));
+    // Retry механизм будет сам ждать между попытками, поэтому здесь минимальная задержка
+    print('⏳ Waiting for Telegram WebApp initialization (300ms)...');
+    await Future.delayed(const Duration(milliseconds: 300));
     
     // Получаем данные из Telegram
     print('📱 Getting Telegram user data...');
@@ -194,7 +195,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 5.0 - Fixed build() logic and parallel loading for faster restore');
+    print('🚀 VERSION: 6.0 - Enhanced hash reading with improved retry mechanism and detailed logging');
     
     try {
       // СНАЧАЛА загружаем все активные локации
@@ -230,11 +231,13 @@ class _AppInitializerState extends State<AppInitializer> {
         print('🔍 PRIORITY 0: Checking hash parameters for location_id with retry...');
         print('   Current URL: ${Uri.base.toString()}');
         print('   Current hash (immediate check): ${Uri.base.fragment}');
+        print('   Telegram WebApp initialized, starting hash read retry...');
 
         // Используем retry механизм, так как Telegram может устанавливать hash асинхронно
+        // Увеличиваем количество попыток и задержку для большей надёжности
         final hashLocationId = await TelegramService.instance.getLocationIdFromHashWithRetry(
-          maxAttempts: 5,
-          initialDelay: const Duration(milliseconds: 300),
+          maxAttempts: 6, // Увеличено с 5 до 6
+          initialDelay: const Duration(milliseconds: 400), // Увеличено с 300 до 400
         );
 
         if (hashLocationId != null && hashLocationId.isNotEmpty) {

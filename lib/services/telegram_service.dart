@@ -203,26 +203,49 @@ class TelegramService {
   }) async {
     if (!kIsWeb) return null;
 
+    print('🔍 Starting hash reading with $maxAttempts attempts...');
+    
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
+      // Первая попытка сразу, остальные с задержкой
       if (attempt > 0) {
-        // Увеличиваем задержку с каждой попыткой: 300ms, 600ms, 900ms, 1200ms, 1500ms
-        final delay = initialDelay * (attempt + 1);
-        print('🔄 Retry attempt $attempt/$maxAttempts for reading hash, waiting ${delay.inMilliseconds}ms...');
+        // Увеличиваем задержку с каждой попыткой: 300ms, 600ms, 900ms, 1200ms
+        final delay = initialDelay * attempt;
+        print('🔄 Attempt ${attempt + 1}/$maxAttempts: Waiting ${delay.inMilliseconds}ms before reading hash...');
         await Future.delayed(delay);
+      } else {
+        print('🔍 Attempt 1/$maxAttempts: Reading hash immediately (no delay)...');
       }
 
+      // Читаем hash
       final locationId = getLocationIdFromHash();
+      
       if (locationId != null && locationId.isNotEmpty) {
-        print('✅ Successfully read location_id from hash on attempt ${attempt + 1}: $locationId');
+        print('✅ SUCCESS! Found location_id in hash on attempt ${attempt + 1}: $locationId');
         return locationId;
       }
 
+      // Логируем если это не последняя попытка
       if (attempt < maxAttempts - 1) {
-        print('⚠️ Hash not available yet (attempt ${attempt + 1}/$maxAttempts)');
+        print('⚠️ Attempt ${attempt + 1}/$maxAttempts: Hash not available yet, will retry...');
+        print('   Current URL fragment: ${Uri.base.fragment}');
+        try {
+          final jsHash = _getWindowLocationHash();
+          print('   window.location.hash: ${jsHash ?? "null"}');
+        } catch (e) {
+          print('   Could not read window.location.hash: $e');
+        }
       }
     }
 
-    print('❌ Failed to read location_id from hash after $maxAttempts attempts');
+    print('❌ FAILED: Could not read location_id from hash after $maxAttempts attempts');
+    print('   Final URL: ${Uri.base.toString()}');
+    print('   Final fragment: ${Uri.base.fragment}');
+    try {
+      final jsHash = _getWindowLocationHash();
+      print('   Final window.location.hash: ${jsHash ?? "null"}');
+    } catch (e) {
+      print('   Could not read final window.location.hash: $e');
+    }
     return null;
   }
 
@@ -258,17 +281,25 @@ class TelegramService {
       }
 
       if (hash.isEmpty) {
-        print('⚠️ No hash parameters found in URL');
-        print('   Full URL: ${Uri.base.toString()}');
-        print('   Fragment: ${Uri.base.fragment}');
+        // Не логируем здесь - это нормально для первых попыток
         return null;
       }
 
-      print('🔍 Parsing hash (length: ${hash.length})');
+      print('🔍 Parsing hash (length: ${hash.length}, first 200 chars: ${hash.length > 200 ? hash.substring(0, 200) + "..." : hash})');
 
       // Парсим параметры из hash
       final params = Uri.splitQueryString(hash);
       print('🔍 Parsed hash parameters: ${params.keys.join(", ")}');
+      
+      // Логируем все параметры для отладки
+      for (final key in params.keys) {
+        final value = params[key];
+        if (value != null && value.length > 100) {
+          print('   - $key: ${value.substring(0, 100)}... (length: ${value.length})');
+        } else {
+          print('   - $key: $value');
+        }
+      }
 
       final locationId = params['location_id'];
 
@@ -280,7 +311,8 @@ class TelegramService {
         print('   Available parameters: ${params.keys.join(", ")}');
         // Если есть параметр data (base64), логируем это
         if (params.containsKey('data')) {
-          print('   ℹ️ Found "data" parameter (base64 encoded), but location_id should be in plain params');
+          print('   ℹ️ Found "data" parameter (base64 encoded, length: ${params['data']?.length ?? 0})');
+          print('   ⚠️ location_id should be in plain params, not only in base64 data');
         }
       }
     } catch (e) {
