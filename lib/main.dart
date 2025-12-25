@@ -194,7 +194,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 3.0 - Enhanced with retry and synchronized order lookup');
+    print('🚀 VERSION: 4.0 - Added local storage restore for second visit');
     
     try {
       // СНАЧАЛА загружаем все активные локации
@@ -278,10 +278,31 @@ class _AppInitializerState extends State<AppInitializer> {
           print('⚠️ Cannot use PRIORITY 1: telegramIdForLocation is null');
         }
         
-        // ПРИОРИТЕТ 2: Если ничего не нашли - берём первую локацию (НЕ используем локальное хранилище!)
-        // УБРАЛИ ПРИОРИТЕТ с локальным хранилищем, чтобы не выбирался "последний магазин"
+        // ПРИОРИТЕТ 2: Восстановление из локального хранилища (для второго захода)
+        // ИСПРАВЛЕНИЕ: Добавлено для решения проблемы второго захода, когда hash пустой
+        if (targetLocation == null) {
+          print('🔍 PRIORITY 2: Checking local storage for last location (second visit fallback)...');
+          final lastLocationId = await locationProvider.getLastLocationId();
+          
+          if (lastLocationId != null && lastLocationId.isNotEmpty) {
+            print('✅ Found last location in local storage: $lastLocationId');
+            try {
+              targetLocation = locations.firstWhere(
+                (loc) => loc.id == lastLocationId,
+              );
+              print('✅ Location restored from local storage: ${targetLocation.name} (${targetLocation.id})');
+            } catch (e) {
+              print('⚠️ Last location "$lastLocationId" not found in active locations list');
+              print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
+            }
+          } else {
+            print('ℹ️ No location found in local storage');
+          }
+        }
+        
+        // ПРИОРИТЕТ 3: Если ничего не нашли - берём первую локацию
         if (targetLocation == null && locations.isNotEmpty) {
-          print('📍 PRIORITY 2: No location from hash or DB, using first available location');
+          print('📍 PRIORITY 3: No location from hash, DB, or local storage, using first available location');
           targetLocation = locations.first;
           print('📍 Default location: ${targetLocation.name}');
         }
