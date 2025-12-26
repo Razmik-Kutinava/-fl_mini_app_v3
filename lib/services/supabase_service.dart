@@ -421,49 +421,80 @@ class SupabaseService {
     String? username,
   }) async {
     try {
-      print('🔍 Looking for user with telegram_user_id: $telegramId');
+      print('🔍 [getOrCreateUser] Looking for user with telegramId: $telegramId');
 
-      // Ищем существующего пользователя по telegram_user_id
-      final existing = await client
-          .from('User')
-          .select()
-          .eq('telegram_user_id', telegramId)
-          .maybeSingle();
+      // ⭐ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сначала ищем по telegramId (INT) - как делает БОТ!
+      // Бот сохраняет telegramId как INT, поэтому нужно искать по INT
+      final telegramIdInt = int.tryParse(telegramId);
+      Map<String, dynamic>? existing;
+      
+      if (telegramIdInt != null) {
+        print('🔍 [getOrCreateUser] Searching by telegramId (int): $telegramIdInt');
+        existing = await client
+            .from('User')
+            .select()
+            .eq('telegramId', telegramIdInt)
+            .maybeSingle();
+        
+        if (existing != null) {
+          print('✅ [getOrCreateUser] User found by telegramId (int)!');
+          print('✅ [getOrCreateUser] User ID: ${existing['id']}');
+          print('✅ [getOrCreateUser] preferredLocationId: ${existing['preferredLocationId']}');
+        }
+      }
+      
+      // Fallback: ищем по telegram_user_id (string) если не нашли по int
+      if (existing == null) {
+        print('🔍 [getOrCreateUser] Searching by telegram_user_id (string): $telegramId');
+        existing = await client
+            .from('User')
+            .select()
+            .eq('telegram_user_id', telegramId)
+            .maybeSingle();
+        
+        if (existing != null) {
+          print('✅ [getOrCreateUser] User found by telegram_user_id (string)!');
+        }
+      }
 
       final now = DateTime.now().toIso8601String();
 
       if (existing != null) {
-        print('✅ User found, updating...');
-        // Обновляем данные пользователя
+        print('✅ [getOrCreateUser] User found, updating...');
+        // Обновляем данные пользователя по id (не по telegram полям)
         final updated = await client
             .from('User')
             .update({
               'username': username,
               'first_name': firstName,
+              'telegramFirstName': firstName,
+              'telegramUsername': username,
               'lastSeenAt': now,
               'updatedAt': now,
             })
-            .eq('telegram_user_id', telegramId)
+            .eq('id', existing['id'])
             .select()
             .single();
 
-        print('✅ User updated: ${updated['id']}');
-        print('✅ first_name: ${updated['first_name']}');
-        print('✅ username: ${updated['username']}');
+        print('✅ [getOrCreateUser] User updated: ${updated['id']}');
+        print('✅ [getOrCreateUser] preferredLocationId: ${updated['preferredLocationId']}');
         return updated;
       } else {
-        print('🆕 Creating new user...');
-        // Создаем нового пользователя с новыми колонками
-        // НЕ указываем role - пусть используется default значение из БД
+        print('🆕 [getOrCreateUser] Creating new user...');
+        print('🔍 [getOrCreateUser] telegram_user_id (string): $telegramId');
+        print('🔍 [getOrCreateUser] telegramId (int): $telegramIdInt');
+
         final newUser = await client
             .from('User')
             .insert({
               'id': _generateUuid(),
               'telegram_user_id': telegramId,
+              'telegramId': telegramIdInt,
               'username': username,
               'first_name': firstName,
+              'telegramFirstName': firstName,
+              'telegramUsername': username,
               'status': 'active',
-              // 'role' убран - enum UserRole не содержит 'customer'
               'acceptsMarketing': false,
               'createdAt': now,
               'updatedAt': now,
@@ -472,13 +503,11 @@ class SupabaseService {
             .select()
             .single();
 
-        print('✅ New user created: ${newUser['id']}');
-        print('✅ first_name: ${newUser['first_name']}');
-        print('✅ username: ${newUser['username']}');
+        print('✅ [getOrCreateUser] New user created: ${newUser['id']}');
         return newUser;
       }
     } catch (e) {
-      print('❌ User getOrCreate error: $e');
+      print('❌ [getOrCreateUser] Error: $e');
       return null;
     }
   }
@@ -554,6 +583,33 @@ class SupabaseService {
       print('❌ [getUserPreferredLocationId] Error: $e');
       print('❌ [getUserPreferredLocationId] Stack: $stackTrace');
       return null;
+    }
+  }
+
+  /// Обновляет preferredLocationId пользователя в БД
+  /// Это ключевой метод для синхронизации выбранной локации с ботом
+  static Future<bool> updateUserPreferredLocation({
+    required String userId,
+    required String locationId,
+  }) async {
+    try {
+      print('🔄 [updateUserPreferredLocation] Updating preferredLocationId for user: $userId');
+      print('🔄 [updateUserPreferredLocation] New locationId: $locationId');
+
+      await client
+          .from('User')
+          .update({
+            'preferredLocationId': locationId,
+            'updatedAt': DateTime.now().toIso8601String(),
+          })
+          .eq('id', userId);
+
+      print('✅ [updateUserPreferredLocation] Successfully updated preferredLocationId');
+      return true;
+    } catch (e, stackTrace) {
+      print('❌ [updateUserPreferredLocation] Error: $e');
+      print('❌ [updateUserPreferredLocation] Stack: $stackTrace');
+      return false;
     }
   }
 
