@@ -164,7 +164,7 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 8.0 - Use DATABASE as primary source for saved location!');
+    print('🚀 VERSION: 9.0 - Retry mechanism for Telegram user data + DB as primary source!');
     print('🚀 localStorage may NOT persist in Telegram WebView between sessions!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
@@ -174,14 +174,28 @@ class _AppInitializerState extends State<AppInitializer> {
     final localStorageLocationId = await _checkLocalStorage();
     print('🔍 [STEP 0] localStorage location: $localStorageLocationId');
 
-    // ИСПРАВЛЕНИЕ: Небольшая задержка для инициализации Telegram WebApp
-    print('⏳ Waiting for Telegram WebApp initialization (300ms)...');
-    await Future.delayed(const Duration(milliseconds: 300));
+    // ИСПРАВЛЕНИЕ: Retry механизм для получения Telegram user data
+    // Telegram WebApp может инициализироваться с задержкой!
+    print('📱 Getting Telegram user data with retry...');
+    Map<String, dynamic>? tgUser;
     
-    // Получаем данные из Telegram
-    print('📱 Getting Telegram user data...');
-    final tgUser = TelegramService.instance.getUser();
-    print('📱 tgUser result: $tgUser');
+    for (int attempt = 0; attempt < 5; attempt++) {
+      if (attempt > 0) {
+        print('⏳ Retry attempt $attempt/5 for Telegram user data...');
+        await Future.delayed(Duration(milliseconds: 300 * attempt));
+      }
+      
+      tgUser = TelegramService.instance.getUser();
+      
+      if (tgUser != null && tgUser['id'] != null) {
+        print('✅ Got Telegram user on attempt ${attempt + 1}');
+        break;
+      }
+      
+      print('⚠️ Attempt ${attempt + 1}: tgUser is null or has no id');
+    }
+    
+    print('📱 Final tgUser result: $tgUser');
     
     if (tgUser != null && tgUser['id'] != null) {
       final telegramId = tgUser['id'].toString();
@@ -251,6 +265,15 @@ class _AppInitializerState extends State<AppInitializer> {
     } else {
       print('⚠️ No Telegram user data available');
       print('⚠️ This is normal if app is opened in browser, not in Telegram');
+      
+      // ⭐ КРИТИЧНО: Даже без Telegram данных - проверяем localStorage!
+      // Это поможет при повторном заходе
+      if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
+        _savedLocationId = localStorageLocationId;
+        _hasSavedLocation = true;
+        print('✅ Using localStorage location (no TG data): $localStorageLocationId');
+      }
+      
       // Для тестирования создаем тестового пользователя
       print('🧪 Creating test user for development...');
       try {
@@ -278,7 +301,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 8.0 - DATABASE is primary source for saved location!');
+    print('🚀 VERSION: 9.0 - Retry TG user + DATABASE as primary source!');
     
     try {
       // СНАЧАЛА загружаем все активные локации
