@@ -164,7 +164,7 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 9.0 - Retry mechanism for Telegram user data + DB as primary source!');
+    print('🚀 VERSION: 11.0 - Get preferredLocationId DIRECTLY from user record!');
     print('🚀 localStorage may NOT persist in Telegram WebView between sessions!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
@@ -253,6 +253,20 @@ class _AppInitializerState extends State<AppInitializer> {
         // НОВОЕ: Устанавливаем userId в LocationProvider для синхронизации с БД
         locationProvider.setUserId(user['id'] as String);
 
+        // ⭐ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем preferredLocationId НАПРЯМУЮ из user!
+        // Это САМЫЙ надёжный способ - мы уже получили пользователя из БД!
+        final userPreferredLocationId = user['preferredLocationId'] as String?;
+        print('🔍 [DIRECT CHECK] user.preferredLocationId: $userPreferredLocationId');
+        
+        if (userPreferredLocationId != null && userPreferredLocationId.isNotEmpty) {
+          print('✅ ==========================================');
+          print('✅ FOUND preferredLocationId DIRECTLY from user record!');
+          print('✅ Location ID: $userPreferredLocationId');
+          print('✅ ==========================================');
+          _savedLocationId = userPreferredLocationId;
+          _hasSavedLocation = true;
+        }
+
         // Логируем активность
         await SupabaseService.logUserActivity(
           userId: user['id'] as String,
@@ -301,7 +315,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 9.0 - Retry TG user + DATABASE as primary source!');
+    print('🚀 VERSION: 11.0 - preferredLocationId from USER RECORD!');
     
     try {
       // СНАЧАЛА загружаем все активные локации
