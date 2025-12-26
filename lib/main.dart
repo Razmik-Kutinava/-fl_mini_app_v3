@@ -108,8 +108,8 @@ class _AppInitializerState extends State<AppInitializer> {
   bool _initialized = false;
   bool _locationSelected = false; // Флаг успешного выбора локации
   Location? _autoSelectedLocation; // Сохраняем выбранную локацию напрямую
-  String? _savedLocationId; // ⭐ КЛЮЧЕВОЕ: ID сохранённой кофейни из SharedPreferences
-  bool _hasSavedLocation = false; // ⭐ КЛЮЧЕВОЕ: Есть ли сохранённая кофейня
+  String? _savedLocationId; // ⭐ ID сохранённой кофейни (из БД или localStorage)
+  bool _hasSavedLocation = false; // ⭐ Есть ли сохранённая кофейня
 
   @override
   void initState() {
@@ -117,49 +117,64 @@ class _AppInitializerState extends State<AppInitializer> {
     _initializeUser();
   }
 
-  /// ⭐ КЛЮЧЕВОЕ: Проверяет есть ли сохранённая кофейня (last_location_id)
-  /// ЭТО ГЛАВНАЯ ПРОВЕРКА при запуске приложения!
-  Future<String?> _checkSavedLocation() async {
+  /// ⭐ БЫСТРАЯ проверка localStorage (может не работать в Telegram WebView!)
+  Future<String?> _checkLocalStorage() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Ключ должен совпадать с LocationProvider._lastLocationKey
       final lastLocationId = prefs.getString('last_selected_location_id');
-
-      print('🔍 ==========================================');
-      print('🔍 CHECKING SAVED LOCATION ON APP START');
-      print('🔍 last_selected_location_id: $lastLocationId');
-      print('🔍 ==========================================');
-
-      if (lastLocationId != null && lastLocationId.isNotEmpty) {
-        print('✅ FOUND SAVED COFFEE SHOP! ID: $lastLocationId');
-        print('✅ User should go DIRECTLY to MainScreen!');
-        return lastLocationId;
-      } else {
-        print('ℹ️ No saved coffee shop found - this is first visit or data cleared');
-        return null;
-      }
+      print('🔍 [localStorage] last_selected_location_id: $lastLocationId');
+      return lastLocationId;
     } catch (e) {
-      print('❌ Error checking saved location: $e');
+      print('❌ [localStorage] Error: $e');
+      return null;
+    }
+  }
+
+  /// ⭐ КЛЮЧЕВОЕ: Проверка preferredLocationId в БД (ОСНОВНОЙ ИСТОЧНИК!)
+  /// Telegram WebView может НЕ сохранять localStorage между сессиями!
+  /// Поэтому ВСЕГДА проверяем БД как основной источник!
+  Future<String?> _checkDatabaseLocation(String telegramId) async {
+    try {
+      print('🔍 [DATABASE] Checking preferredLocationId for telegramId: $telegramId');
+      
+      // Используем существующий метод из SupabaseService
+      final preferredLocationId = await SupabaseService.getUserPreferredLocationId(telegramId);
+      
+      if (preferredLocationId != null && preferredLocationId.isNotEmpty) {
+        print('✅ [DATABASE] Found preferredLocationId: $preferredLocationId');
+        return preferredLocationId;
+      }
+      
+      // Если нет preferredLocationId, проверяем последний заказ
+      print('🔍 [DATABASE] No preferredLocationId, checking last order...');
+      final lastOrderLocationId = await SupabaseService.getUserLastOrderLocationId(telegramId);
+      
+      if (lastOrderLocationId != null && lastOrderLocationId.isNotEmpty) {
+        print('✅ [DATABASE] Found locationId from last order: $lastOrderLocationId');
+        return lastOrderLocationId;
+      }
+      
+      print('ℹ️ [DATABASE] No saved location found for user');
+      return null;
+    } catch (e) {
+      print('❌ [DATABASE] Error checking location: $e');
       return null;
     }
   }
 
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 7.0 - Check saved location on startup (CRITICAL FIX)');
+    print('🚀 VERSION: 8.0 - Use DATABASE as primary source for saved location!');
+    print('🚀 localStorage may NOT persist in Telegram WebView between sessions!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
     userProvider.setLoading(true);
 
-    // ⭐ КЛЮЧЕВОЕ: ПЕРВЫМ ДЕЛОМ проверяем сохранённую кофейню!
-    // Это должно происходить ДО любых других проверок
-    _savedLocationId = await _checkSavedLocation();
-    _hasSavedLocation = _savedLocationId != null && _savedLocationId!.isNotEmpty;
-    print('🔍 Has saved location: $_hasSavedLocation (ID: $_savedLocationId)');
+    // ⭐ ШАГ 0: Быстрая проверка localStorage (может не работать в TG WebView!)
+    final localStorageLocationId = await _checkLocalStorage();
+    print('🔍 [STEP 0] localStorage location: $localStorageLocationId');
 
     // ИСПРАВЛЕНИЕ: Небольшая задержка для инициализации Telegram WebApp
-    // Telegram может устанавливать hash параметры асинхронно после загрузки
-    // Retry механизм будет сам ждать между попытками, поэтому здесь минимальная задержка
     print('⏳ Waiting for Telegram WebApp initialization (300ms)...');
     await Future.delayed(const Duration(milliseconds: 300));
     
@@ -179,6 +194,31 @@ class _AppInitializerState extends State<AppInitializer> {
       print('  - Username: $username');
       print('  - First Name: $firstName');
       print('  - Last Name: $lastName');
+      
+      // ⭐ КЛЮЧЕВОЕ: СРАЗУ проверяем БД на наличие сохранённой кофейни!
+      // Это ОСНОВНОЙ источник, т.к. localStorage может не работать в TG WebView!
+      print('🔍 ==========================================');
+      print('🔍 [STEP 1] CHECKING DATABASE FOR SAVED LOCATION');
+      print('🔍 ==========================================');
+      final dbLocationId = await _checkDatabaseLocation(telegramId);
+      
+      if (dbLocationId != null && dbLocationId.isNotEmpty) {
+        _savedLocationId = dbLocationId;
+        _hasSavedLocation = true;
+        print('✅ ==========================================');
+        print('✅ FOUND SAVED COFFEE SHOP IN DATABASE!');
+        print('✅ Location ID: $dbLocationId');
+        print('✅ User should go DIRECTLY to MainScreen!');
+        print('✅ ==========================================');
+      } else if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
+        // Fallback на localStorage если БД не дала результат
+        _savedLocationId = localStorageLocationId;
+        _hasSavedLocation = true;
+        print('✅ Using localStorage as fallback: $localStorageLocationId');
+      } else {
+        print('ℹ️ No saved location in DB or localStorage - first visit');
+        _hasSavedLocation = false;
+      }
       
       // Создаем или получаем пользователя
       print('💾 Creating/getting user in Supabase...');
@@ -238,7 +278,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 7.0 - Check saved location (last_selected_location_id) on startup!');
+    print('🚀 VERSION: 8.0 - DATABASE is primary source for saved location!');
     
     try {
       // СНАЧАЛА загружаем все активные локации
