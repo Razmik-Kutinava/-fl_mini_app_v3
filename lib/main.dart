@@ -130,41 +130,9 @@ class _AppInitializerState extends State<AppInitializer> {
     }
   }
 
-  /// ⭐ КЛЮЧЕВОЕ: Проверка preferredLocationId в БД (ОСНОВНОЙ ИСТОЧНИК!)
-  /// Telegram WebView может НЕ сохранять localStorage между сессиями!
-  /// Поэтому ВСЕГДА проверяем БД как основной источник!
-  Future<String?> _checkDatabaseLocation(String telegramId) async {
-    try {
-      print('🔍 [DATABASE] Checking preferredLocationId for telegramId: $telegramId');
-      
-      // Используем существующий метод из SupabaseService
-      final preferredLocationId = await SupabaseService.getUserPreferredLocationId(telegramId);
-      
-      if (preferredLocationId != null && preferredLocationId.isNotEmpty) {
-        print('✅ [DATABASE] Found preferredLocationId: $preferredLocationId');
-        return preferredLocationId;
-      }
-      
-      // Если нет preferredLocationId, проверяем последний заказ
-      print('🔍 [DATABASE] No preferredLocationId, checking last order...');
-      final lastOrderLocationId = await SupabaseService.getUserLastOrderLocationId(telegramId);
-      
-      if (lastOrderLocationId != null && lastOrderLocationId.isNotEmpty) {
-        print('✅ [DATABASE] Found locationId from last order: $lastOrderLocationId');
-        return lastOrderLocationId;
-      }
-      
-      print('ℹ️ [DATABASE] No saved location found for user');
-      return null;
-    } catch (e) {
-      print('❌ [DATABASE] Error checking location: $e');
-      return null;
-    }
-  }
-
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 11.0 - Get preferredLocationId DIRECTLY from user record!');
+    print('🚀 VERSION: 12.0 - SIMPLIFIED: getOrCreateUser is SINGLE SOURCE OF TRUTH!');
     print('🚀 localStorage may NOT persist in Telegram WebView between sessions!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
@@ -209,30 +177,11 @@ class _AppInitializerState extends State<AppInitializer> {
       print('  - First Name: $firstName');
       print('  - Last Name: $lastName');
       
-      // ⭐ КЛЮЧЕВОЕ: СРАЗУ проверяем БД на наличие сохранённой кофейни!
-      // Это ОСНОВНОЙ источник, т.к. localStorage может не работать в TG WebView!
+      // ⭐ УПРОЩЕНО: getOrCreateUser - ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ!
+      // Не делаем отдельный запрос _checkDatabaseLocation - всё в getOrCreateUser
       print('🔍 ==========================================');
-      print('🔍 [STEP 1] CHECKING DATABASE FOR SAVED LOCATION');
+      print('🔍 [STEP 1] GET OR CREATE USER - SINGLE SOURCE OF TRUTH');
       print('🔍 ==========================================');
-      final dbLocationId = await _checkDatabaseLocation(telegramId);
-      
-      if (dbLocationId != null && dbLocationId.isNotEmpty) {
-        _savedLocationId = dbLocationId;
-        _hasSavedLocation = true;
-        print('✅ ==========================================');
-        print('✅ FOUND SAVED COFFEE SHOP IN DATABASE!');
-        print('✅ Location ID: $dbLocationId');
-        print('✅ User should go DIRECTLY to MainScreen!');
-        print('✅ ==========================================');
-      } else if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
-        // Fallback на localStorage если БД не дала результат
-        _savedLocationId = localStorageLocationId;
-        _hasSavedLocation = true;
-        print('✅ Using localStorage as fallback: $localStorageLocationId');
-      } else {
-        print('ℹ️ No saved location in DB or localStorage - first visit');
-        _hasSavedLocation = false;
-      }
       
       // Создаем или получаем пользователя
       print('💾 Creating/getting user in Supabase...');
@@ -244,27 +193,43 @@ class _AppInitializerState extends State<AppInitializer> {
       );
       
       if (user != null) {
-        print('✅ User data from Supabase: $user');
+        print('✅ ==========================================');
+        print('✅ USER DATA FROM SUPABASE:');
+        print('✅ ID: ${user['id']}');
+        print('✅ telegramId: ${user['telegramId']}');
+        print('✅ telegram_user_id: ${user['telegram_user_id']}');
+        print('✅ preferredLocationId: ${user['preferredLocationId']}');
+        print('✅ ==========================================');
+        
         userProvider.setUser(user);
         print('✅ UserProvider updated with user data');
         print('✅ User initialized: ${user['id']}');
         print('✅ UserName will be: ${userProvider.userName}');
 
-        // НОВОЕ: Устанавливаем userId в LocationProvider для синхронизации с БД
+        // Устанавливаем userId в LocationProvider для синхронизации с БД
         locationProvider.setUserId(user['id'] as String);
 
-        // ⭐ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Проверяем preferredLocationId НАПРЯМУЮ из user!
-        // Это САМЫЙ надёжный способ - мы уже получили пользователя из БД!
+        // ⭐⭐⭐ КРИТИЧЕСКОЕ: preferredLocationId ИЗ USER RECORD!
+        // Это ЕДИНСТВЕННЫЙ надёжный способ!
         final userPreferredLocationId = user['preferredLocationId'] as String?;
-        print('🔍 [DIRECT CHECK] user.preferredLocationId: $userPreferredLocationId');
         
         if (userPreferredLocationId != null && userPreferredLocationId.isNotEmpty) {
-          print('✅ ==========================================');
-          print('✅ FOUND preferredLocationId DIRECTLY from user record!');
-          print('✅ Location ID: $userPreferredLocationId');
-          print('✅ ==========================================');
+          print('🎉 ==========================================');
+          print('🎉 SUCCESS! FOUND preferredLocationId!');
+          print('🎉 Location ID: $userPreferredLocationId');
+          print('🎉 User will go DIRECTLY to MainScreen!');
+          print('🎉 ==========================================');
           _savedLocationId = userPreferredLocationId;
           _hasSavedLocation = true;
+        } else if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
+          // Fallback на localStorage если БД не дала preferredLocationId
+          _savedLocationId = localStorageLocationId;
+          _hasSavedLocation = true;
+          print('✅ No preferredLocationId in DB, using localStorage: $localStorageLocationId');
+        } else {
+          print('ℹ️ No preferredLocationId in user record and no localStorage');
+          print('ℹ️ Will check last order location later...');
+          _hasSavedLocation = false;
         }
 
         // Логируем активность
@@ -275,6 +240,12 @@ class _AppInitializerState extends State<AppInitializer> {
         );
       } else {
         print('⚠️ Failed to create/get user');
+        // Если не удалось получить user, но есть localStorage - используем
+        if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
+          _savedLocationId = localStorageLocationId;
+          _hasSavedLocation = true;
+          print('✅ Using localStorage as emergency fallback: $localStorageLocationId');
+        }
       }
     } else {
       print('⚠️ No Telegram user data available');
@@ -315,7 +286,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 11.0 - preferredLocationId from USER RECORD!');
+    print('🚀 VERSION: 12.0 - SIMPLIFIED LOGIC!');
     
     try {
       // СНАЧАЛА загружаем все активные локации
