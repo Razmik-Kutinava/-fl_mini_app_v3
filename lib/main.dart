@@ -559,9 +559,10 @@ class _AppInitializerState extends State<AppInitializer> {
     print('🔍 NO SAVED COFFEE SHOP - checking other sources');
     final hasLocationFromProvider = locationProvider.selectedLocation != null;
     final hasLocationFromState = _autoSelectedLocation != null;
+    final hasLocationsAvailable = locationProvider.locations.isNotEmpty;
     final hasLocation = hasLocationFromProvider || hasLocationFromState;
 
-    print('🔍 Build check: _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation');
+    print('🔍 Build check: _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation, hasLocationsAvailable=$hasLocationsAvailable');
 
     if (hasLocation) {
       // Убеждаемся что локация установлена в провайдер
@@ -584,8 +585,23 @@ class _AppInitializerState extends State<AppInitializer> {
       return const MainScreen();
     }
     
-    print('📍 → Going to PermissionsScreen (no location selected)');
-    print('⚠️ WARNING: No location was selected, user will see permissions screen');
+    // ⭐ ФИНАЛЬНЫЙ FALLBACK: Если есть локации в provider - всё равно идём в MainScreen!
+    // Это гарантирует что пользователь НЕ увидит PermissionsScreen если есть хоть одна локация
+    if (hasLocationsAvailable) {
+      print('🆘 FINAL FALLBACK: No selected location, but locations exist! Going to MainScreen anyway');
+      print('🆘 Selecting first available location...');
+      try {
+        final firstLocation = locationProvider.locations.first;
+        locationProvider.selectLocation(firstLocation);
+        print('✅ First location selected: ${firstLocation.name}');
+      } catch (e) {
+        print('⚠️ Could not select first location: $e');
+      }
+      return const MainScreen();
+    }
+    
+    print('📍 → Going to PermissionsScreen (no locations available at all!)');
+    print('⚠️ WARNING: No locations in database - user will see permissions screen');
     return const PermissionsScreen();
   }
 }
