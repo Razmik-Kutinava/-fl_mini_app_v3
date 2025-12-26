@@ -132,7 +132,7 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 12.0 - SIMPLIFIED: getOrCreateUser is SINGLE SOURCE OF TRUTH!');
+    print('🚀 VERSION: 13.0 - WITH LAST ORDER FALLBACK!');
     print('🚀 localStorage may NOT persist in Telegram WebView between sessions!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
@@ -221,15 +221,28 @@ class _AppInitializerState extends State<AppInitializer> {
           print('🎉 ==========================================');
           _savedLocationId = userPreferredLocationId;
           _hasSavedLocation = true;
-        } else if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
-          // Fallback на localStorage если БД не дала preferredLocationId
-          _savedLocationId = localStorageLocationId;
-          _hasSavedLocation = true;
-          print('✅ No preferredLocationId in DB, using localStorage: $localStorageLocationId');
         } else {
-          print('ℹ️ No preferredLocationId in user record and no localStorage');
-          print('ℹ️ Will check last order location later...');
-          _hasSavedLocation = false;
+          // ⭐ FALLBACK 1: Проверяем последний заказ пользователя (как делает бот!)
+          print('🔍 No preferredLocationId, checking last order...');
+          final lastOrderLocationId = await SupabaseService.getUserLastOrderLocationId(telegramId);
+          
+          if (lastOrderLocationId != null && lastOrderLocationId.isNotEmpty) {
+            print('✅ ==========================================');
+            print('✅ FOUND locationId from LAST ORDER!');
+            print('✅ Location ID: $lastOrderLocationId');
+            print('✅ User will go DIRECTLY to MainScreen!');
+            print('✅ ==========================================');
+            _savedLocationId = lastOrderLocationId;
+            _hasSavedLocation = true;
+          } else if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
+            // FALLBACK 2: localStorage если БД не дала результат
+            _savedLocationId = localStorageLocationId;
+            _hasSavedLocation = true;
+            print('✅ No preferredLocationId/order, using localStorage: $localStorageLocationId');
+          } else {
+            print('ℹ️ No preferredLocationId, no orders, no localStorage - first visit');
+            _hasSavedLocation = false;
+          }
         }
 
         // Логируем активность
@@ -286,7 +299,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 12.0 - SIMPLIFIED LOGIC!');
+    print('🚀 VERSION: 13.0 - WITH LAST ORDER FALLBACK!');
     
     try {
       // СНАЧАЛА загружаем все активные локации
