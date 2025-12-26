@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/cart_provider.dart';
 import 'providers/location_provider.dart';
 import 'providers/menu_provider.dart';
@@ -107,6 +108,8 @@ class _AppInitializerState extends State<AppInitializer> {
   bool _initialized = false;
   bool _locationSelected = false; // Флаг успешного выбора локации
   Location? _autoSelectedLocation; // Сохраняем выбранную локацию напрямую
+  String? _savedLocationId; // ⭐ КЛЮЧЕВОЕ: ID сохранённой кофейни из SharedPreferences
+  bool _hasSavedLocation = false; // ⭐ КЛЮЧЕВОЕ: Есть ли сохранённая кофейня
 
   @override
   void initState() {
@@ -114,11 +117,45 @@ class _AppInitializerState extends State<AppInitializer> {
     _initializeUser();
   }
 
+  /// ⭐ КЛЮЧЕВОЕ: Проверяет есть ли сохранённая кофейня (last_location_id)
+  /// ЭТО ГЛАВНАЯ ПРОВЕРКА при запуске приложения!
+  Future<String?> _checkSavedLocation() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      // Ключ должен совпадать с LocationProvider._lastLocationKey
+      final lastLocationId = prefs.getString('last_selected_location_id');
+
+      print('🔍 ==========================================');
+      print('🔍 CHECKING SAVED LOCATION ON APP START');
+      print('🔍 last_selected_location_id: $lastLocationId');
+      print('🔍 ==========================================');
+
+      if (lastLocationId != null && lastLocationId.isNotEmpty) {
+        print('✅ FOUND SAVED COFFEE SHOP! ID: $lastLocationId');
+        print('✅ User should go DIRECTLY to MainScreen!');
+        return lastLocationId;
+      } else {
+        print('ℹ️ No saved coffee shop found - this is first visit or data cleared');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Error checking saved location: $e');
+      return null;
+    }
+  }
+
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
+    print('🚀 VERSION: 7.0 - Check saved location on startup (CRITICAL FIX)');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
     userProvider.setLoading(true);
+
+    // ⭐ КЛЮЧЕВОЕ: ПЕРВЫМ ДЕЛОМ проверяем сохранённую кофейню!
+    // Это должно происходить ДО любых других проверок
+    _savedLocationId = await _checkSavedLocation();
+    _hasSavedLocation = _savedLocationId != null && _savedLocationId!.isNotEmpty;
+    print('🔍 Has saved location: $_hasSavedLocation (ID: $_savedLocationId)');
 
     // ИСПРАВЛЕНИЕ: Небольшая задержка для инициализации Telegram WebApp
     // Telegram может устанавливать hash параметры асинхронно после загрузки
@@ -158,7 +195,10 @@ class _AppInitializerState extends State<AppInitializer> {
         print('✅ UserProvider updated with user data');
         print('✅ User initialized: ${user['id']}');
         print('✅ UserName will be: ${userProvider.userName}');
-        
+
+        // НОВОЕ: Устанавливаем userId в LocationProvider для синхронизации с БД
+        locationProvider.setUserId(user['id'] as String);
+
         // Логируем активность
         await SupabaseService.logUserActivity(
           userId: user['id'] as String,
@@ -184,6 +224,9 @@ class _AppInitializerState extends State<AppInitializer> {
           userProvider.setUser(testUser);
           print('✅ UserProvider.setUser called with test user');
           print('✅ UserProvider.userName after setUser: ${userProvider.userName}');
+
+          // НОВОЕ: Устанавливаем userId в LocationProvider для тестового пользователя
+          locationProvider.setUserId(testUser['id'] as String);
         } else {
           print('❌ Failed to create test user');
         }
@@ -195,7 +238,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 6.0 - Enhanced hash reading with improved retry mechanism and detailed logging');
+    print('🚀 VERSION: 7.0 - Check saved location (last_selected_location_id) on startup!');
     
     try {
       // СНАЧАЛА загружаем все активные локации
@@ -301,10 +344,24 @@ class _AppInitializerState extends State<AppInitializer> {
           print('⚠️ Cannot use PRIORITY 1: telegramIdForLocation is null');
         }
         
-        // ПРИОРИТЕТ 2: Восстановление из локального хранилища (для второго захода)
-        // ИСПРАВЛЕНИЕ: Добавлено для решения проблемы второго захода, когда hash пустой
+        // ПРИОРИТЕТ 2: Используем уже прочитанный _savedLocationId (быстрый путь!)
+        // Мы уже прочитали его в начале _initializeUser(), используем напрямую
+        if (targetLocation == null && _savedLocationId != null && _savedLocationId!.isNotEmpty) {
+          print('🔍 PRIORITY 2: Using already loaded _savedLocationId: $_savedLocationId');
+          try {
+            targetLocation = locations.firstWhere(
+              (loc) => loc.id == _savedLocationId,
+            );
+            print('✅ Location restored from saved ID: ${targetLocation.name} (${targetLocation.id})');
+          } catch (e) {
+            print('⚠️ Saved location "$_savedLocationId" not found in active locations list');
+            print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
+          }
+        }
+        
+        // ПРИОРИТЕТ 2.5: Fallback - повторное чтение из local storage (на всякий случай)
         if (targetLocation == null) {
-          print('🔍 PRIORITY 2: Checking local storage for last location (second visit fallback)...');
+          print('🔍 PRIORITY 2.5: Fallback - re-reading from local storage...');
           final lastLocationId = await locationProvider.getLastLocationId();
           
           if (lastLocationId != null && lastLocationId.isNotEmpty) {
@@ -333,13 +390,13 @@ class _AppInitializerState extends State<AppInitializer> {
         // Выбираем локацию (если нашли на любом этапе)
         if (targetLocation != null) {
           print('🎯 AUTO-SELECTING: ${targetLocation.name} (${targetLocation.id})');
-          
+
           // КРИТИЧНО: Сохраняем локацию напрямую в состояние
           _autoSelectedLocation = targetLocation;
-          
-          // Устанавливаем в провайдер
+
+          // Устанавливаем в провайдер (это автоматически сохранит в БД и локальное хранилище)
           await locationProvider.selectLocation(targetLocation);
-          
+
           // Проверяем что локация установлена
           if (locationProvider.selectedLocation != null) {
             print('✅ Location confirmed selected in provider: ${locationProvider.selectedLocation!.name}');
@@ -350,6 +407,7 @@ class _AppInitializerState extends State<AppInitializer> {
             _locationSelected = true;
           }
           print('✅ Location selection complete: _locationSelected=$_locationSelected, location=${targetLocation.name}');
+          print('💾 Location automatically saved to DB via LocationProvider.selectLocation()');
         } else {
           // Если даже после всех попыток не нашли локацию
           print('❌ CRITICAL: No target location found after all priorities');
@@ -401,17 +459,47 @@ class _AppInitializerState extends State<AppInitializer> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    
+
     final locationProvider = context.watch<LocationProvider>();
-    
-    // ИСПРАВЛЕНИЕ: Проверяем наличие локации независимо от флага _locationSelected
-    // Это решает проблему второго захода, когда флаг может быть false, но локация есть
+
+    // ⭐ КЛЮЧЕВОЕ: Если есть СОХРАНЁННАЯ КОФЕЙНЯ → СРАЗУ в главное меню!
+    // Это исправляет проблему когда пользователь видит стартовую страницу
+    // вместо главного меню при повторном заходе
+    if (_hasSavedLocation) {
+      print('✅ ==========================================');
+      print('✅ HAS SAVED COFFEE SHOP - going to MainScreen!');
+      print('✅ Saved location ID: $_savedLocationId');
+      print('✅ ==========================================');
+
+      // Проверяем и логируем текущую локацию
+      final hasLocation = locationProvider.selectedLocation != null || _autoSelectedLocation != null;
+      if (hasLocation) {
+        final locationName = locationProvider.selectedLocation?.name ?? _autoSelectedLocation?.name ?? 'Unknown';
+        print('✅ Current location: $locationName');
+      } else {
+        print('⚠️ Location will be restored from saved ID: $_savedLocationId');
+        // Восстанавливаем локацию из сохранённого ID если она ещё не установлена
+        if (_savedLocationId != null && locationProvider.locations.isNotEmpty) {
+          try {
+            locationProvider.restoreLastLocation(_savedLocationId!);
+            print('✅ Location restored from saved ID');
+          } catch (e) {
+            print('⚠️ Could not restore location: $e - but still going to MainScreen');
+          }
+        }
+      }
+
+      return const MainScreen();
+    }
+
+    // ⭐ Только если НЕТ сохранённой кофейни - проверяем другие источники
+    print('🔍 NO SAVED COFFEE SHOP - checking other sources');
     final hasLocationFromProvider = locationProvider.selectedLocation != null;
     final hasLocationFromState = _autoSelectedLocation != null;
     final hasLocation = hasLocationFromProvider || hasLocationFromState;
-    
+
     print('🔍 Build check: _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation');
-    
+
     if (hasLocation) {
       // Убеждаемся что локация установлена в провайдер
       if (locationProvider.selectedLocation == null && _autoSelectedLocation != null) {
