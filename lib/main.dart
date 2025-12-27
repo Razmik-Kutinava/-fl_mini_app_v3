@@ -132,7 +132,7 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 13.0 - WITH LAST ORDER FALLBACK!');
+    print('🚀 VERSION: 14.0 - WITH HASH FALLBACK FOR TELEGRAM USER ID!');
     print('🚀 localStorage may NOT persist in Telegram WebView between sessions!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
@@ -164,6 +164,19 @@ class _AppInitializerState extends State<AppInitializer> {
     }
     
     print('📱 Final tgUser result: $tgUser');
+    
+    // ⭐⭐⭐ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Если Telegram.WebApp.initDataUnsafe.user = null,
+    // получаем telegram_user_id из URL hash параметров (бот передаёт его там!)
+    String? telegramIdFromHash;
+    if (tgUser == null || tgUser['id'] == null) {
+      print('⚠️ Telegram user is null, trying to get telegram_user_id from URL hash...');
+      telegramIdFromHash = TelegramService.instance.getTelegramUserIdFromHash();
+      if (telegramIdFromHash != null) {
+        print('✅ Got telegram_user_id from hash: $telegramIdFromHash');
+        // Создаём фейковый tgUser объект
+        tgUser = {'id': int.tryParse(telegramIdFromHash) ?? telegramIdFromHash};
+      }
+    }
     
     if (tgUser != null && tgUser['id'] != null) {
       final telegramId = tgUser['id'].toString();
@@ -299,7 +312,7 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 13.0 - WITH LAST ORDER FALLBACK!');
+    print('🚀 VERSION: 14.0 - WITH HASH FALLBACK!');
     
     try {
       // СНАЧАЛА загружаем все активные локации

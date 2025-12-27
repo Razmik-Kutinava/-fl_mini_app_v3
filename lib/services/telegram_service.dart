@@ -365,6 +365,7 @@ class TelegramService {
 
       if (params.containsKey('location_id')) {
         print('✅ Location data found in hash:');
+        print('   - telegram_user_id: ${params['telegram_user_id']}');
         print('   - location_id: ${params['location_id']}');
         print('   - latitude: ${params['latitude']}');
         print('   - longitude: ${params['longitude']}');
@@ -375,6 +376,48 @@ class TelegramService {
     } catch (e) {
       print('❌ Error parsing location data from hash: $e');
       debugPrint('Error parsing location data: $e');
+    }
+
+    return null;
+  }
+
+  /// ⭐ КРИТИЧЕСКОЕ: Получает telegram_user_id из hash параметров URL
+  /// Это FALLBACK когда Telegram.WebApp.initDataUnsafe.user = null!
+  String? getTelegramUserIdFromHash() {
+    if (!kIsWeb) return null;
+
+    try {
+      String hash = '';
+
+      try {
+        final jsHash = _getWindowLocationHash();
+        if (jsHash != null && jsHash.isNotEmpty) {
+          hash = jsHash.startsWith('#') ? jsHash.substring(1) : jsHash;
+        }
+      } catch (e) {
+        print('⚠️ Failed to read window.location.hash: $e');
+      }
+
+      if (hash.isEmpty) {
+        hash = Uri.base.fragment;
+      }
+
+      if (hash.isEmpty) {
+        print('⚠️ No hash in URL');
+        return null;
+      }
+
+      final params = Uri.splitQueryString(hash);
+      final telegramUserId = params['telegram_user_id'];
+
+      if (telegramUserId != null && telegramUserId.isNotEmpty) {
+        print('✅ Found telegram_user_id in hash: $telegramUserId');
+        return telegramUserId;
+      } else {
+        print('⚠️ No telegram_user_id in hash params');
+      }
+    } catch (e) {
+      print('❌ Error getting telegram_user_id from hash: $e');
     }
 
     return null;
