@@ -19,7 +19,7 @@ import 'models/cart_item.dart';
 class UserLocationContext {
   static String? preferredLocationId;
   static String? telegramUserId;
-  
+
   /// Загружает preferredLocationId из Supabase по telegram_id
   /// Это основной метод для автоматического выбора локации!
   static Future<void> loadFromDatabase(String? telegramId) async {
@@ -27,21 +27,27 @@ class UserLocationContext {
       print('⚠️ No telegram_id available for location lookup');
       return;
     }
-    
+
     telegramUserId = telegramId;
-    print('🔍 Loading preferredLocationId from database for telegram_id: $telegramId');
-    
+    print(
+      '🔍 Loading preferredLocationId from database for telegram_id: $telegramId',
+    );
+
     try {
       // Получаем preferredLocationId из Supabase
-      preferredLocationId = await SupabaseService.getUserPreferredLocationId(telegramId);
-      
+      preferredLocationId = await SupabaseService.getUserPreferredLocationId(
+        telegramId,
+      );
+
       if (preferredLocationId != null) {
         print('✅ Found preferredLocationId from DB: $preferredLocationId');
       } else {
         // Если нет preferredLocationId, пробуем взять из последнего заказа
         print('🔍 No preferredLocationId, checking last order...');
-        preferredLocationId = await SupabaseService.getUserLastOrderLocationId(telegramId);
-        
+        preferredLocationId = await SupabaseService.getUserLastOrderLocationId(
+          telegramId,
+        );
+
         if (preferredLocationId != null) {
           print('✅ Found locationId from last order: $preferredLocationId');
         } else {
@@ -52,21 +58,21 @@ class UserLocationContext {
       print('❌ Error loading location from database: $e');
     }
   }
-  
+
   /// Проверяет есть ли сохранённая локация
-  static bool get hasPreferredLocation => 
+  static bool get hasPreferredLocation =>
       preferredLocationId != null && preferredLocationId!.isNotEmpty;
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Supabase FIRST
   await SupabaseService.initialize();
-  
+
   // Initialize Telegram WebApp
   TelegramService.instance.init();
-  
+
   runApp(const CoffeeApp());
 }
 
@@ -114,7 +120,11 @@ class _AppInitializerState extends State<AppInitializer> {
   String? _savedLocationId; // ⭐ ID сохранённой кофейни (из БД или localStorage)
   bool _hasSavedLocation = false; // ⭐ Есть ли сохранённая кофейня
   bool _isFirstVisit = true; // ⭐ Флаг первого визита (из FINAL_SOLUTION.md)
-  bool _shouldOpenCart = false; // ⭐ Флаг для открытия корзины (для repeat_order)
+  bool _shouldOpenCart =
+      false; // ⭐ Флаг для открытия корзины (для repeat_order)
+  bool _locationConfirmed = false; // ⭐ Флаг подтверждения локации через диалог
+  bool _userDeclinedLocation =
+      false; // ⭐ Флаг что пользователь отказался от сохранённой локации
 
   @override
   void initState() {
@@ -149,36 +159,41 @@ class _AppInitializerState extends State<AppInitializer> {
     print('🔍 [STEP 0] Checking action from hash...');
     final action = TelegramService.instance.getActionFromHash();
     print('🔍 Action from hash: $action');
-    
+
     if (action == 'repeat_order') {
       print('🔄 REPEAT ORDER DETECTED!');
       final orderId = TelegramService.instance.getOrderIdFromHash();
-      final locationIdFromHash = TelegramService.instance.getLocationIdFromHash();
-      
+      final locationIdFromHash = TelegramService.instance
+          .getLocationIdFromHash();
+
       print('🔄 Order ID: $orderId');
       print('🔄 Location ID: $locationIdFromHash');
-      
+
       if (orderId != null && orderId.isNotEmpty) {
         try {
           // Загружаем товары заказа
           print('🔄 Loading order items...');
           final orderItems = await SupabaseService.getOrderItems(orderId);
           print('🔄 Found ${orderItems.length} items in order');
-          
+
           if (orderItems.isNotEmpty) {
             // Очищаем корзину
             cartProvider.clear();
-            
+
             // Загружаем локации для выбора локации
             final locationsData = await SupabaseService.getLocations();
-            final locations = locationsData.map((data) => Location.fromJson(data)).toList();
+            final locations = locationsData
+                .map((data) => Location.fromJson(data))
+                .toList();
             locationProvider.setLocations(locations);
-            
+
             // Выбираем локацию из hash или первую доступную
             Location? targetLocation;
             if (locationIdFromHash != null) {
               try {
-                targetLocation = locations.firstWhere((loc) => loc.id == locationIdFromHash);
+                targetLocation = locations.firstWhere(
+                  (loc) => loc.id == locationIdFromHash,
+                );
                 print('✅ Using location from hash: ${targetLocation.name}');
               } catch (e) {
                 print('⚠️ Location from hash not found, using first available');
@@ -187,7 +202,7 @@ class _AppInitializerState extends State<AppInitializer> {
             } else {
               targetLocation = locations.isNotEmpty ? locations.first : null;
             }
-            
+
             if (targetLocation != null) {
               await locationProvider.selectLocation(targetLocation);
               _autoSelectedLocation = targetLocation;
@@ -195,50 +210,62 @@ class _AppInitializerState extends State<AppInitializer> {
               _hasSavedLocation = true;
               _locationSelected = true;
             }
-            
+
             // Для каждого товара заказа загружаем Product и добавляем в корзину
             for (var orderItem in orderItems) {
               try {
                 final productId = orderItem['productId'] as String?;
                 if (productId == null) continue;
-                
+
                 // Загружаем Product
-                final productData = await SupabaseService.getProductById(productId);
+                final productData = await SupabaseService.getProductById(
+                  productId,
+                );
                 if (productData == null) {
                   print('⚠️ Product not found: $productId');
                   continue;
                 }
-                
+
                 // Создаём Product объект
                 final product = Product.fromJson(productData);
-                
+
                 // Получаем модификаторы из OrderItemModifier
                 final modifiers = <String, dynamic>{};
                 final modifiersList = orderItem['modifiers'] as List<dynamic>?;
-                
+
                 if (modifiersList != null && modifiersList.isNotEmpty) {
                   // Группируем модификаторы по группам
                   for (var mod in modifiersList) {
                     final modData = mod as Map<String, dynamic>;
                     final groupName = modData['modifierGroupName'] as String?;
-                    final optionId = modData['modifierOptionId'] as String?;
-                    
-                    if (groupName != null && optionId != null) {
-                      // Находим индекс опции в группе модификаторов продукта
+                    // Получаем label из modifierOption (если есть) или используем optionId как fallback
+                    final modifierOption =
+                        modData['modifierOption'] as Map<String, dynamic>?;
+                    final optionLabel = modifierOption?['name'] as String?;
+
+                    if (groupName != null && optionLabel != null) {
+                      // Находим индекс опции в группе модификаторов продукта по label
                       if (product.modifiers != null) {
-                        if (groupName.toLowerCase() == 'size' && product.modifiers!.size != null) {
-                          final index = product.modifiers!.size!.options.indexWhere((opt) => opt.id == optionId);
+                        if (groupName.toLowerCase() == 'size' &&
+                            product.modifiers!.size != null) {
+                          final index = product.modifiers!.size!.options
+                              .indexWhere((opt) => opt.label == optionLabel);
                           if (index >= 0) {
                             modifiers['size'] = index;
                           }
-                        } else if (groupName.toLowerCase() == 'milk' && product.modifiers!.milk != null) {
-                          final index = product.modifiers!.milk!.options.indexWhere((opt) => opt.id == optionId);
+                        } else if (groupName.toLowerCase() == 'milk' &&
+                            product.modifiers!.milk != null) {
+                          final index = product.modifiers!.milk!.options
+                              .indexWhere((opt) => opt.label == optionLabel);
                           if (index >= 0) {
                             modifiers['milk'] = index;
                           }
-                        } else if (groupName.toLowerCase() == 'extras' && product.modifiers!.extras != null) {
-                          final extras = modifiers['extras'] as List<int>? ?? [];
-                          final index = product.modifiers!.extras!.options.indexWhere((opt) => opt.id == optionId);
+                        } else if (groupName.toLowerCase() == 'extras' &&
+                            product.modifiers!.extras != null) {
+                          final extras =
+                              modifiers['extras'] as List<int>? ?? [];
+                          final index = product.modifiers!.extras!.options
+                              .indexWhere((opt) => opt.label == optionLabel);
                           if (index >= 0) {
                             extras.add(index);
                             modifiers['extras'] = extras;
@@ -248,7 +275,7 @@ class _AppInitializerState extends State<AppInitializer> {
                     }
                   }
                 }
-                
+
                 // Создаём CartItem
                 final quantity = (orderItem['quantity'] as num?)?.toInt() ?? 1;
                 final cartItem = CartItem(
@@ -258,7 +285,7 @@ class _AppInitializerState extends State<AppInitializer> {
                   totalPrice: 0, // Будет пересчитано в updateTotalPrice
                 );
                 cartItem.updateTotalPrice();
-                
+
                 // Добавляем в корзину
                 cartProvider.addItem(cartItem);
                 print('✅ Added to cart: ${product.name} x$quantity');
@@ -267,9 +294,9 @@ class _AppInitializerState extends State<AppInitializer> {
                 print('❌ Stack: $stack');
               }
             }
-            
+
             print('🔄 Cart loaded with ${cartProvider.items.length} items');
-            
+
             // Устанавливаем флаг для открытия корзины
             _shouldOpenCart = true;
           } else {
@@ -291,7 +318,7 @@ class _AppInitializerState extends State<AppInitializer> {
     print('🔍 [STEP 0] Reading location_id from URL hash (bot sends it!)...');
     final hashLocationId = TelegramService.instance.getLocationIdFromHash();
     print('🔍 Hash location_id: $hashLocationId');
-    
+
     if (hashLocationId != null && hashLocationId.isNotEmpty) {
       print('🎉 ==========================================');
       print('🎉 GOT location_id FROM HASH: $hashLocationId');
@@ -300,54 +327,59 @@ class _AppInitializerState extends State<AppInitializer> {
       _savedLocationId = hashLocationId;
       _hasSavedLocation = true;
     }
-    
+
     // Также читаем telegram_user_id из hash (бот передаёт его)
-    final telegramIdFromHash = TelegramService.instance.getTelegramUserIdFromHash();
+    final telegramIdFromHash = TelegramService.instance
+        .getTelegramUserIdFromHash();
     print('🔍 Hash telegram_user_id: $telegramIdFromHash');
-    
+
     // Пробуем получить Telegram user из WebApp API (часто null!)
     final tgUser = TelegramService.instance.getUser();
     print('📱 WebApp tgUser: $tgUser');
-    
+
     // Определяем telegramId - из hash или из WebApp API
     String? telegramId = telegramIdFromHash;
     if (telegramId == null && tgUser != null && tgUser['id'] != null) {
       telegramId = tgUser['id'].toString();
     }
     print('📱 Final telegramId: $telegramId');
-    
+
     if (telegramId != null) {
       final firstName = tgUser?['firstName'] as String?;
       final lastName = tgUser?['lastName'] as String?;
       final username = tgUser?['username'] as String?;
-      
+
       print('📱 User data:');
       print('  - telegramId: $telegramId');
       print('  - firstName: $firstName');
       print('  - username: $username');
-      
+
       // Получаем пользователя из БД
       print('💾 Getting user from Supabase...');
       final user = await SupabaseService.getOrCreateUser(
         telegramId: telegramId,
-        firstName: firstName ?? 'User',  // Default чтобы не было NOT NULL ошибки
+        firstName: firstName ?? 'User', // Default чтобы не было NOT NULL ошибки
         lastName: lastName,
         username: username,
       );
-      
+
       if (user != null) {
         print('✅ User found: ${user['id']}');
         print('✅ preferredLocationId: ${user['preferredLocationId']}');
-        
+
         userProvider.setUser(user);
         locationProvider.setUserId(user['id'] as String);
 
         // Если location_id уже есть из hash - используем его
         // Иначе берём preferredLocationId из БД
         if (!_hasSavedLocation) {
-          final userPreferredLocationId = user['preferredLocationId'] as String?;
-          if (userPreferredLocationId != null && userPreferredLocationId.isNotEmpty) {
-            print('✅ Using preferredLocationId from DB: $userPreferredLocationId');
+          final userPreferredLocationId =
+              user['preferredLocationId'] as String?;
+          if (userPreferredLocationId != null &&
+              userPreferredLocationId.isNotEmpty) {
+            print(
+              '✅ Using preferredLocationId from DB: $userPreferredLocationId',
+            );
             _savedLocationId = userPreferredLocationId;
             _hasSavedLocation = true;
           }
@@ -358,12 +390,12 @@ class _AppInitializerState extends State<AppInitializer> {
     } else {
       print('⚠️ No telegramId available (not from hash, not from WebApp)');
     }
-    
+
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ - УПРОЩЁННАЯ ЛОГИКА v17
     // =====================================================
     print('🚀 VERSION: 17.0 - WITH VISIT COUNTER!');
-    
+
     try {
       // Загружаем все активные локации
       print('📍 Loading active locations from Supabase...');
@@ -371,42 +403,58 @@ class _AppInitializerState extends State<AppInitializer> {
       final locations = locationsData
           .map((data) => Location.fromJson(data))
           .toList();
-      
+
       print('📍 Loaded ${locations.length} active locations');
-      
+
       if (locations.isEmpty) {
         print('❌ No active locations found!');
         _locationSelected = false;
       } else {
         locationProvider.setLocations(locations);
-        
+
         Location? targetLocation;
-        
+
         // Пробуем найти сохранённую локацию
         if (_savedLocationId != null) {
           print('🔍 Looking for saved location: $_savedLocationId');
           try {
-            targetLocation = locations.firstWhere((loc) => loc.id == _savedLocationId);
+            targetLocation = locations.firstWhere(
+              (loc) => loc.id == _savedLocationId,
+            );
             print('✅ Found saved location: ${targetLocation.name}');
           } catch (e) {
             print('⚠️ Saved location not found in list');
           }
         }
-        
+
         // FALLBACK: берём ПЕРВУЮ локацию если не нашли сохранённую
         if (targetLocation == null) {
           targetLocation = locations.first;
           print('📍 Using first location as fallback: ${targetLocation.name}');
         }
-        
-        // ГАРАНТИРОВАННО выбираем локацию и идём в MainScreen
+
+        // ГАРАНТИРОВАННО выбираем локацию
         _autoSelectedLocation = targetLocation;
         _savedLocationId = targetLocation.id;
-        _hasSavedLocation = true;
+        // ⭐ _hasSavedLocation устанавливается в следующих случаях:
+        // 1. Есть location_id из hash (уже установлено выше в строке 328) - бот передал локацию
+        // 2. Есть preferredLocationId из БД (уже установлено выше в строке 384) - сохранённая локация
+        // 3. НЕ первый визит (значит есть сохранённая локация из предыдущего захода)
+        //    В этом случае диалог будет показан для подтверждения локации
+        if (!_hasSavedLocation && !_isFirstVisit) {
+          // Если не первый визит, значит пользователь уже выбирал локацию ранее
+          _hasSavedLocation = true;
+          print(
+            '✅ Setting _hasSavedLocation = true (NOT first visit - will show dialog)',
+          );
+        }
         _locationSelected = true;
         await locationProvider.selectLocation(targetLocation);
         print('🎉 ==========================================');
         print('🎉 LOCATION SELECTED: ${targetLocation.name}');
+        print(
+          '🎉 _hasSavedLocation: $_hasSavedLocation, _isFirstVisit: $_isFirstVisit',
+        );
         print('🎉 GOING TO MAIN SCREEN!');
         print('🎉 ==========================================');
       }
@@ -414,7 +462,7 @@ class _AppInitializerState extends State<AppInitializer> {
       print('❌ Error loading locations: $e');
       print('❌ Stack: $stack');
     }
-    
+
     userProvider.setLoading(false);
     print('✅ User initialization complete.');
     if (mounted) {
@@ -424,6 +472,53 @@ class _AppInitializerState extends State<AppInitializer> {
     }
   }
 
+  /// Показывает диалог подтверждения локации при повторном входе
+  void _showLocationConfirmDialog(BuildContext context) {
+    print('🎯 _showLocationConfirmDialog called');
+    final locationProvider = context.read<LocationProvider>();
+    final locationName =
+        locationProvider.selectedLocation?.name ??
+        _autoSelectedLocation?.name ??
+        'кофейне';
+    print('🎯 Location name: $locationName');
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Заказать здесь?'),
+        content: Text('Вы точно уверены, что это кофейня "$locationName"?'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // НЕТ - очищаем сохранённую локацию и показываем экран выбора
+              print('❌ User declined location: $locationName');
+              _savedLocationId = null;
+              _hasSavedLocation = false;
+              _locationConfirmed = false;
+              _userDeclinedLocation =
+                  true; // ⭐ Отмечаем что пользователь отказался
+              _autoSelectedLocation = null;
+              Navigator.of(context).pop();
+              setState(() {});
+            },
+            child: const Text('Нет'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // ДА - подтверждаем и идём в MainScreen
+              print('✅ User confirmed location: $locationName');
+              Navigator.of(context).pop();
+              setState(() {
+                _locationConfirmed = true;
+              });
+            },
+            child: const Text('Да'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -449,75 +544,104 @@ class _AppInitializerState extends State<AppInitializer> {
       return const MainScreen();
     }
 
-    // ⭐⭐⭐ НОВАЯ ЛОГИКА (из FINAL_SOLUTION.md):
-    // Если НЕ первый визит - ВСЕГДА пропускаем стартовый экран!
-    if (!_isFirstVisit) {
-      print('✅ ==========================================');
-      print('✅ NOT FIRST VISIT - skipping permissions screen');
-      print('✅ Going DIRECTLY to MainScreen!');
-      print('✅ ==========================================');
-      return const MainScreen();
-    }
-
-    // Если первый визит - проверяем есть ли сохранённая локация
-    print('🔍 FIRST VISIT - checking location');
-
-    // ⭐ КЛЮЧЕВОЕ: Если есть СОХРАНЁННАЯ КОФЕЙНЯ → СРАЗУ в главное меню!
-    // Это исправляет проблему когда пользователь видит стартовую страницу
-    // вместо главного меню при повторном заходе
-    if (_hasSavedLocation) {
-      print('✅ ==========================================');
-      print('✅ HAS SAVED COFFEE SHOP - going to MainScreen!');
-      print('✅ Saved location ID: $_savedLocationId');
-      print('✅ ==========================================');
-
-      // Проверяем и логируем текущую локацию
-      final hasLocation = locationProvider.selectedLocation != null || _autoSelectedLocation != null;
-      if (hasLocation) {
-        final locationName = locationProvider.selectedLocation?.name ?? _autoSelectedLocation?.name ?? 'Unknown';
-        print('✅ Current location: $locationName');
-      } else {
-        print('⚠️ Location will be restored from saved ID: $_savedLocationId');
-        // Восстанавливаем локацию из сохранённого ID если она ещё не установлена
-        if (_savedLocationId != null && locationProvider.locations.isNotEmpty) {
-          try {
-            locationProvider.restoreLastLocation(_savedLocationId!);
-            print('✅ Location restored from saved ID');
-          } catch (e) {
-            print('⚠️ Could not restore location: $e - but still going to MainScreen');
-          }
+    // ⭐ ПРИОРИТЕТ 1: Если есть СОХРАНЁННАЯ КОФЕЙНЯ И НЕ первый визит → Показываем диалог подтверждения!
+    // Диалог показывается только при повторном входе (когда пользователь уже был)
+    print(
+      '🔍 Build check: _hasSavedLocation=$_hasSavedLocation, _locationConfirmed=$_locationConfirmed, _isFirstVisit=$_isFirstVisit',
+    );
+    if (_hasSavedLocation && !_locationConfirmed && !_isFirstVisit) {
+      print('✅ Showing location confirmation dialog!');
+      // Восстанавливаем локацию если она ещё не установлена
+      if (locationProvider.selectedLocation == null &&
+          _savedLocationId != null &&
+          locationProvider.locations.isNotEmpty) {
+        try {
+          locationProvider.restoreLastLocation(_savedLocationId!);
+          print('✅ Location restored: $_savedLocationId');
+        } catch (e) {
+          print('⚠️ Could not restore location: $e');
         }
       }
 
+      // Показываем диалог через postFrameCallback чтобы избежать ошибок build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        print('📱 Showing dialog via postFrameCallback');
+        _showLocationConfirmDialog(context);
+      });
+
+      // Показываем загрузку пока не выберем
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // ⭐ ПРИОРИТЕТ 2: Если локация подтверждена - идём в MainScreen
+    if (_hasSavedLocation && _locationConfirmed) {
+      print('✅ ==========================================');
+      print('✅ LOCATION CONFIRMED - going to MainScreen!');
+      print('✅ Saved location ID: $_savedLocationId');
+      print('✅ ==========================================');
       return const MainScreen();
     }
 
-    // ⭐ Только если НЕТ сохранённой кофейни И это первый визит - проверяем другие источники
-    print('🔍 FIRST VISIT + NO SAVED COFFEE SHOP - checking other sources');
+    // ⭐ ПРИОРИТЕТ 3: Если пользователь отказался от сохранённой локации - показываем экран выбора
+    if (_userDeclinedLocation) {
+      print(
+        '📍 → User declined saved location - showing location selection screen',
+      );
+      return const PermissionsScreen();
+    }
+
+    // ⭐ ПРИОРИТЕТ 4: Если НЕ первый визит и нет сохранённой локации - идём на MainScreen
+    if (!_isFirstVisit) {
+      print('✅ ==========================================');
+      print('✅ NOT FIRST VISIT - going to MainScreen');
+      print('✅ ==========================================');
+      return const MainScreen();
+    }
+
+    // ⭐ ПРИОРИТЕТ 5: Первый визит - проверяем есть ли автоматически выбранная локация
+    print('🔍 FIRST VISIT - checking location');
     final hasLocationFromProvider = locationProvider.selectedLocation != null;
     final hasLocationFromState = _autoSelectedLocation != null;
     final hasLocationsAvailable = locationProvider.locations.isNotEmpty;
     final hasLocation = hasLocationFromProvider || hasLocationFromState;
 
-    print('🔍 Build check: _isFirstVisit=$_isFirstVisit, _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation, hasLocationsAvailable=$hasLocationsAvailable');
+    print(
+      '🔍 Build check: _isFirstVisit=$_isFirstVisit, _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation, hasLocationsAvailable=$hasLocationsAvailable',
+    );
 
     if (hasLocation) {
       // Убеждаемся что локация установлена в провайдер
-      if (locationProvider.selectedLocation == null && _autoSelectedLocation != null) {
-        print('⚠️ Location not in provider, restoring from _autoSelectedLocation...');
+      if (locationProvider.selectedLocation == null &&
+          _autoSelectedLocation != null) {
+        print(
+          '⚠️ Location not in provider, restoring from _autoSelectedLocation...',
+        );
         try {
           locationProvider.restoreLastLocation(_autoSelectedLocation!.id);
-          print('✅ Location restored in provider: ${_autoSelectedLocation!.name}');
+          print(
+            '✅ Location restored in provider: ${_autoSelectedLocation!.name}',
+          );
         } catch (e) {
           print('❌ Failed to restore location: $e');
           // Если не удалось восстановить, устанавливаем напрямую
           locationProvider.selectLocation(_autoSelectedLocation!);
         }
       }
-      
-      final locationName = locationProvider.selectedLocation?.name ?? _autoSelectedLocation?.name ?? 'Unknown';
-      final locationId = locationProvider.selectedLocation?.id ?? _autoSelectedLocation?.id ?? 'unknown';
-      print('🎯 → Going to MainScreen with location: $locationName (ID: $locationId) (FIRST VISIT)');
+
+      final locationName =
+          locationProvider.selectedLocation?.name ??
+          _autoSelectedLocation?.name ??
+          'Unknown';
+      final locationId =
+          locationProvider.selectedLocation?.id ??
+          _autoSelectedLocation?.id ??
+          'unknown';
+      print(
+        '🎯 → Going to MainScreen with location: $locationName (ID: $locationId) (FIRST VISIT)',
+      );
       print('✅ SUCCESS: App will show MainScreen instead of PermissionsScreen');
       return const MainScreen();
     }
@@ -526,7 +650,9 @@ class _AppInitializerState extends State<AppInitializer> {
     // Если есть локации в provider - всё равно идём в MainScreen!
     // Это гарантирует что пользователь НЕ увидит PermissionsScreen если есть хоть одна локация
     if (hasLocationsAvailable) {
-      print('🆘 FINAL FALLBACK (FIRST VISIT): No selected location, but locations exist! Going to MainScreen anyway');
+      print(
+        '🆘 FINAL FALLBACK (FIRST VISIT): No selected location, but locations exist! Going to MainScreen anyway',
+      );
       print('🆘 Selecting first available location...');
       try {
         final firstLocation = locationProvider.locations.first;
@@ -538,8 +664,12 @@ class _AppInitializerState extends State<AppInitializer> {
       return const MainScreen();
     }
 
-    print('📍 → Going to PermissionsScreen (FIRST VISIT + no locations available at all!)');
-    print('⚠️ WARNING: No locations in database - user will see permissions screen');
+    print(
+      '📍 → Going to PermissionsScreen (FIRST VISIT + no locations available at all!)',
+    );
+    print(
+      '⚠️ WARNING: No locations in database - user will see permissions screen',
+    );
     return const PermissionsScreen();
   }
 }
