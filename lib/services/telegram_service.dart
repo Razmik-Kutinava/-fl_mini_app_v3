@@ -444,4 +444,66 @@ class TelegramService {
 
     return null;
   }
+
+  /// Получает action из hash параметров URL
+  String? getActionFromHash() {
+    if (!kIsWeb) return null;
+
+    try {
+      String hash = '';
+      try {
+        final jsHash = _getWindowLocationHash();
+        if (jsHash != null && jsHash.isNotEmpty) {
+          hash = jsHash.startsWith('#') ? jsHash.substring(1) : jsHash;
+        }
+      } catch (e) {
+        print('⚠️ Failed to read from window.location.hash: $e');
+      }
+
+      if (hash.isEmpty) {
+        hash = Uri.base.fragment;
+      }
+
+      if (hash.isEmpty) {
+        return null;
+      }
+
+      final params = Uri.splitQueryString(hash);
+      return params['action'];
+    } catch (e) {
+      print('❌ Error parsing action from hash: $e');
+      return null;
+    }
+  }
+
+  /// Получает order_id из hash параметров URL
+  String? getOrderIdFromHash() {
+    if (!kIsWeb) return null;
+
+    try {
+      String hash = '';
+      try {
+        final jsHash = _getWindowLocationHash();
+        if (jsHash != null && jsHash.isNotEmpty) {
+          hash = jsHash.startsWith('#') ? jsHash.substring(1) : jsHash;
+        }
+      } catch (e) {
+        print('⚠️ Failed to read from window.location.hash: $e');
+      }
+
+      if (hash.isEmpty) {
+        hash = Uri.base.fragment;
+      }
+
+      if (hash.isEmpty) {
+        return null;
+      }
+
+      final params = Uri.splitQueryString(hash);
+      return params['order_id'];
+    } catch (e) {
+      print('❌ Error parsing order_id from hash: $e');
+      return null;
+    }
+  }
 }

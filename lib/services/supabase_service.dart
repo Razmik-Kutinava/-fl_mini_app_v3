@@ -781,4 +781,44 @@ class SupabaseService {
       return null;
     }
   }
+
+  // ==================== REPEAT ORDER ====================
+
+  /// Получает товары заказа для повторного заказа
+  static Future<List<Map<String, dynamic>>> getOrderItems(String orderId) async {
+    try {
+      print('🔄 [getOrderItems] Loading order items for order: $orderId');
+      
+      // Получаем OrderItem для этого заказа
+      final itemsResponse = await client
+          .from('OrderItem')
+          .select('*, product:Product(*)')
+          .eq('orderId', orderId);
+      
+      final items = List<Map<String, dynamic>>.from(itemsResponse);
+      print('🔄 [getOrderItems] Found ${items.length} items');
+      
+      // Для каждого товара получаем модификаторы
+      for (var item in items) {
+        final itemId = item['id'] as String;
+        
+        // Получаем модификаторы
+        final modifiersResponse = await client
+            .from('OrderItemModifier')
+            .select('*, modifierOption:ModifierOption(*)')
+            .eq('orderItemId', itemId);
+        
+        final modifiers = List<Map<String, dynamic>>.from(modifiersResponse);
+        item['modifiers'] = modifiers;
+        
+        print('🔄 [getOrderItems] Item ${item['productName']}: ${modifiers.length} modifiers');
+      }
+      
+      return items;
+    } catch (e, stackTrace) {
+      print('❌ [getOrderItems] Error: $e');
+      print('❌ [getOrderItems] Stack: $stackTrace');
+      return [];
+    }
+  }
 }

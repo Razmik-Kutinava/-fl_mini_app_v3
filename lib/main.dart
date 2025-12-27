@@ -7,10 +7,13 @@ import 'providers/menu_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/permissions_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/cart_screen.dart';
 import 'services/telegram_service.dart';
 import 'services/supabase_service.dart';
 import 'constants/app_colors.dart';
 import 'models/location.dart';
+import 'models/product.dart';
+import 'models/cart_item.dart';
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
@@ -111,6 +114,7 @@ class _AppInitializerState extends State<AppInitializer> {
   String? _savedLocationId; // ⭐ ID сохранённой кофейни (из БД или localStorage)
   bool _hasSavedLocation = false; // ⭐ Есть ли сохранённая кофейня
   bool _isFirstVisit = true; // ⭐ Флаг первого визита (из FINAL_SOLUTION.md)
+  bool _shouldOpenCart = false; // ⭐ Флаг для открытия корзины (для repeat_order)
 
   @override
   void initState() {
@@ -135,10 +139,148 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 17.0 - WITH VISIT COUNTER FIX!');
+    print('🚀 VERSION: 18.0 - WITH REPEAT ORDER SUPPORT!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
+    final cartProvider = context.read<CartProvider>();
     userProvider.setLoading(true);
+
+    // ⭐⭐⭐ ПРОВЕРКА ACTION: repeat_order
+    print('🔍 [STEP 0] Checking action from hash...');
+    final action = TelegramService.instance.getActionFromHash();
+    print('🔍 Action from hash: $action');
+    
+    if (action == 'repeat_order') {
+      print('🔄 REPEAT ORDER DETECTED!');
+      final orderId = TelegramService.instance.getOrderIdFromHash();
+      final locationIdFromHash = TelegramService.instance.getLocationIdFromHash();
+      
+      print('🔄 Order ID: $orderId');
+      print('🔄 Location ID: $locationIdFromHash');
+      
+      if (orderId != null && orderId.isNotEmpty) {
+        try {
+          // Загружаем товары заказа
+          print('🔄 Loading order items...');
+          final orderItems = await SupabaseService.getOrderItems(orderId);
+          print('🔄 Found ${orderItems.length} items in order');
+          
+          if (orderItems.isNotEmpty) {
+            // Очищаем корзину
+            cartProvider.clear();
+            
+            // Загружаем локации для выбора локации
+            final locationsData = await SupabaseService.getLocations();
+            final locations = locationsData.map((data) => Location.fromJson(data)).toList();
+            locationProvider.setLocations(locations);
+            
+            // Выбираем локацию из hash или первую доступную
+            Location? targetLocation;
+            if (locationIdFromHash != null) {
+              try {
+                targetLocation = locations.firstWhere((loc) => loc.id == locationIdFromHash);
+                print('✅ Using location from hash: ${targetLocation.name}');
+              } catch (e) {
+                print('⚠️ Location from hash not found, using first available');
+                targetLocation = locations.isNotEmpty ? locations.first : null;
+              }
+            } else {
+              targetLocation = locations.isNotEmpty ? locations.first : null;
+            }
+            
+            if (targetLocation != null) {
+              await locationProvider.selectLocation(targetLocation);
+              _autoSelectedLocation = targetLocation;
+              _savedLocationId = targetLocation.id;
+              _hasSavedLocation = true;
+              _locationSelected = true;
+            }
+            
+            // Для каждого товара заказа загружаем Product и добавляем в корзину
+            for (var orderItem in orderItems) {
+              try {
+                final productId = orderItem['productId'] as String?;
+                if (productId == null) continue;
+                
+                // Загружаем Product
+                final productData = await SupabaseService.getProductById(productId);
+                if (productData == null) {
+                  print('⚠️ Product not found: $productId');
+                  continue;
+                }
+                
+                // Создаём Product объект
+                final product = Product.fromJson(productData);
+                
+                // Получаем модификаторы из OrderItemModifier
+                final modifiers = <String, dynamic>{};
+                final modifiersList = orderItem['modifiers'] as List<dynamic>?;
+                
+                if (modifiersList != null && modifiersList.isNotEmpty) {
+                  // Группируем модификаторы по группам
+                  for (var mod in modifiersList) {
+                    final modData = mod as Map<String, dynamic>;
+                    final groupName = modData['modifierGroupName'] as String?;
+                    final optionId = modData['modifierOptionId'] as String?;
+                    
+                    if (groupName != null && optionId != null) {
+                      // Находим индекс опции в группе модификаторов продукта
+                      if (product.modifiers != null) {
+                        if (groupName.toLowerCase() == 'size' && product.modifiers!.size != null) {
+                          final index = product.modifiers!.size!.options.indexWhere((opt) => opt.id == optionId);
+                          if (index >= 0) {
+                            modifiers['size'] = index;
+                          }
+                        } else if (groupName.toLowerCase() == 'milk' && product.modifiers!.milk != null) {
+                          final index = product.modifiers!.milk!.options.indexWhere((opt) => opt.id == optionId);
+                          if (index >= 0) {
+                            modifiers['milk'] = index;
+                          }
+                        } else if (groupName.toLowerCase() == 'extras' && product.modifiers!.extras != null) {
+                          final extras = modifiers['extras'] as List<int>? ?? [];
+                          final index = product.modifiers!.extras!.options.indexWhere((opt) => opt.id == optionId);
+                          if (index >= 0) {
+                            extras.add(index);
+                            modifiers['extras'] = extras;
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                
+                // Создаём CartItem
+                final quantity = (orderItem['quantity'] as num?)?.toInt() ?? 1;
+                final cartItem = CartItem(
+                  product: product,
+                  modifiers: modifiers,
+                  quantity: quantity,
+                  totalPrice: 0, // Будет пересчитано в updateTotalPrice
+                );
+                cartItem.updateTotalPrice();
+                
+                // Добавляем в корзину
+                cartProvider.addItem(cartItem);
+                print('✅ Added to cart: ${product.name} x$quantity');
+              } catch (e, stack) {
+                print('❌ Error adding item to cart: $e');
+                print('❌ Stack: $stack');
+              }
+            }
+            
+            print('🔄 Cart loaded with ${cartProvider.items.length} items');
+            
+            // Устанавливаем флаг для открытия корзины
+            _shouldOpenCart = true;
+          } else {
+            print('⚠️ No items found in order');
+          }
+        } catch (e, stack) {
+          print('❌ Error loading repeat order: $e');
+          print('❌ Stack: $stack');
+        }
+      }
+    }
 
     // ⭐ ПРОВЕРКА ПЕРВОГО ВИЗИТА (из FINAL_SOLUTION.md)
     _isFirstVisit = await _checkIsFirstVisit();
@@ -293,6 +435,19 @@ class _AppInitializerState extends State<AppInitializer> {
     }
 
     final locationProvider = context.watch<LocationProvider>();
+
+    // ⭐⭐⭐ ОТКРЫТИЕ КОРЗИНЫ для repeat_order
+    if (_shouldOpenCart) {
+      print('🛒 Opening cart screen for repeat order...');
+      // Используем WidgetsBinding для отложенного открытия после build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const CartScreen()),
+        );
+      });
+      // Показываем MainScreen временно, пока не откроется корзина
+      return const MainScreen();
+    }
 
     // ⭐⭐⭐ НОВАЯ ЛОГИКА (из FINAL_SOLUTION.md):
     // Если НЕ первый визит - ВСЕГДА пропускаем стартовый экран!
