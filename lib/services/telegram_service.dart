@@ -89,23 +89,23 @@ class TelegramService {
   Map<String, dynamic>? getUser() {
     print('🔍 Checking Telegram availability...');
     print('🔍 isInTelegram: $isInTelegram');
-    
+
     if (!isInTelegram) {
       print('⚠️ Not in Telegram context');
       return null;
     }
-    
+
     try {
       print('🔍 Accessing telegramWebApp...');
       final webApp = telegramWebApp;
       print('🔍 telegramWebApp: ${webApp != null ? "exists" : "null"}');
-      
+
       final initData = webApp?.initDataUnsafe;
       print('🔍 initDataUnsafe: ${initData != null ? "exists" : "null"}');
-      
+
       final user = initData?.user;
       print('🔍 user: ${user != null ? "exists" : "null"}');
-      
+
       if (user != null) {
         final userData = {
           'id': user.id,
@@ -204,29 +204,37 @@ class TelegramService {
     if (!kIsWeb) return null;
 
     print('🔍 Starting hash reading with $maxAttempts attempts...');
-    
+
     for (int attempt = 0; attempt < maxAttempts; attempt++) {
       // Первая попытка сразу, остальные с задержкой
       if (attempt > 0) {
         // Увеличиваем задержку с каждой попыткой: 300ms, 600ms, 900ms, 1200ms
         final delay = initialDelay * attempt;
-        print('🔄 Attempt ${attempt + 1}/$maxAttempts: Waiting ${delay.inMilliseconds}ms before reading hash...');
+        print(
+          '🔄 Attempt ${attempt + 1}/$maxAttempts: Waiting ${delay.inMilliseconds}ms before reading hash...',
+        );
         await Future.delayed(delay);
       } else {
-        print('🔍 Attempt 1/$maxAttempts: Reading hash immediately (no delay)...');
+        print(
+          '🔍 Attempt 1/$maxAttempts: Reading hash immediately (no delay)...',
+        );
       }
 
       // Читаем hash
       final locationId = getLocationIdFromHash();
-      
+
       if (locationId != null && locationId.isNotEmpty) {
-        print('✅ SUCCESS! Found location_id in hash on attempt ${attempt + 1}: $locationId');
+        print(
+          '✅ SUCCESS! Found location_id in hash on attempt ${attempt + 1}: $locationId',
+        );
         return locationId;
       }
 
       // Логируем если это не последняя попытка
       if (attempt < maxAttempts - 1) {
-        print('⚠️ Attempt ${attempt + 1}/$maxAttempts: Hash not available yet, will retry...');
+        print(
+          '⚠️ Attempt ${attempt + 1}/$maxAttempts: Hash not available yet, will retry...',
+        );
         print('   Current URL fragment: ${Uri.base.fragment}');
         try {
           final jsHash = _getWindowLocationHash();
@@ -237,7 +245,9 @@ class TelegramService {
       }
     }
 
-    print('❌ FAILED: Could not read location_id from hash after $maxAttempts attempts');
+    print(
+      '❌ FAILED: Could not read location_id from hash after $maxAttempts attempts',
+    );
     print('   Final URL: ${Uri.base.toString()}');
     print('   Final fragment: ${Uri.base.fragment}');
     try {
@@ -266,7 +276,9 @@ class TelegramService {
         if (jsHash != null && jsHash.isNotEmpty) {
           // Убираем # в начале если есть
           hash = jsHash.startsWith('#') ? jsHash.substring(1) : jsHash;
-          print('🔍 Hash from window.location.hash (length: ${hash.length}): ${hash.length > 150 ? hash.substring(0, 150) + "..." : hash}');
+          print(
+            '🔍 Hash from window.location.hash (length: ${hash.length}): ${hash.length > 150 ? hash.substring(0, 150) + "..." : hash}',
+          );
         }
       } catch (e) {
         print('⚠️ Failed to read from window.location.hash: $e');
@@ -276,7 +288,9 @@ class TelegramService {
       if (hash.isEmpty) {
         hash = Uri.base.fragment;
         if (hash.isNotEmpty) {
-          print('🔍 Hash from Uri.base.fragment (length: ${hash.length}): ${hash.length > 150 ? hash.substring(0, 150) + "..." : hash}');
+          print(
+            '🔍 Hash from Uri.base.fragment (length: ${hash.length}): ${hash.length > 150 ? hash.substring(0, 150) + "..." : hash}',
+          );
         }
       }
 
@@ -285,17 +299,21 @@ class TelegramService {
         return null;
       }
 
-      print('🔍 Parsing hash (length: ${hash.length}, first 200 chars: ${hash.length > 200 ? hash.substring(0, 200) + "..." : hash})');
+      print(
+        '🔍 Parsing hash (length: ${hash.length}, first 200 chars: ${hash.length > 200 ? hash.substring(0, 200) + "..." : hash})',
+      );
 
       // Парсим параметры из hash
       final params = Uri.splitQueryString(hash);
       print('🔍 Parsed hash parameters: ${params.keys.join(", ")}');
-      
+
       // Логируем все параметры для отладки
       for (final key in params.keys) {
         final value = params[key];
         if (value != null && value.length > 100) {
-          print('   - $key: ${value.substring(0, 100)}... (length: ${value.length})');
+          print(
+            '   - $key: ${value.substring(0, 100)}... (length: ${value.length})',
+          );
         } else {
           print('   - $key: $value');
         }
@@ -311,8 +329,12 @@ class TelegramService {
         print('   Available parameters: ${params.keys.join(", ")}');
         // Если есть параметр data (base64), логируем это
         if (params.containsKey('data')) {
-          print('   ℹ️ Found "data" parameter (base64 encoded, length: ${params['data']?.length ?? 0})');
-          print('   ⚠️ location_id should be in plain params, not only in base64 data');
+          print(
+            '   ℹ️ Found "data" parameter (base64 encoded, length: ${params['data']?.length ?? 0})',
+          );
+          print(
+            '   ⚠️ location_id should be in plain params, not only in base64 data',
+          );
         }
       }
     } catch (e) {

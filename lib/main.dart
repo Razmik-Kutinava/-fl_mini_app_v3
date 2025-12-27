@@ -197,22 +197,19 @@ class _AppInitializerState extends State<AppInitializer> {
     }
     
     // =====================================================
-    // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
+    // ЗАГРУЖАЕМ ЛОКАЦИИ - УПРОЩЁННАЯ ЛОГИКА v16
     // =====================================================
-    print('🚀 VERSION: 15.0 - ULTRA SIMPLE!');
+    print('🚀 VERSION: 16.0 - GUARANTEED MAIN SCREEN!');
     
     try {
-      // СНАЧАЛА загружаем все активные локации
+      // Загружаем все активные локации
       print('📍 Loading active locations from Supabase...');
       final locationsData = await SupabaseService.getLocations();
       final locations = locationsData
           .map((data) => Location.fromJson(data))
           .toList();
       
-      print('📍 Loaded ${locations.length} active locations:');
-      for (var loc in locations) {
-        print('   - ${loc.name} (${loc.id})');
-      }
+      print('📍 Loaded ${locations.length} active locations');
       
       if (locations.isEmpty) {
         print('❌ No active locations found!');
@@ -220,197 +217,50 @@ class _AppInitializerState extends State<AppInitializer> {
       } else {
         locationProvider.setLocations(locations);
         
-        // Пытаемся найти preferredLocationId
-        String? telegramIdForLocation;
-        if (tgUser != null && tgUser['id'] != null) {
-          telegramIdForLocation = tgUser['id'].toString();
-          print('📱 Telegram user ID: $telegramIdForLocation');
-        } else {
-          print('⚠️ No Telegram user ID available');
-        }
-        
         Location? targetLocation;
-
-        // ПРИОРИТЕТ 0: location_id из hash параметров URL (от бота) с retry механизмом
-        print('🔍 PRIORITY 0: Checking hash parameters for location_id with retry...');
-        print('   Current URL: ${Uri.base.toString()}');
-        print('   Current hash (immediate check): ${Uri.base.fragment}');
-        print('   Telegram WebApp initialized, starting hash read retry...');
-
-        // Используем retry механизм, так как Telegram может устанавливать hash асинхронно
-        // Увеличиваем количество попыток и задержку для большей надёжности
-        final hashLocationId = await TelegramService.instance.getLocationIdFromHashWithRetry(
-          maxAttempts: 6, // Увеличено с 5 до 6
-          initialDelay: const Duration(milliseconds: 400), // Увеличено с 300 до 400
-        );
-
-        if (hashLocationId != null && hashLocationId.isNotEmpty) {
-          print('✅ Found location_id in hash: $hashLocationId');
-          try {
-            targetLocation = locations.firstWhere(
-              (loc) => loc.id == hashLocationId,
-            );
-            print('✅ SUCCESS! Location from hash matched: ${targetLocation.name} (${targetLocation.id})');
-          } catch (e) {
-            print('⚠️ Hash location_id "$hashLocationId" not found in active locations list');
-            print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
-          }
-        } else {
-          print('ℹ️ No location_id found in hash after retries, will use other priorities');
-        }
-
-        // ПРИОРИТЕТ 1: preferredLocationId из БД или последний заказ (синхронизировано с ботом)
-        if (targetLocation == null && telegramIdForLocation != null) {
-          print('🔍 PRIORITY 1: Looking up preferredLocationId in database or last order...');
-          print('   Telegram ID: $telegramIdForLocation');
-          
-          // ИСПРАВЛЕНИЕ: Запускаем БД запрос и локальное хранилище параллельно
-          // Это ускоряет восстановление при втором заходе
-          final dbFuture = UserLocationContext.loadFromDatabase(telegramIdForLocation);
-          final localStorageFuture = locationProvider.getLastLocationId();
-          
-          // Ждём оба запроса параллельно
-          final results = await Future.wait([dbFuture, localStorageFuture]);
-          final lastLocationId = results[1] as String?;
-          
-          // Сначала проверяем БД результат
-          if (UserLocationContext.hasPreferredLocation) {
-            print('✅ Found preferredLocationId: ${UserLocationContext.preferredLocationId}');
-            try {
-              targetLocation = locations.firstWhere(
-                (loc) => loc.id == UserLocationContext.preferredLocationId,
-              );
-              print('✅ Location matched from DB: ${targetLocation.name} (${targetLocation.id})');
-            } catch (e) {
-              print('⚠️ preferredLocationId "${UserLocationContext.preferredLocationId}" not in active locations list');
-              print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
-            }
-          } else {
-            print('⚠️ No preferredLocationId found in database and no last order location');
-          }
-          
-          // Если БД не дала результат, но локальное хранилище уже загружено - используем его
-          if (targetLocation == null && lastLocationId != null && lastLocationId.isNotEmpty) {
-            print('✅ Using location from local storage (fast path): $lastLocationId');
-            try {
-              targetLocation = locations.firstWhere(
-                (loc) => loc.id == lastLocationId,
-              );
-              print('✅ Location restored from local storage: ${targetLocation.name}');
-            } catch (e) {
-              print('⚠️ Last location "$lastLocationId" not found in active locations');
-            }
-          }
-        } else if (targetLocation == null) {
-          print('⚠️ Cannot use PRIORITY 1: telegramIdForLocation is null');
-        }
         
-        // ПРИОРИТЕТ 2: Используем уже прочитанный _savedLocationId (быстрый путь!)
-        // Мы уже прочитали его в начале _initializeUser(), используем напрямую
-        if (targetLocation == null && _savedLocationId != null && _savedLocationId!.isNotEmpty) {
-          print('🔍 PRIORITY 2: Using already loaded _savedLocationId: $_savedLocationId');
+        // Пробуем найти сохранённую локацию
+        if (_savedLocationId != null) {
+          print('🔍 Looking for saved location: $_savedLocationId');
           try {
-            targetLocation = locations.firstWhere(
-              (loc) => loc.id == _savedLocationId,
-            );
-            print('✅ Location restored from saved ID: ${targetLocation.name} (${targetLocation.id})');
+            targetLocation = locations.firstWhere((loc) => loc.id == _savedLocationId);
+            print('✅ Found saved location: ${targetLocation.name}');
           } catch (e) {
-            print('⚠️ Saved location "$_savedLocationId" not found in active locations list');
-            print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
+            print('⚠️ Saved location not found in list');
           }
         }
         
-        // ПРИОРИТЕТ 2.5: Fallback - повторное чтение из local storage (на всякий случай)
+        // FALLBACK: берём ПЕРВУЮ локацию если не нашли сохранённую
         if (targetLocation == null) {
-          print('🔍 PRIORITY 2.5: Fallback - re-reading from local storage...');
-          final lastLocationId = await locationProvider.getLastLocationId();
-          
-          if (lastLocationId != null && lastLocationId.isNotEmpty) {
-            print('✅ Found last location in local storage: $lastLocationId');
-            try {
-              targetLocation = locations.firstWhere(
-                (loc) => loc.id == lastLocationId,
-              );
-              print('✅ Location restored from local storage: ${targetLocation.name} (${targetLocation.id})');
-            } catch (e) {
-              print('⚠️ Last location "$lastLocationId" not found in active locations list');
-              print('   Available location IDs: ${locations.map((l) => l.id).join(", ")}');
-            }
-          } else {
-            print('ℹ️ No location found in local storage');
-          }
-        }
-        
-        // ПРИОРИТЕТ 3: Если ничего не нашли - берём первую локацию
-        if (targetLocation == null && locations.isNotEmpty) {
-          print('📍 PRIORITY 3: No location from hash, DB, or local storage, using first available location');
           targetLocation = locations.first;
-          print('📍 Default location: ${targetLocation.name}');
+          print('📍 Using first location as fallback: ${targetLocation.name}');
         }
         
-        // Выбираем локацию (если нашли на любом этапе)
-        if (targetLocation != null) {
-          print('🎯 AUTO-SELECTING: ${targetLocation.name} (${targetLocation.id})');
-
-          // КРИТИЧНО: Сохраняем локацию напрямую в состояние
-          _autoSelectedLocation = targetLocation;
-
-          // Устанавливаем в провайдер (это автоматически сохранит в БД и локальное хранилище)
-          await locationProvider.selectLocation(targetLocation);
-
-          // Проверяем что локация установлена
-          if (locationProvider.selectedLocation != null) {
-            print('✅ Location confirmed selected in provider: ${locationProvider.selectedLocation!.name}');
-            _locationSelected = true;
-          } else {
-            print('⚠️ Location not set in provider, but we have direct reference');
-            // Используем прямую ссылку - локация всё равно будет работать
-            _locationSelected = true;
-          }
-          print('✅ Location selection complete: _locationSelected=$_locationSelected, location=${targetLocation.name}');
-          print('💾 Location automatically saved to DB via LocationProvider.selectLocation()');
-        } else {
-          // Если даже после всех попыток не нашли локацию
-          print('❌ CRITICAL: No target location found after all priorities');
-          print('   Locations available: ${locations.length}');
-          if (locations.isEmpty) {
-            print('   ⚠️ No locations in database - will show permissions screen');
-          }
-          _locationSelected = false;
-          _autoSelectedLocation = null;
-        }
+        // ГАРАНТИРОВАННО выбираем локацию и идём в MainScreen
+        _autoSelectedLocation = targetLocation;
+        _savedLocationId = targetLocation.id;
+        _hasSavedLocation = true;
+        _locationSelected = true;
+        await locationProvider.selectLocation(targetLocation);
+        print('🎉 ==========================================');
+        print('🎉 LOCATION SELECTED: ${targetLocation.name}');
+        print('🎉 GOING TO MAIN SCREEN!');
+        print('🎉 ==========================================');
       }
-    } catch (e, stackTrace) {
-      print('❌ Error in location auto-selection: $e');
-      print('❌ Stack trace: $stackTrace');
-      _locationSelected = false;
-      _autoSelectedLocation = null;
-      
-      // Последняя попытка - если есть локации, выбираем первую
-      if (mounted) {
-        try {
-          final locationProvider = context.read<LocationProvider>();
-          if (locationProvider.locations.isNotEmpty) {
-            print('🆘 EMERGENCY FALLBACK: Selecting first location after error');
-            final firstLoc = locationProvider.locations.first;
-            _autoSelectedLocation = firstLoc;
-            await locationProvider.selectLocation(firstLoc);
-            _locationSelected = true;
-          }
-        } catch (e2) {
-          print('❌ Emergency fallback also failed: $e2');
-        }
-      }
+    } catch (e, stack) {
+      print('❌ Error loading locations: $e');
+      print('❌ Stack: $stack');
     }
     
     userProvider.setLoading(false);
-    print('✅ User initialization complete. _locationSelected=$_locationSelected');
+    print('✅ User initialization complete.');
     if (mounted) {
       setState(() {
         _initialized = true;
       });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {

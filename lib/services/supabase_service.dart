@@ -421,37 +421,45 @@ class SupabaseService {
     String? username,
   }) async {
     try {
-      print('🔍 [getOrCreateUser] Looking for user with telegramId: $telegramId');
+      print(
+        '🔍 [getOrCreateUser] Looking for user with telegramId: $telegramId',
+      );
 
       // ⭐ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Сначала ищем по telegramId (INT) - как делает БОТ!
       // Бот сохраняет telegramId как INT, поэтому нужно искать по INT
       final telegramIdInt = int.tryParse(telegramId);
       Map<String, dynamic>? existing;
-      
+
       if (telegramIdInt != null) {
-        print('🔍 [getOrCreateUser] Searching by telegramId (int): $telegramIdInt');
+        print(
+          '🔍 [getOrCreateUser] Searching by telegramId (int): $telegramIdInt',
+        );
         existing = await client
             .from('User')
             .select()
             .eq('telegramId', telegramIdInt)
             .maybeSingle();
-        
+
         if (existing != null) {
           print('✅ [getOrCreateUser] User found by telegramId (int)!');
           print('✅ [getOrCreateUser] User ID: ${existing['id']}');
-          print('✅ [getOrCreateUser] preferredLocationId: ${existing['preferredLocationId']}');
+          print(
+            '✅ [getOrCreateUser] preferredLocationId: ${existing['preferredLocationId']}',
+          );
         }
       }
-      
+
       // Fallback: ищем по telegram_user_id (string) если не нашли по int
       if (existing == null) {
-        print('🔍 [getOrCreateUser] Searching by telegram_user_id (string): $telegramId');
+        print(
+          '🔍 [getOrCreateUser] Searching by telegram_user_id (string): $telegramId',
+        );
         existing = await client
             .from('User')
             .select()
             .eq('telegram_user_id', telegramId)
             .maybeSingle();
-        
+
         if (existing != null) {
           print('✅ [getOrCreateUser] User found by telegram_user_id (string)!');
         }
@@ -477,7 +485,9 @@ class SupabaseService {
             .single();
 
         print('✅ [getOrCreateUser] User updated: ${updated['id']}');
-        print('✅ [getOrCreateUser] preferredLocationId: ${updated['preferredLocationId']}');
+        print(
+          '✅ [getOrCreateUser] preferredLocationId: ${updated['preferredLocationId']}',
+        );
         return updated;
       } else {
         print('🆕 [getOrCreateUser] Creating new user...');
@@ -486,7 +496,7 @@ class SupabaseService {
 
         // first_name обязательное поле в БД!
         final nameToUse = firstName ?? username ?? 'User';
-        
+
         final newUser = await client
             .from('User')
             .insert({
@@ -494,7 +504,7 @@ class SupabaseService {
               'telegram_user_id': telegramId,
               'telegramId': telegramIdInt,
               'username': username ?? 'user_$telegramId',
-              'first_name': nameToUse,  // NOT NULL в БД!
+              'first_name': nameToUse, // NOT NULL в БД!
               'telegramFirstName': nameToUse,
               'telegramUsername': username,
               'status': 'active',
@@ -541,46 +551,60 @@ class SupabaseService {
     try {
       print('🔍 [getUserPreferredLocationId] Starting lookup for: $telegramId');
       print('🔍 [getUserPreferredLocationId] Type: ${telegramId.runtimeType}');
-      
+
       // Сначала ищем по telegramId (BigInt в Prisma схеме)
       final telegramIdInt = int.tryParse(telegramId);
       print('🔍 [getUserPreferredLocationId] Parsed as int: $telegramIdInt');
-      
+
       var response;
       if (telegramIdInt != null) {
-        print('🔍 [getUserPreferredLocationId] Searching by telegramId (int)...');
+        print(
+          '🔍 [getUserPreferredLocationId] Searching by telegramId (int)...',
+        );
         response = await client
             .from('User')
             .select('preferredLocationId, telegramId, telegram_user_id')
             .eq('telegramId', telegramIdInt)
             .maybeSingle();
-        
-        print('🔍 [getUserPreferredLocationId] Response by telegramId: $response');
-        
+
+        print(
+          '🔍 [getUserPreferredLocationId] Response by telegramId: $response',
+        );
+
         if (response != null && response['preferredLocationId'] != null) {
           final locationId = response['preferredLocationId'] as String;
-          print('✅ [getUserPreferredLocationId] Found by telegramId: $locationId');
+          print(
+            '✅ [getUserPreferredLocationId] Found by telegramId: $locationId',
+          );
           return locationId;
         }
       }
-      
+
       // Если не нашли, пробуем по telegram_user_id (string)
-      print('🔍 [getUserPreferredLocationId] Searching by telegram_user_id (string)...');
+      print(
+        '🔍 [getUserPreferredLocationId] Searching by telegram_user_id (string)...',
+      );
       response = await client
           .from('User')
           .select('preferredLocationId, telegramId, telegram_user_id')
           .eq('telegram_user_id', telegramId)
           .maybeSingle();
-      
-      print('🔍 [getUserPreferredLocationId] Response by telegram_user_id: $response');
-      
+
+      print(
+        '🔍 [getUserPreferredLocationId] Response by telegram_user_id: $response',
+      );
+
       if (response != null && response['preferredLocationId'] != null) {
         final locationId = response['preferredLocationId'] as String;
-        print('✅ [getUserPreferredLocationId] Found by telegram_user_id: $locationId');
+        print(
+          '✅ [getUserPreferredLocationId] Found by telegram_user_id: $locationId',
+        );
         return locationId;
       }
-      
-      print('⚠️ [getUserPreferredLocationId] No preferredLocationId found for user');
+
+      print(
+        '⚠️ [getUserPreferredLocationId] No preferredLocationId found for user',
+      );
       return null;
     } catch (e, stackTrace) {
       print('❌ [getUserPreferredLocationId] Error: $e');
@@ -596,7 +620,9 @@ class SupabaseService {
     required String locationId,
   }) async {
     try {
-      print('🔄 [updateUserPreferredLocation] Updating preferredLocationId for user: $userId');
+      print(
+        '🔄 [updateUserPreferredLocation] Updating preferredLocationId for user: $userId',
+      );
       print('🔄 [updateUserPreferredLocation] New locationId: $locationId');
 
       await client
@@ -607,7 +633,9 @@ class SupabaseService {
           })
           .eq('id', userId);
 
-      print('✅ [updateUserPreferredLocation] Successfully updated preferredLocationId');
+      print(
+        '✅ [updateUserPreferredLocation] Successfully updated preferredLocationId',
+      );
       return true;
     } catch (e, stackTrace) {
       print('❌ [updateUserPreferredLocation] Error: $e');
@@ -620,40 +648,46 @@ class SupabaseService {
   /// СИНХРОНИЗИРОВАНО С БОТОМ: ищет оплаченные заказы сначала, потом любой последний
   static Future<String?> getUserLastOrderLocationId(String visitorId) async {
     try {
-      print('🔍 [getUserLastOrderLocationId] Getting last order location for user: $visitorId');
-      
+      print(
+        '🔍 [getUserLastOrderLocationId] Getting last order location for user: $visitorId',
+      );
+
       // Сначала находим UUID пользователя
       var userResponse = await client
           .from('User')
           .select('id')
           .eq('telegramId', int.tryParse(visitorId) ?? 0)
           .maybeSingle();
-      
+
       if (userResponse == null) {
-        print('🔍 [getUserLastOrderLocationId] User not found by telegramId, trying telegram_user_id...');
+        print(
+          '🔍 [getUserLastOrderLocationId] User not found by telegramId, trying telegram_user_id...',
+        );
         userResponse = await client
             .from('User')
             .select('id')
             .eq('telegram_user_id', visitorId)
             .maybeSingle();
       }
-      
+
       if (userResponse == null) {
         print('⚠️ [getUserLastOrderLocationId] User not found');
         return null;
       }
-      
+
       final userId = userResponse['id'] as String;
       print('✅ [getUserLastOrderLocationId] Found user UUID: $userId');
-      
+
       // СИНХРОНИЗАЦИЯ С БОТОМ: Сначала ищем оплаченные заказы (paymentStatus)
       // Бот использует: ["succeeded", "paid", "PAID", "SUCCEEDED"]
       final paymentStatuses = ["succeeded", "paid", "PAID", "SUCCEEDED"];
       String? locationId;
-      
+
       for (final status in paymentStatuses) {
         try {
-          print('🔍 [getUserLastOrderLocationId] Searching order with paymentStatus=$status...');
+          print(
+            '🔍 [getUserLastOrderLocationId] Searching order with paymentStatus=$status...',
+          );
           final orderResponse = await client
               .from('Order')
               .select('locationId, createdAt')
@@ -662,23 +696,36 @@ class SupabaseService {
               .order('createdAt', ascending: false)
               .limit(1)
               .maybeSingle();
-          
+
           if (orderResponse != null && orderResponse['locationId'] != null) {
             locationId = orderResponse['locationId'] as String;
-            print('✅ [getUserLastOrderLocationId] Found paid order with paymentStatus=$status, locationId: $locationId');
+            print(
+              '✅ [getUserLastOrderLocationId] Found paid order with paymentStatus=$status, locationId: $locationId',
+            );
             return locationId;
           }
         } catch (e) {
-          print('⚠️ [getUserLastOrderLocationId] Error searching by paymentStatus=$status: $e');
+          print(
+            '⚠️ [getUserLastOrderLocationId] Error searching by paymentStatus=$status: $e',
+          );
         }
       }
-      
+
       // Если не нашли по paymentStatus, пробуем по status
       // Бот использует: ["paid", "completed", "ready", "PAID", "COMPLETED", "READY"]
-      final orderStatuses = ["paid", "completed", "ready", "PAID", "COMPLETED", "READY"];
+      final orderStatuses = [
+        "paid",
+        "completed",
+        "ready",
+        "PAID",
+        "COMPLETED",
+        "READY",
+      ];
       for (final status in orderStatuses) {
         try {
-          print('🔍 [getUserLastOrderLocationId] Searching order with status=$status...');
+          print(
+            '🔍 [getUserLastOrderLocationId] Searching order with status=$status...',
+          );
           final orderResponse = await client
               .from('Order')
               .select('locationId, createdAt')
@@ -687,19 +734,25 @@ class SupabaseService {
               .order('createdAt', ascending: false)
               .limit(1)
               .maybeSingle();
-          
+
           if (orderResponse != null && orderResponse['locationId'] != null) {
             locationId = orderResponse['locationId'] as String;
-            print('✅ [getUserLastOrderLocationId] Found order with status=$status, locationId: $locationId');
+            print(
+              '✅ [getUserLastOrderLocationId] Found order with status=$status, locationId: $locationId',
+            );
             return locationId;
           }
         } catch (e) {
-          print('⚠️ [getUserLastOrderLocationId] Error searching by status=$status: $e');
+          print(
+            '⚠️ [getUserLastOrderLocationId] Error searching by status=$status: $e',
+          );
         }
       }
-      
+
       // Если так и не нашли оплаченные - берем просто последний заказ (как в боте)
-      print('🔍 [getUserLastOrderLocationId] No paid orders found, searching any last order...');
+      print(
+        '🔍 [getUserLastOrderLocationId] No paid orders found, searching any last order...',
+      );
       try {
         final orderResponse = await client
             .from('Order')
@@ -708,16 +761,18 @@ class SupabaseService {
             .order('createdAt', ascending: false)
             .limit(1)
             .maybeSingle();
-        
+
         if (orderResponse != null && orderResponse['locationId'] != null) {
           locationId = orderResponse['locationId'] as String;
-          print('✅ [getUserLastOrderLocationId] Found last order (any status), locationId: $locationId');
+          print(
+            '✅ [getUserLastOrderLocationId] Found last order (any status), locationId: $locationId',
+          );
           return locationId;
         }
       } catch (e) {
         print('⚠️ [getUserLastOrderLocationId] Error searching last order: $e');
       }
-      
+
       print('⚠️ [getUserLastOrderLocationId] No orders found for user');
       return null;
     } catch (e, stackTrace) {

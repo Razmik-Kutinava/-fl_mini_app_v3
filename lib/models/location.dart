@@ -22,15 +22,28 @@ class Location {
   });
 
   factory Location.fromJson(Map<String, dynamic> json) {
+    // Поддержка разных имён полей (lat/latitude, lng/longitude)
+    final latitude = json['lat'] ?? json['latitude'] ?? 0.0;
+    final longitude = json['lng'] ?? json['longitude'] ?? 0.0;
+    final rating = json['rating'] ?? 5.0;
+    final workingHours = json['workingHours'];
+    
+    // Формируем адрес из address и city
+    String address = json['address'] ?? '';
+    final city = json['city'] as String?;
+    if (city != null && city.isNotEmpty && !address.contains(city)) {
+      address = '$address, $city';
+    }
+    
     return Location(
-      id: json['id'],
-      name: json['name'],
-      address: json['address'],
-      lat: (json['lat'] as num).toDouble(),
-      lng: (json['lng'] as num).toDouble(),
-      rating: (json['rating'] as num).toDouble(),
-      workingHours: json['workingHours'],
-      isOpen: json['isOpen'] ?? true,
+      id: json['id'] ?? '',
+      name: json['name'] ?? 'Unknown',
+      address: address,
+      lat: (latitude is num) ? latitude.toDouble() : 0.0,
+      lng: (longitude is num) ? longitude.toDouble() : 0.0,
+      rating: (rating is num) ? rating.toDouble() : 5.0,
+      workingHours: (workingHours is String) ? workingHours : '',
+      isOpen: json['isOpen'] ?? json['isAcceptingOrders'] ?? true,
     );
   }
 
