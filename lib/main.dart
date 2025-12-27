@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/cart_provider.dart';
 import 'providers/location_provider.dart';
 import 'providers/menu_provider.dart';
@@ -109,6 +110,7 @@ class _AppInitializerState extends State<AppInitializer> {
   Location? _autoSelectedLocation; // Сохраняем выбранную локацию напрямую
   String? _savedLocationId; // ⭐ ID сохранённой кофейни (из БД или localStorage)
   bool _hasSavedLocation = false; // ⭐ Есть ли сохранённая кофейня
+  bool _isFirstVisit = true; // ⭐ Флаг первого визита (из FINAL_SOLUTION.md)
 
   @override
   void initState() {
@@ -116,12 +118,31 @@ class _AppInitializerState extends State<AppInitializer> {
     _initializeUser();
   }
 
+  /// Проверяет первый ли это визит пользователя (из FINAL_SOLUTION.md)
+  Future<bool> _checkIsFirstVisit() async {
+    final prefs = await SharedPreferences.getInstance();
+    final visitCount = prefs.getInt('app_visit_count') ?? 0;
+    final isFirst = visitCount == 0;
+
+    print('🔍 Visit count: $visitCount, isFirst: $isFirst');
+
+    // Увеличиваем счетчик
+    await prefs.setInt('app_visit_count', visitCount + 1);
+    print('✅ Visit count updated to: ${visitCount + 1}');
+
+    return isFirst;
+  }
+
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 15.0 - ULTRA SIMPLE: location_id FROM HASH FIRST!');
+    print('🚀 VERSION: 17.0 - WITH VISIT COUNTER FIX!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
     userProvider.setLoading(true);
+
+    // ⭐ ПРОВЕРКА ПЕРВОГО ВИЗИТА (из FINAL_SOLUTION.md)
+    _isFirstVisit = await _checkIsFirstVisit();
+    print('🔍 Is first visit: $_isFirstVisit');
 
     // ⭐⭐⭐ САМЫЙ ПРОСТОЙ ПУТЬ: Бот передаёт location_id в URL hash!
     // Читаем его ПЕРВЫМ ДЕЛОМ и используем напрямую!
@@ -197,9 +218,9 @@ class _AppInitializerState extends State<AppInitializer> {
     }
     
     // =====================================================
-    // ЗАГРУЖАЕМ ЛОКАЦИИ - УПРОЩЁННАЯ ЛОГИКА v16
+    // ЗАГРУЖАЕМ ЛОКАЦИИ - УПРОЩЁННАЯ ЛОГИКА v17
     // =====================================================
-    print('🚀 VERSION: 16.0 - GUARANTEED MAIN SCREEN!');
+    print('🚀 VERSION: 17.0 - WITH VISIT COUNTER!');
     
     try {
       // Загружаем все активные локации
@@ -273,6 +294,19 @@ class _AppInitializerState extends State<AppInitializer> {
 
     final locationProvider = context.watch<LocationProvider>();
 
+    // ⭐⭐⭐ НОВАЯ ЛОГИКА (из FINAL_SOLUTION.md):
+    // Если НЕ первый визит - ВСЕГДА пропускаем стартовый экран!
+    if (!_isFirstVisit) {
+      print('✅ ==========================================');
+      print('✅ NOT FIRST VISIT - skipping permissions screen');
+      print('✅ Going DIRECTLY to MainScreen!');
+      print('✅ ==========================================');
+      return const MainScreen();
+    }
+
+    // Если первый визит - проверяем есть ли сохранённая локация
+    print('🔍 FIRST VISIT - checking location');
+
     // ⭐ КЛЮЧЕВОЕ: Если есть СОХРАНЁННАЯ КОФЕЙНЯ → СРАЗУ в главное меню!
     // Это исправляет проблему когда пользователь видит стартовую страницу
     // вместо главного меню при повторном заходе
@@ -303,14 +337,14 @@ class _AppInitializerState extends State<AppInitializer> {
       return const MainScreen();
     }
 
-    // ⭐ Только если НЕТ сохранённой кофейни - проверяем другие источники
-    print('🔍 NO SAVED COFFEE SHOP - checking other sources');
+    // ⭐ Только если НЕТ сохранённой кофейни И это первый визит - проверяем другие источники
+    print('🔍 FIRST VISIT + NO SAVED COFFEE SHOP - checking other sources');
     final hasLocationFromProvider = locationProvider.selectedLocation != null;
     final hasLocationFromState = _autoSelectedLocation != null;
     final hasLocationsAvailable = locationProvider.locations.isNotEmpty;
     final hasLocation = hasLocationFromProvider || hasLocationFromState;
 
-    print('🔍 Build check: _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation, hasLocationsAvailable=$hasLocationsAvailable');
+    print('🔍 Build check: _isFirstVisit=$_isFirstVisit, _locationSelected=$_locationSelected, _autoSelectedLocation=${_autoSelectedLocation?.name ?? "null"}, provider.selectedLocation=${locationProvider.selectedLocation?.name ?? "null"}, hasLocation=$hasLocation, hasLocationsAvailable=$hasLocationsAvailable');
 
     if (hasLocation) {
       // Убеждаемся что локация установлена в провайдер
@@ -328,15 +362,16 @@ class _AppInitializerState extends State<AppInitializer> {
       
       final locationName = locationProvider.selectedLocation?.name ?? _autoSelectedLocation?.name ?? 'Unknown';
       final locationId = locationProvider.selectedLocation?.id ?? _autoSelectedLocation?.id ?? 'unknown';
-      print('🎯 → Going to MainScreen with location: $locationName (ID: $locationId)');
+      print('🎯 → Going to MainScreen with location: $locationName (ID: $locationId) (FIRST VISIT)');
       print('✅ SUCCESS: App will show MainScreen instead of PermissionsScreen');
       return const MainScreen();
     }
-    
-    // ⭐ ФИНАЛЬНЫЙ FALLBACK: Если есть локации в provider - всё равно идём в MainScreen!
+
+    // ⭐ ФИНАЛЬНЫЙ FALLBACK для первого визита:
+    // Если есть локации в provider - всё равно идём в MainScreen!
     // Это гарантирует что пользователь НЕ увидит PermissionsScreen если есть хоть одна локация
     if (hasLocationsAvailable) {
-      print('🆘 FINAL FALLBACK: No selected location, but locations exist! Going to MainScreen anyway');
+      print('🆘 FINAL FALLBACK (FIRST VISIT): No selected location, but locations exist! Going to MainScreen anyway');
       print('🆘 Selecting first available location...');
       try {
         final firstLocation = locationProvider.locations.first;
@@ -347,8 +382,8 @@ class _AppInitializerState extends State<AppInitializer> {
       }
       return const MainScreen();
     }
-    
-    print('📍 → Going to PermissionsScreen (no locations available at all!)');
+
+    print('📍 → Going to PermissionsScreen (FIRST VISIT + no locations available at all!)');
     print('⚠️ WARNING: No locations in database - user will see permissions screen');
     return const PermissionsScreen();
   }
