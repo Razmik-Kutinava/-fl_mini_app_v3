@@ -484,15 +484,18 @@ class SupabaseService {
         print('🔍 [getOrCreateUser] telegram_user_id (string): $telegramId');
         print('🔍 [getOrCreateUser] telegramId (int): $telegramIdInt');
 
+        // first_name обязательное поле в БД!
+        final nameToUse = firstName ?? username ?? 'User';
+        
         final newUser = await client
             .from('User')
             .insert({
               'id': _generateUuid(),
               'telegram_user_id': telegramId,
               'telegramId': telegramIdInt,
-              'username': username,
-              'first_name': firstName,
-              'telegramFirstName': firstName,
+              'username': username ?? 'user_$telegramId',
+              'first_name': nameToUse,  // NOT NULL в БД!
+              'telegramFirstName': nameToUse,
               'telegramUsername': username,
               'status': 'active',
               'acceptsMarketing': false,

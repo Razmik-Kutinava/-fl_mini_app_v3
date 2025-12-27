@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/cart_provider.dart';
 import 'providers/location_provider.dart';
 import 'providers/menu_provider.dart';
@@ -117,202 +116,90 @@ class _AppInitializerState extends State<AppInitializer> {
     _initializeUser();
   }
 
-  /// ⭐ БЫСТРАЯ проверка localStorage (может не работать в Telegram WebView!)
-  Future<String?> _checkLocalStorage() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final lastLocationId = prefs.getString('last_selected_location_id');
-      print('🔍 [localStorage] last_selected_location_id: $lastLocationId');
-      return lastLocationId;
-    } catch (e) {
-      print('❌ [localStorage] Error: $e');
-      return null;
-    }
-  }
-
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 14.0 - WITH HASH FALLBACK FOR TELEGRAM USER ID!');
-    print('🚀 localStorage may NOT persist in Telegram WebView between sessions!');
+    print('🚀 VERSION: 15.0 - ULTRA SIMPLE: location_id FROM HASH FIRST!');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
     userProvider.setLoading(true);
 
-    // ⭐ ШАГ 0: Быстрая проверка localStorage (может не работать в TG WebView!)
-    final localStorageLocationId = await _checkLocalStorage();
-    print('🔍 [STEP 0] localStorage location: $localStorageLocationId');
-
-    // ИСПРАВЛЕНИЕ: Retry механизм для получения Telegram user data
-    // Telegram WebApp может инициализироваться с задержкой!
-    print('📱 Getting Telegram user data with retry...');
-    Map<String, dynamic>? tgUser;
+    // ⭐⭐⭐ САМЫЙ ПРОСТОЙ ПУТЬ: Бот передаёт location_id в URL hash!
+    // Читаем его ПЕРВЫМ ДЕЛОМ и используем напрямую!
+    print('🔍 [STEP 0] Reading location_id from URL hash (bot sends it!)...');
+    final hashLocationId = TelegramService.instance.getLocationIdFromHash();
+    print('🔍 Hash location_id: $hashLocationId');
     
-    for (int attempt = 0; attempt < 5; attempt++) {
-      if (attempt > 0) {
-        print('⏳ Retry attempt $attempt/5 for Telegram user data...');
-        await Future.delayed(Duration(milliseconds: 300 * attempt));
-      }
-      
-      tgUser = TelegramService.instance.getUser();
-      
-      if (tgUser != null && tgUser['id'] != null) {
-        print('✅ Got Telegram user on attempt ${attempt + 1}');
-        break;
-      }
-      
-      print('⚠️ Attempt ${attempt + 1}: tgUser is null or has no id');
+    if (hashLocationId != null && hashLocationId.isNotEmpty) {
+      print('🎉 ==========================================');
+      print('🎉 GOT location_id FROM HASH: $hashLocationId');
+      print('🎉 Going DIRECTLY to MainScreen!');
+      print('🎉 ==========================================');
+      _savedLocationId = hashLocationId;
+      _hasSavedLocation = true;
     }
     
-    print('📱 Final tgUser result: $tgUser');
+    // Также читаем telegram_user_id из hash (бот передаёт его)
+    final telegramIdFromHash = TelegramService.instance.getTelegramUserIdFromHash();
+    print('🔍 Hash telegram_user_id: $telegramIdFromHash');
     
-    // ⭐⭐⭐ КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Если Telegram.WebApp.initDataUnsafe.user = null,
-    // получаем telegram_user_id из URL hash параметров (бот передаёт его там!)
-    String? telegramIdFromHash;
-    if (tgUser == null || tgUser['id'] == null) {
-      print('⚠️ Telegram user is null, trying to get telegram_user_id from URL hash...');
-      telegramIdFromHash = TelegramService.instance.getTelegramUserIdFromHash();
-      if (telegramIdFromHash != null) {
-        print('✅ Got telegram_user_id from hash: $telegramIdFromHash');
-        // Создаём фейковый tgUser объект
-        tgUser = {'id': int.tryParse(telegramIdFromHash) ?? telegramIdFromHash};
-      }
+    // Пробуем получить Telegram user из WebApp API (часто null!)
+    final tgUser = TelegramService.instance.getUser();
+    print('📱 WebApp tgUser: $tgUser');
+    
+    // Определяем telegramId - из hash или из WebApp API
+    String? telegramId = telegramIdFromHash;
+    if (telegramId == null && tgUser != null && tgUser['id'] != null) {
+      telegramId = tgUser['id'].toString();
     }
+    print('📱 Final telegramId: $telegramId');
     
-    if (tgUser != null && tgUser['id'] != null) {
-      final telegramId = tgUser['id'].toString();
-      final firstName = tgUser['firstName'] as String?;
-      final lastName = tgUser['lastName'] as String?;
-      final username = tgUser['username'] as String?;
+    if (telegramId != null) {
+      final firstName = tgUser?['firstName'] as String?;
+      final lastName = tgUser?['lastName'] as String?;
+      final username = tgUser?['username'] as String?;
       
-      print('📱 Telegram user data:');
-      print('  - ID: $telegramId');
-      print('  - Username: $username');
-      print('  - First Name: $firstName');
-      print('  - Last Name: $lastName');
+      print('📱 User data:');
+      print('  - telegramId: $telegramId');
+      print('  - firstName: $firstName');
+      print('  - username: $username');
       
-      // ⭐ УПРОЩЕНО: getOrCreateUser - ЕДИНСТВЕННЫЙ ИСТОЧНИК ПРАВДЫ!
-      // Не делаем отдельный запрос _checkDatabaseLocation - всё в getOrCreateUser
-      print('🔍 ==========================================');
-      print('🔍 [STEP 1] GET OR CREATE USER - SINGLE SOURCE OF TRUTH');
-      print('🔍 ==========================================');
-      
-      // Создаем или получаем пользователя
-      print('💾 Creating/getting user in Supabase...');
+      // Получаем пользователя из БД
+      print('💾 Getting user from Supabase...');
       final user = await SupabaseService.getOrCreateUser(
         telegramId: telegramId,
-        firstName: firstName,
+        firstName: firstName ?? 'User',  // Default чтобы не было NOT NULL ошибки
         lastName: lastName,
         username: username,
       );
       
       if (user != null) {
-        print('✅ ==========================================');
-        print('✅ USER DATA FROM SUPABASE:');
-        print('✅ ID: ${user['id']}');
-        print('✅ telegramId: ${user['telegramId']}');
-        print('✅ telegram_user_id: ${user['telegram_user_id']}');
+        print('✅ User found: ${user['id']}');
         print('✅ preferredLocationId: ${user['preferredLocationId']}');
-        print('✅ ==========================================');
         
         userProvider.setUser(user);
-        print('✅ UserProvider updated with user data');
-        print('✅ User initialized: ${user['id']}');
-        print('✅ UserName will be: ${userProvider.userName}');
-
-        // Устанавливаем userId в LocationProvider для синхронизации с БД
         locationProvider.setUserId(user['id'] as String);
 
-        // ⭐⭐⭐ КРИТИЧЕСКОЕ: preferredLocationId ИЗ USER RECORD!
-        // Это ЕДИНСТВЕННЫЙ надёжный способ!
-        final userPreferredLocationId = user['preferredLocationId'] as String?;
-        
-        if (userPreferredLocationId != null && userPreferredLocationId.isNotEmpty) {
-          print('🎉 ==========================================');
-          print('🎉 SUCCESS! FOUND preferredLocationId!');
-          print('🎉 Location ID: $userPreferredLocationId');
-          print('🎉 User will go DIRECTLY to MainScreen!');
-          print('🎉 ==========================================');
-          _savedLocationId = userPreferredLocationId;
-          _hasSavedLocation = true;
-        } else {
-          // ⭐ FALLBACK 1: Проверяем последний заказ пользователя (как делает бот!)
-          print('🔍 No preferredLocationId, checking last order...');
-          final lastOrderLocationId = await SupabaseService.getUserLastOrderLocationId(telegramId);
-          
-          if (lastOrderLocationId != null && lastOrderLocationId.isNotEmpty) {
-            print('✅ ==========================================');
-            print('✅ FOUND locationId from LAST ORDER!');
-            print('✅ Location ID: $lastOrderLocationId');
-            print('✅ User will go DIRECTLY to MainScreen!');
-            print('✅ ==========================================');
-            _savedLocationId = lastOrderLocationId;
+        // Если location_id уже есть из hash - используем его
+        // Иначе берём preferredLocationId из БД
+        if (!_hasSavedLocation) {
+          final userPreferredLocationId = user['preferredLocationId'] as String?;
+          if (userPreferredLocationId != null && userPreferredLocationId.isNotEmpty) {
+            print('✅ Using preferredLocationId from DB: $userPreferredLocationId');
+            _savedLocationId = userPreferredLocationId;
             _hasSavedLocation = true;
-          } else if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
-            // FALLBACK 2: localStorage если БД не дала результат
-            _savedLocationId = localStorageLocationId;
-            _hasSavedLocation = true;
-            print('✅ No preferredLocationId/order, using localStorage: $localStorageLocationId');
-          } else {
-            print('ℹ️ No preferredLocationId, no orders, no localStorage - first visit');
-            _hasSavedLocation = false;
           }
         }
-
-        // Логируем активность
-        await SupabaseService.logUserActivity(
-          userId: user['id'] as String,
-          activityType: 'app_opened',
-          activityData: {'telegramId': telegramId},
-        );
       } else {
-        print('⚠️ Failed to create/get user');
-        // Если не удалось получить user, но есть localStorage - используем
-        if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
-          _savedLocationId = localStorageLocationId;
-          _hasSavedLocation = true;
-          print('✅ Using localStorage as emergency fallback: $localStorageLocationId');
-        }
+        print('⚠️ Could not get user from DB');
       }
     } else {
-      print('⚠️ No Telegram user data available');
-      print('⚠️ This is normal if app is opened in browser, not in Telegram');
-      
-      // ⭐ КРИТИЧНО: Даже без Telegram данных - проверяем localStorage!
-      // Это поможет при повторном заходе
-      if (localStorageLocationId != null && localStorageLocationId.isNotEmpty) {
-        _savedLocationId = localStorageLocationId;
-        _hasSavedLocation = true;
-        print('✅ Using localStorage location (no TG data): $localStorageLocationId');
-      }
-      
-      // Для тестирования создаем тестового пользователя
-      print('🧪 Creating test user for development...');
-      try {
-        final testUser = await SupabaseService.getOrCreateUser(
-          telegramId: 'test_${DateTime.now().millisecondsSinceEpoch}',
-          username: 'test_user',
-        );
-        if (testUser != null) {
-          print('✅ Test user created: ${testUser['id']}');
-          print('✅ Test user data: $testUser');
-          userProvider.setUser(testUser);
-          print('✅ UserProvider.setUser called with test user');
-          print('✅ UserProvider.userName after setUser: ${userProvider.userName}');
-
-          // НОВОЕ: Устанавливаем userId в LocationProvider для тестового пользователя
-          locationProvider.setUserId(testUser['id'] as String);
-        } else {
-          print('❌ Failed to create test user');
-        }
-      } catch (e) {
-        print('❌ Error creating test user: $e');
-      }
+      print('⚠️ No telegramId available (not from hash, not from WebApp)');
     }
     
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ И АВТОВЫБОР
     // =====================================================
-    print('🚀 VERSION: 14.0 - WITH HASH FALLBACK!');
+    print('🚀 VERSION: 15.0 - ULTRA SIMPLE!');
     
     try {
       // СНАЧАЛА загружаем все активные локации
