@@ -17,9 +17,9 @@ import 'models/cart_item.dart';
 import 'dart:ui'; // Для ImageFilter.blur
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '18.4';
+const String DEPLOY_VERSION = '18.5';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-23 16:00:00'; // Обновлять при каждом деплое!
+    '2025-01-23 17:30:00'; // Обновлять при каждом деплое!
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
@@ -507,19 +507,23 @@ class _AppInitializerState extends State<AppInitializer> {
       builder: (context) => Dialog(
         alignment: Alignment.topLeft, // Позиционирование в верхнем левом углу
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.only(left: 16, top: 60), // Отступы от краев
+        insetPadding: const EdgeInsets.only(
+          left: 16,
+          top: 60,
+        ), // Отступы от краев
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Размытие фона
           child: Container(
+            constraints: const BoxConstraints(maxWidth: 280), // Ограничение ширины для компактности
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.6), // Темный полупрозрачный фон
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(20), // Немного меньше радиус
               border: Border.all(
                 color: Colors.white.withOpacity(0.1),
                 width: 1,
               ),
             ),
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(16), // Уменьшенный padding
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,21 +532,21 @@ class _AppInitializerState extends State<AppInitializer> {
                 Row(
                   children: [
                     Container(
-                      width: 40,
-                      height: 40,
+                      width: 32, // Уменьшенный размер иконки
+                      height: 32,
                       decoration: BoxDecoration(
                         color: const Color(
                           0xFF2196F3,
                         ), // Синий цвет как на картинке
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
                         Icons.rocket_launch, // Иконка ракеты/самолетика
                         color: Colors.white,
-                        size: 24,
+                        size: 20, // Уменьшенный размер иконки
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -551,7 +555,7 @@ class _AppInitializerState extends State<AppInitializer> {
                             locationName,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
+                              fontSize: 14, // Уменьшенный размер шрифта
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -560,7 +564,7 @@ class _AppInitializerState extends State<AppInitializer> {
                             'выбрано',
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.6),
-                              fontSize: 12,
+                              fontSize: 11, // Уменьшенный размер шрифта
                             ),
                           ),
                         ],
@@ -568,26 +572,26 @@ class _AppInitializerState extends State<AppInitializer> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16), // Уменьшенный отступ
                 // Приветствие и вопрос
                 const Text(
                   'Привет!',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 20, // Уменьшенный размер шрифта
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 const Text(
                   'Закажешь здесь?',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 16, // Уменьшенный размер шрифта
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16), // Уменьшенный отступ
                 // Ссылка "Другая кофейня"
                 GestureDetector(
                   onTap: () {
@@ -606,12 +610,12 @@ class _AppInitializerState extends State<AppInitializer> {
                     'Другая кофейня',
                     style: TextStyle(
                       color: const Color(0xFF64B5F6), // Светло-синий цвет
-                      fontSize: 14,
+                      fontSize: 13, // Уменьшенный размер шрифта
                       decoration: TextDecoration.underline,
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16), // Уменьшенный отступ
                 // Большая кнопка с названием локации
                 SizedBox(
                   width: double.infinity,
@@ -625,16 +629,16 @@ class _AppInitializerState extends State<AppInitializer> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2196F3), // Синий цвет
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 12), // Уменьшенный padding
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       elevation: 0,
                     ),
                     child: Text(
                       locationName,
                       style: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 14, // Уменьшенный размер шрифта
                         fontWeight: FontWeight.w600,
                       ),
                     ),
