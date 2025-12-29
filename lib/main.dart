@@ -18,9 +18,9 @@ import 'models/cart_item.dart';
 import 'dart:ui'; // Для ImageFilter.blur
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '18.6';
+const String DEPLOY_VERSION = '18.7';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-23 18:00:00'; // Обновлять при каждом деплое!
+    '2025-01-23 18:30:00'; // Обновлять при каждом деплое!
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
@@ -599,11 +599,11 @@ class _AppInitializerState extends State<AppInitializer> {
                 GestureDetector(
                   onTap: () {
                     print('❌ User wants to choose different location');
-                    _showLocationDialog = false;
+                    // НЕ устанавливаем _showLocationDialog = false, чтобы при возврате диалог показался снова
                     _autoSelectedLocation = null;
                     _savedLocationId = null;
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pushReplacement(
+                    Navigator.of(context).pop(); // Закрываем диалог
+                    Navigator.of(context).push( // Используем push вместо pushReplacement, чтобы MainScreen остался в стеке
                       MaterialPageRoute(
                         builder: (context) => const LocationSelectScreen(),
                       ),
