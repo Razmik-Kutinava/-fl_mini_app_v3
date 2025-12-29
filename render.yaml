@@ -2,7 +2,7 @@ services:
   - type: web
     name: fl-mini-app-v3
     runtime: static
-    buildCommand: ""
+    buildCommand: flutter pub get && flutter build web --release
     staticPublishPath: ./build/web
     pullRequestPreviewsEnabled: true
     routes:
