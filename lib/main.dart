@@ -14,6 +14,7 @@ import 'constants/app_colors.dart';
 import 'models/location.dart';
 import 'models/product.dart';
 import 'models/cart_item.dart';
+import 'dart:ui'; // Для ImageFilter.blur
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
 const String DEPLOY_VERSION = '18.3';
@@ -495,47 +496,151 @@ class _AppInitializerState extends State<AppInitializer> {
   void _showLocationConfirmDialog(BuildContext context) {
     print('🎯 _showLocationConfirmDialog called');
     final locationProvider = context.read<LocationProvider>();
-    final locationName =
-        locationProvider.selectedLocation?.name ??
-        _autoSelectedLocation?.name ??
-        'кофейне';
+    final location = locationProvider.selectedLocation ?? _autoSelectedLocation;
+    final locationName = location?.name ?? 'кофейне';
     print('🎯 Location name: $locationName');
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Остаться в этой кофейне?'),
-        content: Text('Вы хотите заказать в кофейне "$locationName"?'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              // НЕТ - показываем экран выбора кофейни
-              print('❌ User wants to choose different location');
-              _showLocationDialog = false;
-              _autoSelectedLocation = null;
-              _savedLocationId = null;
-              Navigator.of(context).pop();
-              // Переходим на экран выбора кофейни
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => const PermissionsScreen(),
+      barrierColor: Colors.black.withOpacity(0.7), // Полупрозрачный темный фон
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Размытие фона
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.6), // Темный полупрозрачный фон
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.1),
+                width: 1,
+              ),
+            ),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Иконка локации и название
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2196F3), // Синий цвет как на картинке
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.rocket_launch, // Иконка ракеты/самолетика
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            locationName,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'выбрано',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.6),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              );
-            },
-            child: const Text('Выбрать другую'),
+                const SizedBox(height: 24),
+                // Приветствие и вопрос
+                const Text(
+                  'Привет!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Закажешь здесь?',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Ссылка "Другая кофейня"
+                GestureDetector(
+                  onTap: () {
+                    print('❌ User wants to choose different location');
+                    _showLocationDialog = false;
+                    _autoSelectedLocation = null;
+                    _savedLocationId = null;
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const PermissionsScreen(),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'Другая кофейня',
+                    style: TextStyle(
+                      color: const Color(0xFF64B5F6), // Светло-синий цвет
+                      fontSize: 14,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Большая кнопка с названием локации
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      print('✅ User confirmed location: $locationName');
+                      _showLocationDialog = false;
+                      Navigator.of(context).pop();
+                      setState(() {});
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3), // Синий цвет
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      locationName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              // ДА - остаёмся в этой кофейне
-              print('✅ User confirmed location: $locationName');
-              _showLocationDialog = false;
-              Navigator.of(context).pop();
-              setState(() {});
-            },
-            child: const Text('Да, остаться'),
-          ),
-        ],
+        ),
       ),
     );
   }
