@@ -8938,8 +8938,8 @@ var $async$aJ1=A.q(function(a,b){if(a===1)return A.r(b,r)
 for(;;)switch(s){case 0:A.x("")
 A.x(u.X)
 A.x("\ud83d\ude80 DEPLOY INFO - \u041f\u0420\u041e\u0412\u0415\u0420\u041a\u0410 \u041e\u0411\u041d\u041e\u0412\u041b\u0415\u041d\u0418\u0419 \u041a\u041e\u0414\u0410")
-A.x("\ud83d\ude80 VERSION: 18.3")
-A.x("\ud83d\ude80 TIMESTAMP: 2025-01-23 15:30:00")
+A.x("\ud83d\ude80 VERSION: 18.4")
+A.x("\ud83d\ude80 TIMESTAMP: 2025-01-23 16:00:00")
 A.x(u.X)
 A.x("")
 if($.af==null)A.aM3()
@@ -49155,8 +49155,8 @@ A.Xo.prototype={
 ar(){var s="\ud83d\ude80 =========================================="
 this.aI()
 A.x(s)
-A.x("\ud83d\ude80 DEPLOY VERSION: 18.3")
-A.x("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-23 15:30:00")
+A.x("\ud83d\ude80 DEPLOY VERSION: 18.4")
+A.x("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-23 16:00:00")
 A.x(s)
 this.jW()},
 uR(){var s=0,r=A.v(t.y),q,p,o,n,m
@@ -49180,8 +49180,8 @@ return A.u($async$uR,r)},
 jW(){var s=0,r=A.v(t.H),q=1,p=[],o=this,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,e0,e1,e2,e3,e4,e5,e6,e7,e8,e9,f0,f1,f2,f3,f4
 var $async$jW=A.q(function(f6,f7){if(f6===1){p.push(f7)
 s=q}for(;;)switch(s){case 0:A.x("\ud83d\ude80 Starting user initialization...")
-A.x("\ud83d\ude80 VERSION: 18.3 - WITH REPEAT ORDER SUPPORT!")
-A.x("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-23 15:30:00")
+A.x("\ud83d\ude80 VERSION: 18.4 - WITH REPEAT ORDER SUPPORT!")
+A.x("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-23 16:00:00")
 c0=o.c
 c0.toString
 c1=A.e7(c0,!1,t.nj)
@@ -49369,8 +49369,8 @@ if(!o.w)o.y=!0}}}else A.x("\u26a0\ufe0f Could not get user from DB")
 s=27
 break
 case 28:A.x("\u26a0\ufe0f No telegramId available (not from hash, not from WebApp)")
-case 27:A.x("\ud83d\ude80 VERSION: 18.3 - WITH VISIT COUNTER!")
-A.x("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-23 15:30:00")
+case 27:A.x("\ud83d\ude80 VERSION: 18.4 - WITH VISIT COUNTER!")
+A.x("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-23 16:00:00")
 q=31
 A.x("\ud83d\udccd Loading active locations from Supabase...")
 s=34

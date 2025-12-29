@@ -17,9 +17,9 @@ import 'models/cart_item.dart';
 import 'dart:ui'; // Для ImageFilter.blur
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '18.3';
+const String DEPLOY_VERSION = '18.4';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-23 15:30:00'; // Обновлять при каждом деплое!
+    '2025-01-23 16:00:00'; // Обновлять при каждом деплое!
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
@@ -530,7 +530,9 @@ class _AppInitializerState extends State<AppInitializer> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2196F3), // Синий цвет как на картинке
+                        color: const Color(
+                          0xFF2196F3,
+                        ), // Синий цвет как на картинке
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
