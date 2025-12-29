@@ -16,9 +16,9 @@ import 'models/product.dart';
 import 'models/cart_item.dart';
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '18.2';
+const String DEPLOY_VERSION = '18.3';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-23 15:00:00'; // Обновлять при каждом деплое!
+    '2025-01-23 15:30:00'; // Обновлять при каждом деплое!
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
