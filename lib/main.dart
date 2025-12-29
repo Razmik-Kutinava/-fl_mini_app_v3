@@ -440,10 +440,22 @@ class _AppInitializerState extends State<AppInitializer> {
         _autoSelectedLocation = targetLocation;
         _savedLocationId = targetLocation.id;
 
+        // 🔍 ДЕТАЛЬНОЕ ЛОГИРОВАНИЕ ПЕРЕД ПРОВЕРКОЙ
+        print('🔍 [DEBUG] Before dialog check:');
+        print('🔍   _isFirstVisit = $_isFirstVisit');
+        print('🔍   _savedLocationId = $_savedLocationId');
+        print('🔍   !_isFirstVisit = ${!_isFirstVisit}');
+        print('🔍   _savedLocationId != null = ${_savedLocationId != null}');
+        print('🔍   Condition (!_isFirstVisit && _savedLocationId != null) = ${!_isFirstVisit && _savedLocationId != null}');
+
         // ⭐ Если не первый визит и есть сохранённая локация - покажем диалог
         if (!_isFirstVisit && _savedLocationId != null) {
           _showLocationDialog = true;
           print('✅ Will show location confirmation dialog');
+        } else {
+          print('⚠️ [DEBUG] Condition NOT met!');
+          print('⚠️   _isFirstVisit = $_isFirstVisit');
+          print('⚠️   _savedLocationId = $_savedLocationId');
         }
 
         _locationSelected = true;
@@ -547,6 +559,11 @@ class _AppInitializerState extends State<AppInitializer> {
     print(
       '🔍 Build check: _isFirstVisit=$_isFirstVisit, _showLocationDialog=$_showLocationDialog, _savedLocationId=$_savedLocationId',
     );
+    print('🔍 [DEBUG] Build dialog condition:');
+    print('🔍   !_isFirstVisit = ${!_isFirstVisit}');
+    print('🔍   _showLocationDialog = $_showLocationDialog');
+    print('🔍   _savedLocationId != null = ${_savedLocationId != null}');
+    print('🔍   Full condition = ${!_isFirstVisit && _showLocationDialog && _savedLocationId != null}');
 
     if (!_isFirstVisit && _showLocationDialog && _savedLocationId != null) {
       print('✅ Showing location confirmation dialog!');
