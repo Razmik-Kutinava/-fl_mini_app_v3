@@ -118,13 +118,11 @@ class _AppInitializerState extends State<AppInitializer> {
   bool _locationSelected = false; // Флаг успешного выбора локации
   Location? _autoSelectedLocation; // Сохраняем выбранную локацию напрямую
   String? _savedLocationId; // ⭐ ID сохранённой кофейни (из БД или localStorage)
-  bool _hasSavedLocation = false; // ⭐ Есть ли сохранённая кофейня
-  bool _isFirstVisit = true; // ⭐ Флаг первого визита (из FINAL_SOLUTION.md)
+  bool _isFirstVisit = true; // ⭐ Флаг первого визита
   bool _shouldOpenCart =
       false; // ⭐ Флаг для открытия корзины (для repeat_order)
-  bool _locationConfirmed = false; // ⭐ Флаг подтверждения локации через диалог
-  bool _userDeclinedLocation =
-      false; // ⭐ Флаг что пользователь отказался от сохранённой локации
+  bool _showLocationDialog =
+      false; // ⭐ Показывать ли диалог подтверждения локации
 
   @override
   void initState() {
@@ -207,7 +205,6 @@ class _AppInitializerState extends State<AppInitializer> {
               await locationProvider.selectLocation(targetLocation);
               _autoSelectedLocation = targetLocation;
               _savedLocationId = targetLocation.id;
-              _hasSavedLocation = true;
               _locationSelected = true;
             }
 
@@ -325,7 +322,10 @@ class _AppInitializerState extends State<AppInitializer> {
       print('🎉 Going DIRECTLY to MainScreen!');
       print('🎉 ==========================================');
       _savedLocationId = hashLocationId;
-      _hasSavedLocation = true;
+      // Если не первый визит - покажем диалог
+      if (!_isFirstVisit) {
+        _showLocationDialog = true;
+      }
     }
 
     // Также читаем telegram_user_id из hash (бот передаёт его)
@@ -372,7 +372,7 @@ class _AppInitializerState extends State<AppInitializer> {
 
         // Если location_id уже есть из hash - используем его
         // Иначе берём preferredLocationId из БД
-        if (!_hasSavedLocation) {
+        if (_savedLocationId == null) {
           final userPreferredLocationId =
               user['preferredLocationId'] as String?;
           if (userPreferredLocationId != null &&
@@ -381,7 +381,10 @@ class _AppInitializerState extends State<AppInitializer> {
               '✅ Using preferredLocationId from DB: $userPreferredLocationId',
             );
             _savedLocationId = userPreferredLocationId;
-            _hasSavedLocation = true;
+            // Если не первый визит - покажем диалог
+            if (!_isFirstVisit) {
+              _showLocationDialog = true;
+            }
           }
         }
       } else {
@@ -436,24 +439,19 @@ class _AppInitializerState extends State<AppInitializer> {
         // ГАРАНТИРОВАННО выбираем локацию
         _autoSelectedLocation = targetLocation;
         _savedLocationId = targetLocation.id;
-        // ⭐ _hasSavedLocation устанавливается в следующих случаях:
-        // 1. Есть location_id из hash (уже установлено выше в строке 328) - бот передал локацию
-        // 2. Есть preferredLocationId из БД (уже установлено выше в строке 384) - сохранённая локация
-        // 3. НЕ первый визит (значит есть сохранённая локация из предыдущего захода)
-        //    В этом случае диалог будет показан для подтверждения локации
-        if (!_hasSavedLocation && !_isFirstVisit) {
-          // Если не первый визит, значит пользователь уже выбирал локацию ранее
-          _hasSavedLocation = true;
-          print(
-            '✅ Setting _hasSavedLocation = true (NOT first visit - will show dialog)',
-          );
+
+        // ⭐ Если не первый визит и есть сохранённая локация - покажем диалог
+        if (!_isFirstVisit && _savedLocationId != null) {
+          _showLocationDialog = true;
+          print('✅ Will show location confirmation dialog');
         }
+
         _locationSelected = true;
         await locationProvider.selectLocation(targetLocation);
         print('🎉 ==========================================');
         print('🎉 LOCATION SELECTED: ${targetLocation.name}');
         print(
-          '🎉 _hasSavedLocation: $_hasSavedLocation, _isFirstVisit: $_isFirstVisit',
+          '🎉 _isFirstVisit: $_isFirstVisit, _showLocationDialog: $_showLocationDialog',
         );
         print('🎉 GOING TO MAIN SCREEN!');
         print('🎉 ==========================================');
@@ -486,34 +484,35 @@ class _AppInitializerState extends State<AppInitializer> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Заказать здесь?'),
-        content: Text('Вы точно уверены, что это кофейня "$locationName"?'),
+        title: const Text('Остаться в этой кофейне?'),
+        content: Text('Вы хотите заказать в кофейне "$locationName"?'),
         actions: [
           TextButton(
             onPressed: () {
-              // НЕТ - очищаем сохранённую локацию и показываем экран выбора
-              print('❌ User declined location: $locationName');
-              _savedLocationId = null;
-              _hasSavedLocation = false;
-              _locationConfirmed = false;
-              _userDeclinedLocation =
-                  true; // ⭐ Отмечаем что пользователь отказался
+              // НЕТ - показываем экран выбора кофейни
+              print('❌ User wants to choose different location');
+              _showLocationDialog = false;
               _autoSelectedLocation = null;
+              _savedLocationId = null;
               Navigator.of(context).pop();
-              setState(() {});
+              // Переходим на экран выбора кофейни
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => const PermissionsScreen(),
+                ),
+              );
             },
-            child: const Text('Нет'),
+            child: const Text('Выбрать другую'),
           ),
           ElevatedButton(
             onPressed: () {
-              // ДА - подтверждаем и идём в MainScreen
+              // ДА - остаёмся в этой кофейне
               print('✅ User confirmed location: $locationName');
+              _showLocationDialog = false;
               Navigator.of(context).pop();
-              setState(() {
-                _locationConfirmed = true;
-              });
+              setState(() {});
             },
-            child: const Text('Да'),
+            child: const Text('Да, остаться'),
           ),
         ],
       ),
@@ -544,16 +543,15 @@ class _AppInitializerState extends State<AppInitializer> {
       return const MainScreen();
     }
 
-    // ⭐ ПРИОРИТЕТ 1: Если есть СОХРАНЁННАЯ КОФЕЙНЯ И НЕ первый визит → Показываем диалог подтверждения!
-    // Диалог показывается только при повторном входе (когда пользователь уже был)
+    // ⭐ ПРИОРИТЕТ 1: Если НЕ первый визит и нужно показать диалог → Показываем диалог подтверждения!
     print(
-      '🔍 Build check: _hasSavedLocation=$_hasSavedLocation, _locationConfirmed=$_locationConfirmed, _isFirstVisit=$_isFirstVisit',
+      '🔍 Build check: _isFirstVisit=$_isFirstVisit, _showLocationDialog=$_showLocationDialog, _savedLocationId=$_savedLocationId',
     );
-    if (_hasSavedLocation && !_locationConfirmed && !_isFirstVisit) {
+
+    if (!_isFirstVisit && _showLocationDialog && _savedLocationId != null) {
       print('✅ Showing location confirmation dialog!');
       // Восстанавливаем локацию если она ещё не установлена
       if (locationProvider.selectedLocation == null &&
-          _savedLocationId != null &&
           locationProvider.locations.isNotEmpty) {
         try {
           locationProvider.restoreLastLocation(_savedLocationId!);
@@ -576,25 +574,8 @@ class _AppInitializerState extends State<AppInitializer> {
       );
     }
 
-    // ⭐ ПРИОРИТЕТ 2: Если локация подтверждена - идём в MainScreen
-    if (_hasSavedLocation && _locationConfirmed) {
-      print('✅ ==========================================');
-      print('✅ LOCATION CONFIRMED - going to MainScreen!');
-      print('✅ Saved location ID: $_savedLocationId');
-      print('✅ ==========================================');
-      return const MainScreen();
-    }
-
-    // ⭐ ПРИОРИТЕТ 3: Если пользователь отказался от сохранённой локации - показываем экран выбора
-    if (_userDeclinedLocation) {
-      print(
-        '📍 → User declined saved location - showing location selection screen',
-      );
-      return const PermissionsScreen();
-    }
-
-    // ⭐ ПРИОРИТЕТ 4: Если НЕ первый визит и нет сохранённой локации - идём на MainScreen
-    if (!_isFirstVisit) {
+    // ⭐ ПРИОРИТЕТ 2: Если НЕ первый визит и диалог закрыт → идём в MainScreen
+    if (!_isFirstVisit && !_showLocationDialog) {
       print('✅ ==========================================');
       print('✅ NOT FIRST VISIT - going to MainScreen');
       print('✅ ==========================================');
