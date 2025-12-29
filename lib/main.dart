@@ -502,11 +502,12 @@ class _AppInitializerState extends State<AppInitializer> {
 
     showDialog(
       context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.7), // Полупрозрачный темный фон
+      barrierDismissible: true, // Разрешаем закрытие кликом на фон
+      barrierColor: Colors.transparent, // Полностью прозрачный фон
       builder: (context) => Dialog(
+        alignment: Alignment.topLeft, // Позиционирование в верхнем левом углу
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+        insetPadding: const EdgeInsets.only(left: 16, top: 60), // Отступы от краев
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Размытие фона
           child: Container(
@@ -644,7 +645,14 @@ class _AppInitializerState extends State<AppInitializer> {
           ),
         ),
       ),
-    );
+    ).then((_) {
+      // Обработка закрытия диалога при клике на фон
+      print('📱 Dialog dismissed (by tapping outside or button)');
+      if (_showLocationDialog) {
+        _showLocationDialog = false;
+        setState(() {});
+      }
+    });
   }
 
   @override
@@ -688,17 +696,17 @@ class _AppInitializerState extends State<AppInitializer> {
         }
       }
 
-      // Показываем диалог через postFrameCallback чтобы избежать ошибок build
+      // Показываем MainScreen первым
+      const mainScreen = MainScreen();
+
+      // Показываем диалог поверх MainScreen через postFrameCallback
       WidgetsBinding.instance.addPostFrameCallback((_) {
         print('📱 Showing dialog via postFrameCallback');
         _showLocationConfirmDialog(context);
       });
 
-      // Показываем загрузку пока не выберем
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator()),
-      );
+      // Возвращаем MainScreen вместо Scaffold с загрузкой
+      return mainScreen;
     }
 
     // ⭐ ПРИОРИТЕТ 2: Если НЕ первый визит и диалог закрыт → идём в MainScreen
