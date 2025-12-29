@@ -30,8 +30,7 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
   @override
   void initState() {
     super.initState();
-    _requestUserLocation();
-    _loadLocations();
+    _loadLocations(); // Убрали автоматический запрос геолокации для упрощения процесса
   }
 
   /// Запрос геолокации пользователя

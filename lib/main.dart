@@ -7,6 +7,7 @@ import 'providers/menu_provider.dart';
 import 'providers/user_provider.dart';
 import 'screens/permissions_screen.dart';
 import 'screens/main_screen.dart';
+import 'screens/location_select_screen.dart';
 import 'screens/cart_screen.dart';
 import 'services/telegram_service.dart';
 import 'services/supabase_service.dart';
@@ -17,9 +18,9 @@ import 'models/cart_item.dart';
 import 'dart:ui'; // Для ImageFilter.blur
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '18.5';
+const String DEPLOY_VERSION = '18.6';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-23 17:30:00'; // Обновлять при каждом деплое!
+    '2025-01-23 18:00:00'; // Обновлять при каждом деплое!
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
@@ -514,7 +515,9 @@ class _AppInitializerState extends State<AppInitializer> {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Размытие фона
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 280), // Ограничение ширины для компактности
+            constraints: const BoxConstraints(
+              maxWidth: 280,
+            ), // Ограничение ширины для компактности
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.6), // Темный полупрозрачный фон
               borderRadius: BorderRadius.circular(20), // Немного меньше радиус
@@ -602,7 +605,7 @@ class _AppInitializerState extends State<AppInitializer> {
                     Navigator.of(context).pop();
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
-                        builder: (context) => const PermissionsScreen(),
+                        builder: (context) => const LocationSelectScreen(),
                       ),
                     );
                   },
@@ -629,7 +632,9 @@ class _AppInitializerState extends State<AppInitializer> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2196F3), // Синий цвет
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12), // Уменьшенный padding
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 12,
+                      ), // Уменьшенный padding
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
