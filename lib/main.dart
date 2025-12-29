@@ -15,6 +15,11 @@ import 'models/location.dart';
 import 'models/product.dart';
 import 'models/cart_item.dart';
 
+// ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
+const String DEPLOY_VERSION = '18.2';
+const String DEPLOY_TIMESTAMP =
+    '2025-01-23 15:00:00'; // Обновлять при каждом деплое!
+
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
   static String? preferredLocationId;
@@ -65,6 +70,15 @@ class UserLocationContext {
 }
 
 void main() async {
+  // ⭐ ВЫВОД ВЕРСИИ ДЕПЛОЯ - ПЕРВЫМ ДЕЛОМ!
+  print('');
+  print('═══════════════════════════════════════════════════════════');
+  print('🚀 DEPLOY INFO - ПРОВЕРКА ОБНОВЛЕНИЙ КОДА');
+  print('🚀 VERSION: $DEPLOY_VERSION');
+  print('🚀 TIMESTAMP: $DEPLOY_TIMESTAMP');
+  print('═══════════════════════════════════════════════════════════');
+  print('');
+
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Supabase FIRST
@@ -127,6 +141,11 @@ class _AppInitializerState extends State<AppInitializer> {
   @override
   void initState() {
     super.initState();
+    // ⭐ Выводим версию деплоя при каждом запуске
+    print('🚀 ==========================================');
+    print('🚀 DEPLOY VERSION: $DEPLOY_VERSION');
+    print('🚀 DEPLOY TIMESTAMP: $DEPLOY_TIMESTAMP');
+    print('🚀 ==========================================');
     _initializeUser();
   }
 
@@ -147,7 +166,8 @@ class _AppInitializerState extends State<AppInitializer> {
 
   Future<void> _initializeUser() async {
     print('🚀 Starting user initialization...');
-    print('🚀 VERSION: 18.0 - WITH REPEAT ORDER SUPPORT!');
+    print('🚀 VERSION: $DEPLOY_VERSION - WITH REPEAT ORDER SUPPORT!');
+    print('🚀 DEPLOY TIMESTAMP: $DEPLOY_TIMESTAMP');
     final userProvider = context.read<UserProvider>();
     final locationProvider = context.read<LocationProvider>();
     final cartProvider = context.read<CartProvider>();
@@ -397,7 +417,8 @@ class _AppInitializerState extends State<AppInitializer> {
     // =====================================================
     // ЗАГРУЖАЕМ ЛОКАЦИИ - УПРОЩЁННАЯ ЛОГИКА v17
     // =====================================================
-    print('🚀 VERSION: 17.0 - WITH VISIT COUNTER!');
+    print('🚀 VERSION: $DEPLOY_VERSION - WITH VISIT COUNTER!');
+    print('🚀 DEPLOY TIMESTAMP: $DEPLOY_TIMESTAMP');
 
     try {
       // Загружаем все активные локации
@@ -440,22 +461,10 @@ class _AppInitializerState extends State<AppInitializer> {
         _autoSelectedLocation = targetLocation;
         _savedLocationId = targetLocation.id;
 
-        // 🔍 ДЕТАЛЬНОЕ ЛОГИРОВАНИЕ ПЕРЕД ПРОВЕРКОЙ
-        print('🔍 [DEBUG] Before dialog check:');
-        print('🔍   _isFirstVisit = $_isFirstVisit');
-        print('🔍   _savedLocationId = $_savedLocationId');
-        print('🔍   !_isFirstVisit = ${!_isFirstVisit}');
-        print('🔍   _savedLocationId != null = ${_savedLocationId != null}');
-        print('🔍   Condition (!_isFirstVisit && _savedLocationId != null) = ${!_isFirstVisit && _savedLocationId != null}');
-
-        // ⭐ Если не первый визит и есть сохранённая локация - покажем диалог
-        if (!_isFirstVisit && _savedLocationId != null) {
+        // ⭐ Если не первый визит - ВСЕГДА показываем диалог подтверждения
+        if (!_isFirstVisit) {
           _showLocationDialog = true;
-          print('✅ Will show location confirmation dialog');
-        } else {
-          print('⚠️ [DEBUG] Condition NOT met!');
-          print('⚠️   _isFirstVisit = $_isFirstVisit');
-          print('⚠️   _savedLocationId = $_savedLocationId');
+          print('✅ Will show location confirmation dialog (NOT first visit)');
         }
 
         _locationSelected = true;
@@ -559,13 +568,7 @@ class _AppInitializerState extends State<AppInitializer> {
     print(
       '🔍 Build check: _isFirstVisit=$_isFirstVisit, _showLocationDialog=$_showLocationDialog, _savedLocationId=$_savedLocationId',
     );
-    print('🔍 [DEBUG] Build dialog condition:');
-    print('🔍   !_isFirstVisit = ${!_isFirstVisit}');
-    print('🔍   _showLocationDialog = $_showLocationDialog');
-    print('🔍   _savedLocationId != null = ${_savedLocationId != null}');
-    print('🔍   Full condition = ${!_isFirstVisit && _showLocationDialog && _savedLocationId != null}');
-
-    if (!_isFirstVisit && _showLocationDialog && _savedLocationId != null) {
+    if (!_isFirstVisit && _showLocationDialog) {
       print('✅ Showing location confirmation dialog!');
       // Восстанавливаем локацию если она ещё не установлена
       if (locationProvider.selectedLocation == null &&
@@ -592,7 +595,11 @@ class _AppInitializerState extends State<AppInitializer> {
     }
 
     // ⭐ ПРИОРИТЕТ 2: Если НЕ первый визит и диалог закрыт → идём в MainScreen
-    if (!_isFirstVisit && !_showLocationDialog) {
+    // НО только если инициализация завершена и локация выбрана
+    if (!_isFirstVisit &&
+        !_showLocationDialog &&
+        _initialized &&
+        _locationSelected) {
       print('✅ ==========================================');
       print('✅ NOT FIRST VISIT - going to MainScreen');
       print('✅ ==========================================');
