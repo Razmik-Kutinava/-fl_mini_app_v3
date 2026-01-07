@@ -18,9 +18,9 @@ import 'models/cart_item.dart';
 import 'dart:ui'; // Для ImageFilter.blur
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '19.1';
+const String DEPLOY_VERSION = '19.2';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-23 22:30:00'; // Обновлять при каждом деплое! UI/UX Redesign - CACHE BUST FIX
+    '2025-01-23 22:45:00'; // Обновлять при каждом деплое! UI/UX Redesign - FIX VERSION CHECK
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
