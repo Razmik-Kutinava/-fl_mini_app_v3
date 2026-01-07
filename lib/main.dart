@@ -19,9 +19,9 @@ import 'dart:ui'; // Для ImageFilter.blur
 import 'dart:js' as js; // Для экспорта версии в JS
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '19.10';
+const String DEPLOY_VERSION = '20.0';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-24 15:00:00'; // Обновлять при каждом деплое! Плавное расширение категории при свайпе - форсированное обновление
+    '2025-01-24 15:30:00'; // Обновлять при каждом деплое! Плавное расширение категории при свайпе - MAJOR VERSION UPDATE
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
