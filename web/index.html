@@ -221,6 +221,51 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
+  <script>
+    // Модифицируем _flutter.buildConfig перед загрузкой bootstrap для добавления версии к main.dart.js
+    (function() {
+      var EXPECTED_VERSION = '19.6';
+      var VERSION_TIMESTAMP = Date.now();
+      
+      // Перехватываем установку _flutter.buildConfig
+      if (!window._flutter) {
+        window._flutter = {};
+      }
+      
+      var originalFlutter = window._flutter;
+      Object.defineProperty(window, '_flutter', {
+        get: function() {
+          return originalFlutter;
+        },
+        set: function(value) {
+          originalFlutter = value;
+          if (value && value.buildConfig && value.buildConfig.builds) {
+            value.buildConfig.builds.forEach(function(build) {
+              if (build && build.mainJsPath && typeof build.mainJsPath === 'string') {
+                if (build.mainJsPath.includes('main.dart.js') && !build.mainJsPath.includes('?v=')) {
+                  build.mainJsPath = build.mainJsPath + '?v=' + EXPECTED_VERSION + '&t=' + VERSION_TIMESTAMP;
+                  console.log('🔧 Modified buildConfig mainJsPath:', build.mainJsPath);
+                }
+              }
+            });
+          }
+        },
+        configurable: true
+      });
+      
+      // Также перехватываем buildConfig если он уже существует
+      if (originalFlutter && originalFlutter.buildConfig && originalFlutter.buildConfig.builds) {
+        originalFlutter.buildConfig.builds.forEach(function(build) {
+          if (build && build.mainJsPath && typeof build.mainJsPath === 'string') {
+            if (build.mainJsPath.includes('main.dart.js') && !build.mainJsPath.includes('?v=')) {
+              build.mainJsPath = build.mainJsPath + '?v=' + EXPECTED_VERSION + '&t=' + VERSION_TIMESTAMP;
+              console.log('🔧 Modified existing buildConfig mainJsPath:', build.mainJsPath);
+            }
+          }
+        });
+      }
+    })();
+  </script>
   <script src="flutter_bootstrap.js?v=19.6" async></script>
 </body>
 </html>
