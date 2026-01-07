@@ -30,7 +30,7 @@
   <!-- КРИТИЧНО: Этот скрипт выполняется ПЕРВЫМ для отключения Service Workers ДО загрузки приложения -->
   <script>
     (function() {
-      var EXPECTED_VERSION = '19.6';
+      var EXPECTED_VERSION = '19.7';
       var VERSION_TIMESTAMP = Date.now();
       console.log('🚀 Cache Bust Script v' + EXPECTED_VERSION + ' at ' + new Date().toISOString());
       
@@ -224,7 +224,7 @@
   <script>
     // Модифицируем _flutter.buildConfig перед загрузкой bootstrap для добавления версии к main.dart.js
     (function() {
-      var EXPECTED_VERSION = '19.6';
+      var EXPECTED_VERSION = '19.7';
       var VERSION_TIMESTAMP = Date.now();
       
       // Перехватываем установку _flutter.buildConfig
