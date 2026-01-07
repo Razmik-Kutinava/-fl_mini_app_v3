@@ -603,7 +603,8 @@ class _AppInitializerState extends State<AppInitializer> {
                     _autoSelectedLocation = null;
                     _savedLocationId = null;
                     Navigator.of(context).pop(); // Закрываем диалог
-                    Navigator.of(context).push( // Используем push вместо pushReplacement, чтобы MainScreen остался в стеке
+                    Navigator.of(context).push(
+                      // Используем push вместо pushReplacement, чтобы MainScreen остался в стеке
                       MaterialPageRoute(
                         builder: (context) => const LocationSelectScreen(),
                       ),

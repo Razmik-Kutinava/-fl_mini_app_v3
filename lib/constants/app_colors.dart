@@ -29,5 +29,38 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [Color(0xFF8B5A2B), Color(0xFFD2691E)],
   );
+
+  // Hero Banner colors (зимняя палитра)
+  static const heroGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [
+      Color(0xFF87CEEB), // Небесно-голубой
+      Color(0xFFB0E0E6), // Порошковый синий
+      Color(0xFFE0F6FF), // Светло-голубой
+    ],
+  );
+
+  // Promo colors
+  static const promoCardGradient1 = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFF1744), Color(0xFF1565C0)],
+  );
+
+  static const promoCardGradient2 = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFE91E63), Color(0xFF9C27B0)],
+  );
+
+  // Bottom Navigation colors
+  static const bottomNavActive = Color(0xFF2196F3);
+  static const bottomNavInactive = Color(0xFF9E9E9E);
+  static const bottomNavBackground = Colors.white;
+
+  // Location Status colors
+  static const locationStatusClosed = Color(0xFF424242);
+  static const locationStatusOpen = Color(0xFF4CAF50);
 }
 

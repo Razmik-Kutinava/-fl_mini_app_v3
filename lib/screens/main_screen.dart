@@ -9,11 +9,13 @@ import '../constants/app_colors.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/menu_provider.dart';
-import '../providers/user_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/product_card.dart';
-import '../widgets/category_chip.dart';
-import '../widgets/promo_banner.dart';
+import '../widgets/background_hero_banner.dart';
+import '../widgets/location_app_bar.dart';
+import '../widgets/hero_promo_content.dart';
+import '../widgets/bottom_category_navigation.dart';
+import '../widgets/promo_section.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
 
@@ -26,11 +28,18 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   final ApiService _apiService = ApiService();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _loadMenu();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMenu() async {
@@ -57,161 +66,143 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  /// Проверяет, выбрана ли категория "акции"
+  bool _isPromotionsCategory(String? categoryId, List categories) {
+    if (categoryId == null) return false;
+    
+    // Ищем категорию по id или названию
+    try {
+      categories.firstWhere(
+        (cat) => cat.id == categoryId || 
+                 cat.name.toLowerCase().contains('акци') ||
+                 cat.name.toLowerCase().contains('промо'),
+      );
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Получает список промо-акций для отображения
+  List<PromoItem> _getPromotions() {
+    // TODO: Загружать реальные промо из API или БД
+    // Пока используем моковые данные
+    return [
+      PromoItem(
+        title: 'Время чудес',
+        emoji: '❄️',
+        gradient: AppColors.promoCardGradient1,
+      ),
+      PromoItem(
+        title: 'Shimmering sprinkles',
+        emoji: '✨',
+        gradient: AppColors.promoCardGradient2,
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final locationProvider = context.watch<LocationProvider>();
     final menuProvider = context.watch<MenuProvider>();
     final location = locationProvider.selectedLocation;
+    final isPromotions = _isPromotionsCategory(
+      menuProvider.selectedCategoryId,
+      menuProvider.categories,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // App Bar
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.gradientCoffee,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.coffee, color: Colors.white),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          location?.name ?? 'Кофейня',
-                          style: GoogleFonts.montserrat(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
-                        ),
-                        Consumer<UserProvider>(
-                          builder: (context, userProvider, _) {
-                            print('🔄 Consumer rebuild - userProvider.user: ${userProvider.user}');
-                            final userName = userProvider.userName;
-                            print('🔄 Consumer rebuild - userName: $userName');
-                            if (userName != null && userName.isNotEmpty) {
-                              return Text(
-                                userName,
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              );
-                            }
-                            return Text(
-                              location?.address ?? '',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                onPressed: _handleGeoRequest,
-                    icon: const Icon(Icons.location_on_outlined),
-                    color: AppColors.primary,
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.person_outline),
-                    color: AppColors.primary,
-                  ),
-                ],
+      body: Stack(
+        children: [
+          // Фоновый баннер на весь экран
+          BackgroundHeroBanner(
+            scrollController: _scrollController,
+          ),
+          
+          // Основной контент поверх фона
+          Column(
+            children: [
+              // Location App Bar
+              LocationAppBar(
+                location: location,
+                onLocationTap: _handleGeoRequest,
+                onProfileTap: () {
+                  // TODO: Открыть профиль
+                },
               ),
-            ).animate().fadeIn().slideY(begin: -0.3),
-            // Content
-            Expanded(
-              child: menuProvider.isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : RefreshIndicator(
-                      onRefresh: _loadMenu,
-                      child: CustomScrollView(
-                        slivers: [
-                          // Promo Banner
-                          SliverToBoxAdapter(
-                            child: const PromoBanner()
-                                .animate()
-                                .fadeIn(delay: 200.ms)
-                                .slideX(begin: -0.2),
-                          ),
-                          // Categories
-                          SliverToBoxAdapter(
-                            child: SizedBox(
-                              height: 50,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: menuProvider.categories.length + 1,
-                                itemBuilder: (context, index) {
-                                  if (index == 0) {
-                                    return CategoryChip(
-                                      label: 'Все',
-                                      emoji: '🔥',
-                                      isSelected: menuProvider.selectedCategoryId == null,
-                                      onTap: () => menuProvider.selectCategory(null),
-                                    );
-                                  }
-                                  final category = menuProvider.categories[index - 1];
-                                  return CategoryChip(
-                                    label: category.name,
-                                    emoji: category.emoji,
-                                    isSelected: menuProvider.selectedCategoryId == category.id,
-                                    onTap: () => menuProvider.selectCategory(category.id),
-                                  );
-                                },
-                              ),
-                            ).animate().fadeIn(delay: 300.ms),
-                          ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 16)),
-                          // Products Grid
-                          SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            sliver: SliverGrid(
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                mainAxisSpacing: 16,
-                                crossAxisSpacing: 16,
-                                childAspectRatio: 0.75,
-                              ),
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final product = menuProvider.products[index];
-                                  return ProductCard(product: product)
-                                      .animate(delay: Duration(milliseconds: 50 * index))
-                                      .fadeIn()
-                                      .scale(begin: const Offset(0.9, 0.9));
-                                },
-                                childCount: menuProvider.products.length,
+              
+              // Скроллируемый контент
+              Expanded(
+                child: menuProvider.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : RefreshIndicator(
+                        onRefresh: _loadMenu,
+                        child: CustomScrollView(
+                          controller: _scrollController,
+                          slivers: [
+                            // Hero промо-контент (текст поверх фона)
+                            SliverToBoxAdapter(
+                              child: const HeroPromoContent()
+                                  .animate()
+                                  .fadeIn(delay: 200.ms)
+                                  .slideY(begin: 0.2, end: 0),
+                            ),
+                            
+                            // Белый фон для контента ниже промо
+                            SliverToBoxAdapter(
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: Radius.circular(30),
+                                    topRight: Radius.circular(30),
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // Динамический контент в зависимости от категории
+                                    if (isPromotions)
+                                      PromoSection(
+                                        promotions: _getPromotions(),
+                                      )
+                                    else
+                                      _buildProductsSection(menuProvider),
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                        ],
+                            
+                            // Отступ для bottom navigation
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: 90),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
+              ),
+            ],
+          ),
+          
+          // Bottom Navigation (фиксированная внизу)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: BottomCategoryNavigation(
+              categories: menuProvider.categories,
+              selectedCategoryId: menuProvider.selectedCategoryId,
+              onCategorySelected: (categoryId) {
+                menuProvider.selectCategory(categoryId);
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
       floatingActionButton: Consumer<CartProvider>(
         builder: (context, cartProvider, _) {
-          print('🛒 MainScreen rebuild - itemCount: ${cartProvider.itemCount}, total: ${cartProvider.total}');
-          
           if (cartProvider.itemCount > 0) {
             return badges.Badge(
               badgeContent: Text(
@@ -248,11 +239,40 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ).animate().fadeIn().slideY(begin: 0.5);
           }
-          print('🛒 Cart is empty, not showing FAB');
           return const SizedBox.shrink();
         },
       ),
     );
   }
-}
 
+  Widget _buildProductsSection(MenuProvider menuProvider) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 16),
+          // Products Grid
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 0.75,
+            ),
+            itemCount: menuProvider.products.length,
+            itemBuilder: (context, index) {
+              final product = menuProvider.products[index];
+              return ProductCard(product: product)
+                  .animate(delay: Duration(milliseconds: 50 * index))
+                  .fadeIn()
+                  .scale(begin: const Offset(0.9, 0.9));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
