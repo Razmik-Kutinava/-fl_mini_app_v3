@@ -118,6 +118,13 @@ class _CategoryTextItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      onHorizontalDragEnd: (details) {
+        // Свайп вправо - открываем категорию (если это категория с товарами, не "для тебя")
+        if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
+          // Свайп вправо (отрицательная скорость)
+          onTap();
+        }
+      },
       behavior: HitTestBehavior.opaque,
       child: Container(
         margin: EdgeInsets.only(right: spacing),

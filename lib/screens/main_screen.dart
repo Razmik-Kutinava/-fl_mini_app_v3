@@ -11,6 +11,7 @@ import '../providers/location_provider.dart';
 import '../providers/menu_provider.dart';
 import '../services/api_service.dart';
 import '../widgets/product_card.dart';
+import '../models/product.dart';
 import '../widgets/background_hero_banner.dart';
 import '../widgets/location_app_bar.dart';
 import '../widgets/hero_promo_content.dart';
@@ -19,6 +20,8 @@ import '../widgets/promo_section.dart';
 import '../utils/responsive.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
+import 'category_screen.dart';
+import '../models/category.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -27,19 +30,36 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
+  
+  // Состояние расширения категории
+  bool _isCategoryExpanded = false;
+  String? _expandedCategoryId;
+  late AnimationController _expansionController;
+  late Animation<double> _expansionAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadMenu();
+    
+    // Инициализация анимации расширения
+    _expansionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _expansionAnimation = CurvedAnimation(
+      parent: _expansionController,
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _expansionController.dispose();
     super.dispose();
   }
 
@@ -82,6 +102,14 @@ class _MainScreenState extends State<MainScreen> {
       // Если категория не найдена, показываем товары (не промо)
       return false;
     }
+  }
+
+  /// Получает товары для категории
+  List<Product> _getProductsForCategory(String? categoryId, MenuProvider menuProvider) {
+    if (categoryId == null) return menuProvider.allProducts;
+    return menuProvider.allProducts
+        .where((p) => p.categoryId == categoryId)
+        .toList();
   }
 
   /// Получает список промо-акций для отображения
@@ -137,11 +165,36 @@ class _MainScreenState extends State<MainScreen> {
               Expanded(
                 child: menuProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : RefreshIndicator(
-                        onRefresh: _loadMenu,
-                        child: CustomScrollView(
-                          controller: _scrollController,
-                          slivers: [
+                    : GestureDetector(
+                        onVerticalDragEnd: (details) {
+                          // Свайп вниз - расширить категорию
+                          if (details.primaryVelocity != null && 
+                              details.primaryVelocity! > 500 &&
+                              menuProvider.selectedCategoryId != null) {
+                            final products = _getProductsForCategory(
+                                menuProvider.selectedCategoryId, menuProvider);
+                            if (products.isNotEmpty) {
+                              _expandCategory(menuProvider.selectedCategoryId);
+                            }
+                          }
+                        },
+                        onHorizontalDragEnd: (details) {
+                          // Свайп вправо - расширить категорию
+                          if (details.primaryVelocity != null && 
+                              details.primaryVelocity! < -500 &&
+                              menuProvider.selectedCategoryId != null) {
+                            final products = _getProductsForCategory(
+                                menuProvider.selectedCategoryId, menuProvider);
+                            if (products.isNotEmpty) {
+                              _expandCategory(menuProvider.selectedCategoryId);
+                            }
+                          }
+                        },
+                        child: RefreshIndicator(
+                          onRefresh: _loadMenu,
+                          child: CustomScrollView(
+                            controller: _scrollController,
+                            slivers: [
                             // Hero промо-контент (текст поверх фона)
                             SliverToBoxAdapter(
                               child: const HeroPromoContent()
@@ -155,6 +208,7 @@ class _MainScreenState extends State<MainScreen> {
                               categories: menuProvider.categories,
                               selectedCategoryId: menuProvider.selectedCategoryId,
                               onCategorySelected: (categoryId) {
+                                // При нажатии просто показываем товары на главном экране
                                 menuProvider.selectCategory(categoryId);
                               },
                             ),
@@ -201,10 +255,14 @@ class _MainScreenState extends State<MainScreen> {
                           ],
                         ),
                       ),
+                    ),
               ),
             ],
           ),
           
+          // Расширенный вид категории (overlay при свайпе)
+          if (_isCategoryExpanded)
+            _buildExpandedCategoryView(menuProvider),
         ],
       ),
       floatingActionButton: Consumer<CartProvider>(
@@ -285,5 +343,76 @@ class _MainScreenState extends State<MainScreen> {
         },
       ),
     );
+  }
+
+  /// Расширенный вид категории (full-screen overlay)
+  Widget _buildExpandedCategoryView(MenuProvider menuProvider) {
+    if (_expandedCategoryId == null) return const SizedBox.shrink();
+    
+    try {
+      final category = menuProvider.categories
+          .firstWhere((cat) => cat.id == _expandedCategoryId);
+      final products = _getProductsForCategory(_expandedCategoryId, menuProvider);
+      
+      return AnimatedBuilder(
+        animation: _expansionAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: 0.8 + (_expansionAnimation.value * 0.2), // От 0.8 до 1.0
+            child: Opacity(
+              opacity: _expansionAnimation.value,
+              child: GestureDetector(
+                onVerticalDragEnd: (details) {
+                  // Свайп вверх - закрыть расширение
+                  if (details.primaryVelocity != null && 
+                      details.primaryVelocity! < -500) {
+                    _collapseCategory();
+                  }
+                },
+                onHorizontalDragEnd: (details) {
+                  // Свайп влево - закрыть расширение
+                  if (details.primaryVelocity != null && 
+                      details.primaryVelocity! > 500) {
+                    _collapseCategory();
+                  }
+                },
+                child: Container(
+                  color: Colors.white,
+                  child: CategoryScreen(
+                    category: category,
+                    products: products,
+                    onBack: _collapseCategory,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      print('⚠️ Category not found for expansion: $_expandedCategoryId');
+      return const SizedBox.shrink();
+    }
+  }
+
+  /// Запуск расширения категории
+  void _expandCategory(String? categoryId) {
+    setState(() {
+      _expandedCategoryId = categoryId;
+      _isCategoryExpanded = true;
+    });
+    _expansionController.forward();
+  }
+
+  /// Закрытие расширенного вида
+  void _collapseCategory() {
+    _expansionController.reverse().then((_) {
+      if (mounted) {
+        setState(() {
+          _isCategoryExpanded = false;
+          _expandedCategoryId = null;
+        });
+      }
+    });
   }
 }
