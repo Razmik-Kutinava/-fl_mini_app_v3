@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../models/location.dart';
+import '../utils/responsive.dart';
 
 class LocationAppBar extends StatelessWidget {
   final Location? location;
@@ -18,9 +19,41 @@ class LocationAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Адаптивные размеры
+    final iconSize = Responsive.responsiveSize(
+      context,
+      mobile: 40.0,
+      tablet: 44.0,
+      desktop: 48.0,
+    );
+    
+    final iconInnerSize = Responsive.responsiveSize(
+      context,
+      mobile: 22.0,
+      tablet: 24.0,
+      desktop: 26.0,
+    );
+    
+    final fontSize = Responsive.responsiveSize(
+      context,
+      mobile: 16.0,
+      tablet: 18.0,
+      desktop: 20.0,
+    );
+    
+    final padding = Responsive.responsiveSize(
+      context,
+      mobile: 16.0,
+      tablet: 20.0,
+      desktop: 24.0,
+    );
+
     return SafeArea(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: EdgeInsets.symmetric(
+          horizontal: padding,
+          vertical: Responsive.responsiveSize(context, mobile: 12.0, tablet: 14.0, desktop: 16.0),
+        ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: BackdropFilter(
@@ -41,8 +74,8 @@ class LocationAppBar extends StatelessWidget {
                   GestureDetector(
                     onTap: onLocationTap,
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: iconSize,
+                      height: iconSize,
                       decoration: BoxDecoration(
                         color: AppColors.bottomNavActive, // Синий цвет
                         shape: BoxShape.circle,
@@ -54,10 +87,10 @@ class LocationAppBar extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.location_on,
                         color: Colors.white,
-                        size: 22,
+                        size: iconInnerSize,
                       ),
                     ),
                   ),
@@ -72,9 +105,11 @@ class LocationAppBar extends StatelessWidget {
                           location?.name ?? 'Кофейня',
                           style: GoogleFonts.montserrat(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
+                            fontSize: fontSize,
                             color: AppColors.textPrimary,
                           ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
                         const SizedBox(height: 4),
                         // Статус бейдж
@@ -87,16 +122,16 @@ class LocationAppBar extends StatelessWidget {
                   GestureDetector(
                     onTap: onProfileTap,
                     child: Container(
-                      width: 40,
-                      height: 40,
+                      width: iconSize,
+                      height: iconSize,
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.person_outline,
                         color: AppColors.textPrimary,
-                        size: 22,
+                        size: iconInnerSize,
                       ),
                     ),
                   ),

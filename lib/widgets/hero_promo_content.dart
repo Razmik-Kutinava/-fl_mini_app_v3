@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../utils/responsive.dart';
 
 class HeroPromoContent extends StatelessWidget {
   final String? title;
@@ -15,11 +16,41 @@ class HeroPromoContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final bannerHeight = screenHeight * 0.65;
+    // Адаптивная высота баннера
+    final bannerHeight = Responsive.isMobile(context)
+        ? screenHeight * 0.65
+        : Responsive.isTablet(context)
+            ? screenHeight * 0.60
+            : screenHeight * 0.55;
+
+    // Адаптивные размеры текста
+    final titleFontSize = Responsive.responsiveSize(
+      context,
+      mobile: 32.0,
+      tablet: 40.0,
+      desktop: 48.0,
+    );
+
+    final subtitleFontSize = Responsive.responsiveSize(
+      context,
+      mobile: 16.0,
+      tablet: 18.0,
+      desktop: 20.0,
+    );
+
+    final padding = Responsive.responsiveSize(
+      context,
+      mobile: 24.0,
+      tablet: 32.0,
+      desktop: 48.0,
+    );
 
     return Container(
       height: bannerHeight,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: EdgeInsets.symmetric(
+        horizontal: padding,
+        vertical: Responsive.responsiveSize(context, mobile: 20.0, tablet: 24.0, desktop: 32.0),
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,7 +60,7 @@ class HeroPromoContent extends StatelessWidget {
           Text(
             title ?? 'Каждому другу – по\nподарку! Выбирай и\nотправляй',
             style: GoogleFonts.montserrat(
-              fontSize: 32,
+              fontSize: titleFontSize,
               fontWeight: FontWeight.bold,
               height: 1.2,
               color: Colors.white,
@@ -50,7 +81,7 @@ class HeroPromoContent extends StatelessWidget {
             Text(
               subtitle!,
               style: GoogleFonts.inter(
-                fontSize: 16,
+                fontSize: subtitleFontSize,
                 color: Colors.white.withOpacity(0.9),
                 shadows: [
                   Shadow(

@@ -6,14 +6,14 @@ class Category {
   Category({
     required this.id,
     required this.name,
-    required this.emoji,
-  });
+    String? emoji,
+  }) : emoji = emoji ?? '☕';
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: json['id'],
-      name: json['name'],
-      emoji: json['emoji'] ?? '☕',
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      emoji: json['emoji'],
     );
   }
 }

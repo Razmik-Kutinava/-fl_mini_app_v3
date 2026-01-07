@@ -14,8 +14,9 @@ import '../widgets/product_card.dart';
 import '../widgets/background_hero_banner.dart';
 import '../widgets/location_app_bar.dart';
 import '../widgets/hero_promo_content.dart';
-import '../widgets/bottom_category_navigation.dart';
+import '../widgets/category_navigation_scrollable.dart';
 import '../widgets/promo_section.dart';
+import '../utils/responsive.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
 
@@ -66,19 +67,19 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  /// Проверяет, выбрана ли категория "акции"
+  /// Проверяет, выбрана ли категория "акции" или "для тебя"
   bool _isPromotionsCategory(String? categoryId, List categories) {
-    if (categoryId == null) return false;
+    // Категория "для тебя" (selectedCategoryId == null) показывает промо
+    if (categoryId == null) return true;
     
-    // Ищем категорию по id или названию
+    // Ищем категорию по id
     try {
-      categories.firstWhere(
-        (cat) => cat.id == categoryId || 
-                 cat.name.toLowerCase().contains('акци') ||
-                 cat.name.toLowerCase().contains('промо'),
-      );
-      return true;
+      final category = categories.firstWhere((cat) => cat.id == categoryId);
+      // Проверяем название категории - если это "акции" или "промо", показываем промо
+      final name = category.name.toLowerCase();
+      return name.contains('акци') || name.contains('промо');
     } catch (e) {
+      // Если категория не найдена, показываем товары (не промо)
       return false;
     }
   }
@@ -149,35 +150,53 @@ class _MainScreenState extends State<MainScreen> {
                                   .slideY(begin: 0.2, end: 0),
                             ),
                             
-                            // Белый фон для контента ниже промо
+                            // Навигация по категориям (внутри скролла, полупрозрачный черный фон)
+                            CategoryNavigationScrollable(
+                              categories: menuProvider.categories,
+                              selectedCategoryId: menuProvider.selectedCategoryId,
+                              onCategorySelected: (categoryId) {
+                                menuProvider.selectCategory(categoryId);
+                              },
+                            ),
+                            
+                            // Темный полупрозрачный фон для товаров/промо
                             SliverToBoxAdapter(
                               child: Container(
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: Radius.circular(30),
-                                    topRight: Radius.circular(30),
-                                  ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.4),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Динамический контент в зависимости от категории
-                                    if (isPromotions)
-                                      PromoSection(
-                                        promotions: _getPromotions(),
-                                      )
-                                    else
-                                      _buildProductsSection(menuProvider),
+                                    // Белый контейнер с закругленными верхними углами (внутри темного фона)
+                                    Container(
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: Radius.circular(30),
+                                          topRight: Radius.circular(30),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Динамический контент в зависимости от категории
+                                          if (isPromotions)
+                                            // Промо секция (если выбрана категория "для тебя" или акции)
+                                            PromoSection(
+                                              promotions: _getPromotions(),
+                                            )
+                                          else
+                                            // Товары в GridView (не Sliver, так как уже внутри SliverToBoxAdapter)
+                                            _buildProductsGrid(context, menuProvider),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                            ),
-                            
-                            // Отступ для bottom navigation
-                            const SliverToBoxAdapter(
-                              child: SizedBox(height: 90),
                             ),
                           ],
                         ),
@@ -186,19 +205,6 @@ class _MainScreenState extends State<MainScreen> {
             ],
           ),
           
-          // Bottom Navigation (фиксированная внизу)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: BottomCategoryNavigation(
-              categories: menuProvider.categories,
-              selectedCategoryId: menuProvider.selectedCategoryId,
-              onCategorySelected: (categoryId) {
-                menuProvider.selectCategory(categoryId);
-              },
-            ),
-          ),
         ],
       ),
       floatingActionButton: Consumer<CartProvider>(
@@ -245,33 +251,38 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildProductsSection(MenuProvider menuProvider) {
+  /// GridView товаров (не Sliver, для использования внутри SliverToBoxAdapter)
+  Widget _buildProductsGrid(BuildContext context, MenuProvider menuProvider) {
+    // Адаптивное количество колонок
+    final crossAxisCount = Responsive.responsiveCrossAxisCount(context);
+    
+    // Адаптивные отступы
+    final padding = Responsive.responsiveSize(
+      context,
+      mobile: 16.0,
+      tablet: 24.0,
+      desktop: 32.0,
+    );
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 16),
-          // Products Grid
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 0.75,
-            ),
-            itemCount: menuProvider.products.length,
-            itemBuilder: (context, index) {
-              final product = menuProvider.products[index];
-              return ProductCard(product: product)
-                  .animate(delay: Duration(milliseconds: 50 * index))
-                  .fadeIn()
-                  .scale(begin: const Offset(0.9, 0.9));
-            },
-          ),
-        ],
+      padding: EdgeInsets.all(padding),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: crossAxisCount,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: 0.75,
+        ),
+        itemCount: menuProvider.products.length,
+        itemBuilder: (context, index) {
+          final product = menuProvider.products[index];
+          return ProductCard(product: product)
+              .animate(delay: Duration(milliseconds: 50 * index))
+              .fadeIn()
+              .scale(begin: const Offset(0.9, 0.9));
+        },
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import '../constants/app_colors.dart';
+import '../utils/responsive.dart';
 
 class BackgroundHeroBanner extends StatelessWidget {
   final ScrollController? scrollController;
@@ -68,48 +69,74 @@ class BackgroundHeroBanner extends StatelessWidget {
   }
 
   Widget _buildDecorativeCircles() {
-    return Stack(
-      children: [
-        // Большой круг справа вверху
-        Positioned(
-          right: -40,
-          top: -40,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.1),
+    return Builder(
+      builder: (context) {
+        // Адаптивные размеры кругов
+        final largeCircleSize = Responsive.responsiveSize(
+          context,
+          mobile: 200.0,
+          tablet: 250.0,
+          desktop: 300.0,
+        );
+
+        final mediumCircleSize = Responsive.responsiveSize(
+          context,
+          mobile: 150.0,
+          tablet: 180.0,
+          desktop: 220.0,
+        );
+
+        final smallCircleSize = Responsive.responsiveSize(
+          context,
+          mobile: 80.0,
+          tablet: 100.0,
+          desktop: 120.0,
+        );
+
+        return Stack(
+          children: [
+            // Большой круг справа вверху
+            Positioned(
+              right: -40,
+              top: -40,
+              child: Container(
+                width: largeCircleSize,
+                height: largeCircleSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.1),
+                ),
+              ),
             ),
-          ),
-        ),
-        // Средний круг справа внизу
-        Positioned(
-          right: 60,
-          bottom: -60,
-          child: Container(
-            width: 150,
-            height: 150,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.08),
+            // Средний круг справа внизу
+            Positioned(
+              right: 60,
+              bottom: -60,
+              child: Container(
+                width: mediumCircleSize,
+                height: mediumCircleSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.08),
+                ),
+              ),
             ),
-          ),
-        ),
-        // Маленькие круги
-        Positioned(
-          left: 50,
-          top: 100,
-          child: Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.06),
+            // Маленькие круги
+            Positioned(
+              left: 50,
+              top: 100,
+              child: Container(
+                width: smallCircleSize,
+                height: smallCircleSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withOpacity(0.06),
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }

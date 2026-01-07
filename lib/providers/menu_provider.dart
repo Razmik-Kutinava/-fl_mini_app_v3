@@ -9,9 +9,19 @@ class MenuProvider with ChangeNotifier {
   bool _isLoading = false;
 
   List<models.Category> get categories => _categories;
-  List<Product> get products => _selectedCategoryId == null
-      ? _products
-      : _products.where((p) => p.categoryId == _selectedCategoryId).toList();
+  List<Product> get products {
+    if (_selectedCategoryId == null) {
+      // Если категория не выбрана ("для тебя"), возвращаем все товары
+      return _products;
+    }
+    // Фильтруем товары по выбранной категории
+    final filtered = _products.where((p) => p.categoryId == _selectedCategoryId).toList();
+    print('🔍 MenuProvider.products: selectedCategoryId=$_selectedCategoryId, filtered count=${filtered.length}, total products=${_products.length}');
+    for (var product in filtered) {
+      print('🔍 Filtered product: id=${product.id}, name=${product.name}, categoryId=${product.categoryId}');
+    }
+    return filtered;
+  }
   List<Product> get allProducts => _products;
   String? get selectedCategoryId => _selectedCategoryId;
   bool get isLoading => _isLoading;

@@ -260,11 +260,16 @@ class ApiService {
       final categoriesData = await SupabaseService.getCategories();
       final productsData = await SupabaseService.getProducts();
       
-      final categories = categoriesData.map((json) => Category(
-        id: json['id'] ?? '',
-        name: json['name'] ?? '',
-        emoji: json['emoji'] ?? '☕',
-      )).toList();
+      print('📋 Loading categories: ${categoriesData.length} items');
+      print('📋 Categories data: $categoriesData');
+      
+      final categories = categoriesData.map((json) {
+        final category = Category.fromJson(json);
+        print('📋 Created category: id=${category.id}, name=${category.name}, emoji=${category.emoji}');
+        return category;
+      }).toList();
+      
+      print('📋 Total categories created: ${categories.length}');
       
       final products = await Future.wait(productsData.map((json) async {
         final modifiers = await _loadProductModifiers(json['id']);

@@ -18,14 +18,185 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Coffee Mini App v2.0">
+  <meta name="description" content="Coffee Mini App v19.6">
   
   <!-- Cache control -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="2.0.1">
-
+  <meta name="version" content="19.6">
+  
+  <!-- Service Worker Cache Bust - Version 19.6 -->
+  <!-- КРИТИЧНО: Этот скрипт выполняется ПЕРВЫМ для отключения Service Workers ДО загрузки приложения -->
+  <script>
+    (function() {
+      var EXPECTED_VERSION = '19.6';
+      var VERSION_TIMESTAMP = Date.now();
+      console.log('🚀 Cache Bust Script v' + EXPECTED_VERSION + ' at ' + new Date().toISOString());
+      
+      // ШАГ 1: НЕМЕДЛЕННО отключить все Service Workers ДО загрузки приложения
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          console.log('🔴 Found ' + registrations.length + ' service workers - unregistering ALL');
+          var unregisterPromises = registrations.map(function(registration) {
+            return registration.unregister().then(function(success) {
+              console.log('🔴 Service Worker unregistered:', registration.scope, success);
+              return success;
+            }).catch(function(err) {
+              console.error('🔴 Error unregistering SW:', err);
+              return false;
+            });
+          });
+          Promise.all(unregisterPromises).then(function(results) {
+            console.log('🔴 All service workers unregistered:', results.every(r => r));
+          });
+        }).catch(function(err) {
+          console.error('🔴 Error getting service worker registrations:', err);
+        });
+      }
+      
+      // ШАГ 2: НЕМЕДЛЕННО очистить все кеши
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          console.log('🔴 Found ' + names.length + ' caches - deleting ALL');
+          var deletePromises = names.map(function(name) {
+            return caches.delete(name).then(function(success) {
+              console.log('🔴 Cache deleted:', name, success);
+              return success;
+            });
+          });
+          Promise.all(deletePromises).then(function(results) {
+            console.log('🔴 All caches deleted:', results.every(r => r));
+          });
+        });
+      }
+      
+      // ШАГ 3: Проверка версии после загрузки main.dart.js с более агрессивной проверкой
+      var versionCheckAttempts = 0;
+      var maxAttempts = 15; // Увеличено количество попыток
+      var lastCheckedVersion = sessionStorage.getItem('lastCheckedVersion');
+      
+      // Если версия не совпадает или не проверялась - принудительно перезагрузить
+      if (lastCheckedVersion && lastCheckedVersion !== EXPECTED_VERSION) {
+        console.warn('⚠️ Stored version mismatch:', lastCheckedVersion, 'vs', EXPECTED_VERSION);
+        sessionStorage.removeItem('lastCheckedVersion');
+        sessionStorage.removeItem('versionChecked');
+        sessionStorage.removeItem('forceReload');
+        sessionStorage.removeItem('cacheCleared');
+      }
+      
+      var checkVersion = setInterval(function() {
+        versionCheckAttempts++;
+        
+        // Проверяем версию в глобальной области (устанавливается в main.dart через js.context)
+        if (typeof window.DEPLOY_VERSION !== 'undefined') {
+          clearInterval(checkVersion);
+          var actualVersion = window.DEPLOY_VERSION;
+          console.log('📦 Detected version in JS:', actualVersion, 'Expected:', EXPECTED_VERSION);
+          
+          sessionStorage.setItem('lastCheckedVersion', actualVersion);
+          
+          if (actualVersion !== EXPECTED_VERSION) {
+            console.warn('⚠️ Version mismatch! Actual:', actualVersion, 'Expected:', EXPECTED_VERSION);
+            console.warn('⚠️ Forcing full cache clear and reload...');
+            
+            // Еще раз очищаем все кеши
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                names.forEach(function(name) {
+                  caches.delete(name);
+                });
+                // Отключаем service workers еще раз
+                if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.getRegistrations().then(function(regs) {
+                    regs.forEach(function(reg) {
+                      reg.unregister();
+                    });
+                    // Перезагрузка с очисткой кеша
+                    setTimeout(function() {
+                      window.location.href = window.location.href.split('?')[0] + '?v=' + VERSION_TIMESTAMP;
+                    }, 100);
+                  });
+                } else {
+                  window.location.href = window.location.href.split('?')[0] + '?v=' + VERSION_TIMESTAMP;
+                }
+              });
+            } else {
+              window.location.href = window.location.href.split('?')[0] + '?v=' + VERSION_TIMESTAMP;
+            }
+            return;
+          } else {
+            console.log('✅ Version check passed:', actualVersion);
+            sessionStorage.setItem('versionChecked', EXPECTED_VERSION);
+          }
+        } else if (versionCheckAttempts >= maxAttempts) {
+          clearInterval(checkVersion);
+          console.warn('⚠️ Could not detect DEPLOY_VERSION after', maxAttempts, 'attempts');
+          
+          // Если версия не найдена после всех попыток - принудительно перезагрузить с очисткой
+          var forceReloadKey = 'forceReload_' + EXPECTED_VERSION;
+          if (sessionStorage.getItem(forceReloadKey) !== 'done') {
+            console.warn('⚠️ Force reload due to version detection failure');
+            sessionStorage.setItem(forceReloadKey, 'done');
+            
+            // Финальная очистка всего
+            Promise.all([
+              'caches' in window ? caches.keys().then(function(names) {
+                return Promise.all(names.map(function(name) {
+                  return caches.delete(name);
+                }));
+              }) : Promise.resolve(),
+              'serviceWorker' in navigator ? navigator.serviceWorker.getRegistrations().then(function(regs) {
+                return Promise.all(regs.map(function(reg) {
+                  return reg.unregister();
+                }));
+              }) : Promise.resolve()
+            ]).then(function() {
+              // Перезагрузка с уникальным параметром для обхода кеша
+              window.location.href = window.location.href.split('?')[0] + '?v=' + VERSION_TIMESTAMP + '&force=true';
+            });
+          }
+        }
+      }, 500);
+      // ШАГ 4: Дополнительная защита - перехват создания script тегов для добавления версии
+      var originalCreateElement = document.createElement;
+      document.createElement = function(tagName) {
+        var element = originalCreateElement.call(document, tagName);
+        if (tagName.toLowerCase() === 'script') {
+          var originalSetAttribute = element.setAttribute;
+          element.setAttribute = function(name, value) {
+            if (name === 'src' && value && value.includes('main.dart.js') && !value.includes('?v=')) {
+              value = value + '?v=' + EXPECTED_VERSION + '&t=' + VERSION_TIMESTAMP;
+              console.log('🔧 Modified script src:', value);
+            }
+            return originalSetAttribute.call(this, name, value);
+          };
+          
+          // Также перехватываем прямое присваивание src
+          var srcDescriptor = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+          if (srcDescriptor && srcDescriptor.set) {
+            var originalSrcSetter = srcDescriptor.set;
+            Object.defineProperty(element, 'src', {
+              get: function() {
+                return this._src || '';
+              },
+              set: function(value) {
+                if (value && value.includes('main.dart.js') && !value.includes('?v=')) {
+                  value = value + '?v=' + EXPECTED_VERSION + '&t=' + VERSION_TIMESTAMP;
+                  console.log('🔧 Modified script src (setter):', value);
+                }
+                this._src = value;
+                originalSrcSetter.call(this, value);
+              },
+              configurable: true
+            });
+          }
+        }
+        return element;
+      };
+    })();
+  </script>
+  
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -42,6 +213,6 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=19.6" async></script>
 </body>
 </html>
