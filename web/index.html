@@ -24,12 +24,12 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="19.4">
+  <meta name="version" content="19.5">
   
-  <!-- Service Worker Cache Bust - Version 19.4 -->
+  <!-- Service Worker Cache Bust - Version 19.5 -->
   <script>
     (function() {
-      var EXPECTED_VERSION = '19.4';
+      var EXPECTED_VERSION = '19.5';
       console.log('🚀 Cache Bust Script v' + EXPECTED_VERSION);
       
       // Проверка версии через короткую задержку после загрузки
@@ -68,6 +68,22 @@
         } else if (versionCheckAttempts >= maxAttempts) {
           clearInterval(checkVersion);
           console.warn('⚠️ Could not detect DEPLOY_VERSION after', maxAttempts, 'attempts');
+          // Если версия не найдена - возможно старая версия загрузилась
+          // Принудительно очищаем кеш и перезагружаем
+          if (sessionStorage.getItem('forceReload') !== EXPECTED_VERSION) {
+            console.warn('⚠️ Force reload due to version detection failure');
+            sessionStorage.setItem('forceReload', EXPECTED_VERSION);
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                names.forEach(function(name) {
+                  caches.delete(name);
+                });
+                window.location.reload(true);
+              });
+            } else {
+              window.location.reload(true);
+            }
+          }
         }
       }, 500);
       
@@ -86,7 +102,7 @@
       }
       
       // Очистка всех кешей при первой загрузке новой версии
-      if ('caches' in window && sessionStorage.getItem('cacheCleared') !== EXPECTED_VERSION) {
+      if ('caches' in window && sessionStorage.getItem('cacheCleared') !== EXPECTED_VERSION && sessionStorage.getItem('forceReload') !== EXPECTED_VERSION) {
         caches.keys().then(function(names) {
           console.log('Found ' + names.length + ' caches to delete');
           if (names.length > 0) {
@@ -122,6 +138,32 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js?v=19.4" async></script>
+  <script>
+    // Переопределяем загрузку main.dart.js с версией ДО загрузки bootstrap
+    (function() {
+      var originalCreateElement = document.createElement;
+      document.createElement = function(tagName) {
+        var element = originalCreateElement.call(document, tagName);
+        if (tagName.toLowerCase() === 'script' && element.src) {
+          // Перехватываем создание script тега для main.dart.js
+          var originalSrc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
+          if (!originalSrc) {
+            Object.defineProperty(element, 'src', {
+              get: function() { return this._src; },
+              set: function(value) {
+                this._src = value;
+                // Добавляем версию к main.dart.js
+                if (value && value.includes('main.dart.js') && !value.includes('?v=')) {
+                  this._src = value + '?v=19.5';
+                }
+              }
+            });
+          }
+        }
+        return element;
+      };
+    })();
+  </script>
+  <script src="flutter_bootstrap.js?v=19.5" async></script>
 </body>
 </html>
