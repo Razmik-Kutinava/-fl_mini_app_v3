@@ -20,7 +20,7 @@ import 'dart:ui'; // Для ImageFilter.blur
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
 const String DEPLOY_VERSION = '19.0';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-23 22:00:00'; // Обновлять при каждом деплое! UI/UX Redesign with bottom navigation
+    '2025-01-23 22:15:00'; // Обновлять при каждом деплое! UI/UX Redesign with bottom navigation - BUILD TRIGGER
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
