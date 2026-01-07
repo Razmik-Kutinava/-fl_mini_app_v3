@@ -158,42 +158,50 @@
           }
         }
       }, 500);
-      // ШАГ 4: Дополнительная защита - перехват создания script тегов для добавления версии
-      var originalCreateElement = document.createElement;
-      document.createElement = function(tagName) {
-        var element = originalCreateElement.call(document, tagName);
-        if (tagName.toLowerCase() === 'script') {
-          var originalSetAttribute = element.setAttribute;
-          element.setAttribute = function(name, value) {
-            if (name === 'src' && value && value.includes('main.dart.js') && !value.includes('?v=')) {
-              value = value + '?v=' + EXPECTED_VERSION + '&t=' + VERSION_TIMESTAMP;
-              console.log('🔧 Modified script src:', value);
-            }
-            return originalSetAttribute.call(this, name, value);
-          };
-          
-          // Также перехватываем прямое присваивание src
-          var srcDescriptor = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
-          if (srcDescriptor && srcDescriptor.set) {
-            var originalSrcSetter = srcDescriptor.set;
-            Object.defineProperty(element, 'src', {
-              get: function() {
-                return this._src || '';
-              },
-              set: function(value) {
-                if (value && value.includes('main.dart.js') && !value.includes('?v=')) {
-                  value = value + '?v=' + EXPECTED_VERSION + '&t=' + VERSION_TIMESTAMP;
-                  console.log('🔧 Modified script src (setter):', value);
+      // ШАГ 4: Перехват загрузки main.dart.js через модификацию _flutter.buildConfig
+      // Это более надежный способ чем перехват createElement
+      var originalFlutterConfig = window._flutter;
+      Object.defineProperty(window, '_flutter', {
+        get: function() {
+          return originalFlutterConfig;
+        },
+        set: function(value) {
+          originalFlutterConfig = value;
+          // Модифицируем buildConfig для добавления версии к main.dart.js
+          if (value && value.buildConfig && value.buildConfig.builds) {
+            value.buildConfig.builds.forEach(function(build) {
+              if (build && build.mainJsPath && typeof build.mainJsPath === 'string') {
+                if (build.mainJsPath.includes('main.dart.js') && !build.mainJsPath.includes('?v=')) {
+                  build.mainJsPath = build.mainJsPath + '?v=' + EXPECTED_VERSION + '&t=' + VERSION_TIMESTAMP;
+                  console.log('🔧 Modified buildConfig mainJsPath:', build.mainJsPath);
                 }
-                this._src = value;
-                originalSrcSetter.call(this, value);
-              },
-              configurable: true
+              }
             });
           }
-        }
-        return element;
-      };
+        },
+        configurable: true
+      });
+    })();
+      // ШАГ 4: Упрощенный подход - перехватываем загрузку через MutationObserver
+      // Наблюдаем за добавлением script тегов и модифицируем их src
+      var observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+          mutation.addedNodes.forEach(function(node) {
+            if (node.tagName === 'SCRIPT' && node.src) {
+              var src = node.src;
+              if (typeof src === 'string' && src.includes('main.dart.js') && !src.includes('?v=')) {
+                var newSrc = src + '?v=' + EXPECTED_VERSION + '&t=' + VERSION_TIMESTAMP;
+                console.log('🔧 Detected main.dart.js, modifying:', src, '->', newSrc);
+                node.src = newSrc;
+              }
+            }
+          });
+        });
+      });
+      
+      // Начинаем наблюдение
+      observer.observe(document.head, { childList: true, subtree: true });
+      observer.observe(document.body, { childList: true, subtree: true });
     })();
   </script>
   
