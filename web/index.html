@@ -24,41 +24,82 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="19.3">
+  <meta name="version" content="19.4">
   
-  <!-- Service Worker Cache Bust - Version 19.3 -->
+  <!-- Service Worker Cache Bust - Version 19.4 -->
   <script>
     (function() {
-      console.log('🚀 Cache Bust Script v19.3');
-      // Принудительное обновление кеша при новой версии
+      var EXPECTED_VERSION = '19.4';
+      console.log('🚀 Cache Bust Script v' + EXPECTED_VERSION);
+      
+      // Проверка версии через короткую задержку после загрузки
+      // Проверка версии после загрузки main.dart.js
+      var versionCheckAttempts = 0;
+      var maxAttempts = 10;
+      
+      var checkVersion = setInterval(function() {
+        versionCheckAttempts++;
+        // Проверяем версию в глобальной области (устанавливается в main.dart)
+        if (typeof window.DEPLOY_VERSION !== 'undefined') {
+          clearInterval(checkVersion);
+          var actualVersion = window.DEPLOY_VERSION;
+          console.log('📦 Detected version in JS:', actualVersion, 'Expected:', EXPECTED_VERSION);
+          
+          if (actualVersion !== EXPECTED_VERSION && sessionStorage.getItem('versionChecked') !== EXPECTED_VERSION) {
+            console.warn('⚠️ Version mismatch! Actual:', actualVersion, 'Expected:', EXPECTED_VERSION);
+            console.warn('⚠️ Forcing cache clear and reload...');
+            sessionStorage.setItem('versionChecked', EXPECTED_VERSION);
+            // Очистка всех кешей
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                names.forEach(function(name) {
+                  caches.delete(name);
+                });
+                // Перезагрузка с очисткой кеша
+                window.location.reload(true);
+              });
+            } else {
+              window.location.reload(true);
+            }
+            return;
+          } else {
+            console.log('✅ Version check passed:', actualVersion);
+          }
+        } else if (versionCheckAttempts >= maxAttempts) {
+          clearInterval(checkVersion);
+          console.warn('⚠️ Could not detect DEPLOY_VERSION after', maxAttempts, 'attempts');
+        }
+      }, 500);
+      
+      // Принудительное обновление service worker
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function(registrations) {
           console.log('Found ' + registrations.length + ' service workers');
-          for(let registration of registrations) {
+          registrations.forEach(function(registration) {
             registration.unregister().then(function(success) {
               console.log('Service Worker unregistered:', success);
             }).catch(function(err) {
               console.error('Error unregistering SW:', err);
             });
-          }
+          });
         });
       }
-      // Очистка всех кешей
-      if ('caches' in window) {
+      
+      // Очистка всех кешей при первой загрузке новой версии
+      if ('caches' in window && sessionStorage.getItem('cacheCleared') !== EXPECTED_VERSION) {
         caches.keys().then(function(names) {
           console.log('Found ' + names.length + ' caches to delete');
-          for (let name of names) {
-            caches.delete(name).then(function(success) {
-              console.log('Cache deleted:', name, success);
+          if (names.length > 0) {
+            names.forEach(function(name) {
+              caches.delete(name).then(function(success) {
+                console.log('Cache deleted:', name, success);
+              });
             });
-          }
-          // Перезагрузка после очистки кеша (только если не первый раз)
-          if (names.length > 0 && sessionStorage.getItem('cacheCleared') !== '19.3') {
-            sessionStorage.setItem('cacheCleared', '19.3');
-            console.log('Cache cleared, reloading...');
+            sessionStorage.setItem('cacheCleared', EXPECTED_VERSION);
+            // Перезагрузка только если есть кеши
             setTimeout(function() {
               window.location.reload(true);
-            }, 100);
+            }, 200);
           }
         });
       }
@@ -81,6 +122,6 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=19.4" async></script>
 </body>
 </html>

@@ -16,11 +16,12 @@ import 'models/location.dart';
 import 'models/product.dart';
 import 'models/cart_item.dart';
 import 'dart:ui'; // Для ImageFilter.blur
+import 'dart:js' as js; // Для экспорта версии в JS
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '19.3';
+const String DEPLOY_VERSION = '19.4';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-23 23:00:00'; // Обновлять при каждом деплое! UI/UX Redesign - BUILD VERIFIED
+    '2025-01-23 23:15:00'; // Обновлять при каждом деплое! UI/UX Redesign - CACHE HEADERS FIX
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
@@ -80,6 +81,14 @@ void main() async {
   print('🚀 TIMESTAMP: $DEPLOY_TIMESTAMP');
   print('═══════════════════════════════════════════════════════════');
   print('');
+
+  // Экспортируем версию в window для проверки в JS
+  try {
+    js.context['DEPLOY_VERSION'] = DEPLOY_VERSION;
+    js.context['DEPLOY_TIMESTAMP'] = DEPLOY_TIMESTAMP;
+  } catch (e) {
+    print('⚠️ Could not export version to JS: $e');
+  }
 
   WidgetsFlutterBinding.ensureInitialized();
 

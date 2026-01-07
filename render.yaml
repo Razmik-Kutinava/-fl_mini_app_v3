@@ -5,6 +5,19 @@ services:
     buildCommand: flutter pub get && flutter build web --release
     staticPublishPath: ./build/web
     pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate
+      - path: /*.js
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate, max-age=0
+      - path: /*.js.map
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate, max-age=0
+      - path: /*.wasm
+        name: Cache-Control
+        value: no-cache, no-store, must-revalidate, max-age=0
     routes:
       - type: rewrite
         source: /*
