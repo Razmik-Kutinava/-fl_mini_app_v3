@@ -21,7 +21,6 @@ import '../utils/responsive.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
 import 'category_screen.dart';
-import '../models/category.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -33,18 +32,20 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
-  
+
   // Состояние расширения категории
   bool _isCategoryExpanded = false;
   String? _expandedCategoryId;
   late AnimationController _expansionController;
   late Animation<double> _expansionAnimation;
+  late PageController _categoryPageController;
+  int _currentCategoryPageIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _loadMenu();
-    
+
     // Инициализация анимации расширения
     _expansionController = AnimationController(
       vsync: this,
@@ -54,24 +55,28 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       parent: _expansionController,
       curve: Curves.easeInOut,
     );
+
+    // Инициализация PageController для переключения категорий
+    _categoryPageController = PageController(initialPage: 0);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
     _expansionController.dispose();
+    _categoryPageController.dispose();
     super.dispose();
   }
 
   Future<void> _loadMenu() async {
     final menuProvider = context.read<MenuProvider>();
     final locationProvider = context.read<LocationProvider>();
-    
+
     menuProvider.setLoading(true);
-    
+
     final locationId = locationProvider.selectedLocation?.id ?? 'loc_1';
     final menuData = await _apiService.getMenu(locationId);
-    
+
     menuProvider.setCategories(menuData['categories']);
     menuProvider.setProducts(menuData['products']);
     menuProvider.setLoading(false);
@@ -81,9 +86,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void _handleGeoRequest() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => const LocationSelectScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const LocationSelectScreen()),
     );
   }
 
@@ -91,7 +94,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   bool _isPromotionsCategory(String? categoryId, List categories) {
     // Категория "для тебя" (selectedCategoryId == null) показывает промо
     if (categoryId == null) return true;
-    
+
     // Ищем категорию по id
     try {
       final category = categories.firstWhere((cat) => cat.id == categoryId);
@@ -105,7 +108,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   /// Получает товары для категории
-  List<Product> _getProductsForCategory(String? categoryId, MenuProvider menuProvider) {
+  List<Product> _getProductsForCategory(
+    String? categoryId,
+    MenuProvider menuProvider,
+  ) {
     if (categoryId == null) return menuProvider.allProducts;
     return menuProvider.allProducts
         .where((p) => p.categoryId == categoryId)
@@ -145,10 +151,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       body: Stack(
         children: [
           // Фоновый баннер на весь экран
-          BackgroundHeroBanner(
-            scrollController: _scrollController,
-          ),
-          
+          BackgroundHeroBanner(scrollController: _scrollController),
+
           // Основной контент поверх фона
           Column(
             children: [
@@ -160,7 +164,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                   // TODO: Открыть профиль
                 },
               ),
-              
+
               // Скроллируемый контент
               Expanded(
                 child: menuProvider.isLoading
@@ -168,23 +172,27 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     : GestureDetector(
                         onVerticalDragEnd: (details) {
                           // Свайп вниз - расширить категорию
-                          if (details.primaryVelocity != null && 
-                              details.primaryVelocity! > 500 &&
+                          if (details.primaryVelocity != null &&
+                              details.primaryVelocity! > 400 &&
                               menuProvider.selectedCategoryId != null) {
                             final products = _getProductsForCategory(
-                                menuProvider.selectedCategoryId, menuProvider);
+                              menuProvider.selectedCategoryId,
+                              menuProvider,
+                            );
                             if (products.isNotEmpty) {
                               _expandCategory(menuProvider.selectedCategoryId);
                             }
                           }
                         },
                         onHorizontalDragEnd: (details) {
-                          // Свайп вправо - расширить категорию
-                          if (details.primaryVelocity != null && 
-                              details.primaryVelocity! < -500 &&
+                          // Свайп вправо - расширить категорию (только если не на области категорий)
+                          if (details.primaryVelocity != null &&
+                              details.primaryVelocity! < -400 &&
                               menuProvider.selectedCategoryId != null) {
                             final products = _getProductsForCategory(
-                                menuProvider.selectedCategoryId, menuProvider);
+                              menuProvider.selectedCategoryId,
+                              menuProvider,
+                            );
                             if (products.isNotEmpty) {
                               _expandCategory(menuProvider.selectedCategoryId);
                             }
@@ -195,74 +203,79 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                           child: CustomScrollView(
                             controller: _scrollController,
                             slivers: [
-                            // Hero промо-контент (текст поверх фона)
-                            SliverToBoxAdapter(
-                              child: const HeroPromoContent()
-                                  .animate()
-                                  .fadeIn(delay: 200.ms)
-                                  .slideY(begin: 0.2, end: 0),
-                            ),
-                            
-                            // Навигация по категориям (внутри скролла, полупрозрачный черный фон)
-                            CategoryNavigationScrollable(
-                              categories: menuProvider.categories,
-                              selectedCategoryId: menuProvider.selectedCategoryId,
-                              onCategorySelected: (categoryId) {
-                                // При нажатии просто показываем товары на главном экране
-                                menuProvider.selectCategory(categoryId);
-                              },
-                            ),
-                            
-                            // Темный полупрозрачный фон для товаров/промо
-                            SliverToBoxAdapter(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.4),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Белый контейнер с закругленными верхними углами (внутри темного фона)
-                                    Container(
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(30),
-                                          topRight: Radius.circular(30),
+                              // Hero промо-контент (текст поверх фона)
+                              SliverToBoxAdapter(
+                                child: const HeroPromoContent()
+                                    .animate()
+                                    .fadeIn(delay: 200.ms)
+                                    .slideY(begin: 0.2, end: 0),
+                              ),
+
+                              // Навигация по категориям (внутри скролла, полупрозрачный черный фон)
+                              CategoryNavigationScrollable(
+                                categories: menuProvider.categories,
+                                selectedCategoryId:
+                                    menuProvider.selectedCategoryId,
+                                onCategorySelected: (categoryId) {
+                                  // При нажатии просто показываем товары на главном экране
+                                  menuProvider.selectCategory(categoryId);
+                                },
+                              ),
+
+                              // Темный полупрозрачный фон для товаров/промо
+                              SliverToBoxAdapter(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withOpacity(0.4),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Белый контейнер с закругленными верхними углами (внутри темного фона)
+                                      Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(30),
+                                            topRight: Radius.circular(30),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            // Динамический контент в зависимости от категории
+                                            if (isPromotions)
+                                              // Промо секция (если выбрана категория "для тебя" или акции)
+                                              PromoSection(
+                                                promotions: _getPromotions(),
+                                              )
+                                            else
+                                              // Товары в GridView (не Sliver, так как уже внутри SliverToBoxAdapter)
+                                              _buildProductsGrid(
+                                                context,
+                                                menuProvider,
+                                              ),
+                                          ],
                                         ),
                                       ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          // Динамический контент в зависимости от категории
-                                          if (isPromotions)
-                                            // Промо секция (если выбрана категория "для тебя" или акции)
-                                            PromoSection(
-                                              promotions: _getPromotions(),
-                                            )
-                                          else
-                                            // Товары в GridView (не Sliver, так как уже внутри SliverToBoxAdapter)
-                                            _buildProductsGrid(context, menuProvider),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
               ),
             ],
           ),
-          
+
           // Расширенный вид категории (overlay при свайпе)
-          if (_isCategoryExpanded)
-            _buildExpandedCategoryView(menuProvider),
+          if (_isCategoryExpanded) _buildExpandedCategoryView(menuProvider),
         ],
       ),
       floatingActionButton: Consumer<CartProvider>(
@@ -273,13 +286,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 '${cartProvider.itemCount}',
                 style: const TextStyle(color: Colors.white, fontSize: 12),
               ),
-              badgeStyle: const badges.BadgeStyle(
-                badgeColor: AppColors.accent,
-              ),
+              badgeStyle: const badges.BadgeStyle(badgeColor: AppColors.accent),
               position: badges.BadgePosition.topEnd(top: -8, end: -8),
               child: FloatingActionButton.extended(
                 onPressed: () async {
-                  print('🛒 Cart button pressed, items: ${cartProvider.items.length}');
+                  print(
+                    '🛒 Cart button pressed, items: ${cartProvider.items.length}',
+                  );
                   HapticFeedback.lightImpact();
                   Navigator.push(
                     context,
@@ -313,7 +326,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   Widget _buildProductsGrid(BuildContext context, MenuProvider menuProvider) {
     // Адаптивное количество колонок
     final crossAxisCount = Responsive.responsiveCrossAxisCount(context);
-    
+
     // Адаптивные отступы
     final padding = Responsive.responsiveSize(
       context,
@@ -345,62 +358,174 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  /// Расширенный вид категории (full-screen overlay)
+  /// Получить список категорий с товарами (для PageView)
+  List<MapEntry<String, List<Product>>> _getCategoriesWithProducts(
+    MenuProvider menuProvider,
+  ) {
+    final result = <MapEntry<String, List<Product>>>[];
+
+    // Добавляем все категории, у которых есть товары
+    for (var category in menuProvider.categories) {
+      final products = _getProductsForCategory(category.id, menuProvider);
+      if (products.isNotEmpty) {
+        result.add(MapEntry(category.id, products));
+      }
+    }
+
+    return result;
+  }
+
+  /// Найти индекс категории в списке категорий с товарами
+  int _findCategoryIndex(
+    String? categoryId,
+    List<MapEntry<String, List<Product>>> categoriesWithProducts,
+  ) {
+    for (int i = 0; i < categoriesWithProducts.length; i++) {
+      if (categoriesWithProducts[i].key == categoryId) {
+        return i;
+      }
+    }
+    return 0;
+  }
+
+  /// Расширенный вид категории (full-screen overlay) с PageView
   Widget _buildExpandedCategoryView(MenuProvider menuProvider) {
     if (_expandedCategoryId == null) return const SizedBox.shrink();
-    
-    try {
-      final category = menuProvider.categories
-          .firstWhere((cat) => cat.id == _expandedCategoryId);
-      final products = _getProductsForCategory(_expandedCategoryId, menuProvider);
-      
-      return AnimatedBuilder(
-        animation: _expansionAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: 0.8 + (_expansionAnimation.value * 0.2), // От 0.8 до 1.0
-            child: Opacity(
-              opacity: _expansionAnimation.value,
-              child: GestureDetector(
-                onVerticalDragEnd: (details) {
-                  // Свайп вверх - закрыть расширение
-                  if (details.primaryVelocity != null && 
-                      details.primaryVelocity! < -500) {
+
+    final categoriesWithProducts = _getCategoriesWithProducts(menuProvider);
+    if (categoriesWithProducts.isEmpty) return const SizedBox.shrink();
+
+    // Убедимся, что PageController установлен на правильную страницу
+    final initialIndex = _findCategoryIndex(
+      _expandedCategoryId,
+      categoriesWithProducts,
+    );
+    if (_categoryPageController.hasClients &&
+        _currentCategoryPageIndex != initialIndex) {
+      _categoryPageController.jumpToPage(initialIndex);
+      _currentCategoryPageIndex = initialIndex;
+    }
+
+    return AnimatedBuilder(
+      animation: _expansionAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: 0.8 + (_expansionAnimation.value * 0.2), // От 0.8 до 1.0
+          child: Opacity(
+            opacity: _expansionAnimation.value,
+            child: GestureDetector(
+              onVerticalDragEnd: (details) {
+                // Свайп вверх - закрыть расширение
+                if (details.primaryVelocity != null &&
+                    details.primaryVelocity! < -400) {
+                  _collapseCategory();
+                }
+              },
+              onHorizontalDragEnd: (details) {
+                // Обработка свайпа влево/вправо для переключения категорий или закрытия
+                if (details.primaryVelocity == null) return;
+
+                // Свайп влево (положительная скорость) - может быть закрытие ИЛИ предыдущая категория
+                if (details.primaryVelocity! > 500) {
+                  // Если это первая категория - закрыть, иначе предыдущая
+                  if (_currentCategoryPageIndex == 0) {
                     _collapseCategory();
+                  } else {
+                    _switchToCategoryPage(
+                      _currentCategoryPageIndex - 1,
+                      categoriesWithProducts,
+                      menuProvider,
+                    );
                   }
-                },
-                onHorizontalDragEnd: (details) {
-                  // Свайп влево - закрыть расширение
-                  if (details.primaryVelocity != null && 
-                      details.primaryVelocity! > 500) {
-                    _collapseCategory();
+                }
+                // Свайп вправо (отрицательная скорость) - следующая категория
+                else if (details.primaryVelocity! < -400) {
+                  if (_currentCategoryPageIndex <
+                      categoriesWithProducts.length - 1) {
+                    _switchToCategoryPage(
+                      _currentCategoryPageIndex + 1,
+                      categoriesWithProducts,
+                      menuProvider,
+                    );
                   }
-                },
-                child: Container(
-                  color: Colors.white,
-                  child: CategoryScreen(
-                    category: category,
-                    products: products,
-                    onBack: _collapseCategory,
-                  ),
+                }
+              },
+              child: Container(
+                color: Colors.white,
+                child: PageView.builder(
+                  controller: _categoryPageController,
+                  itemCount: categoriesWithProducts.length,
+                  onPageChanged: (index) {
+                    _currentCategoryPageIndex = index;
+                    final newCategoryId = categoriesWithProducts[index].key;
+                    setState(() {
+                      _expandedCategoryId = newCategoryId;
+                    });
+                    // Обновить выбранную категорию в provider
+                    menuProvider.selectCategory(newCategoryId);
+                  },
+                  itemBuilder: (context, index) {
+                    final entry = categoriesWithProducts[index];
+                    final category = menuProvider.categories.firstWhere(
+                      (cat) => cat.id == entry.key,
+                      orElse: () => menuProvider.categories.first,
+                    );
+
+                    return CategoryScreen(
+                      category: category,
+                      products: entry.value,
+                      onBack: _collapseCategory,
+                    );
+                  },
                 ),
               ),
             ),
-          );
-        },
-      );
-    } catch (e) {
-      print('⚠️ Category not found for expansion: $_expandedCategoryId');
-      return const SizedBox.shrink();
-    }
+          ),
+        );
+      },
+    );
+  }
+
+  /// Переключить на указанную страницу категории
+  void _switchToCategoryPage(
+    int index,
+    List<MapEntry<String, List<Product>>> categoriesWithProducts,
+    MenuProvider menuProvider,
+  ) {
+    if (index < 0 || index >= categoriesWithProducts.length) return;
+
+    _currentCategoryPageIndex = index;
+    _categoryPageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   /// Запуск расширения категории
   void _expandCategory(String? categoryId) {
+    final menuProvider = context.read<MenuProvider>();
+    final categoriesWithProducts = _getCategoriesWithProducts(menuProvider);
+    final initialIndex = _findCategoryIndex(categoryId, categoriesWithProducts);
+
     setState(() {
       _expandedCategoryId = categoryId;
       _isCategoryExpanded = true;
+      _currentCategoryPageIndex = initialIndex;
     });
+
+    // Установить правильную страницу в PageController
+    if (_categoryPageController.hasClients) {
+      _categoryPageController.jumpToPage(initialIndex);
+    } else {
+      // Если контроллер еще не готов, обновим после анимации
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_categoryPageController.hasClients) {
+          _categoryPageController.jumpToPage(initialIndex);
+        }
+      });
+    }
+
     _expansionController.forward();
   }
 

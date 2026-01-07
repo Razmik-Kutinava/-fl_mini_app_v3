@@ -19,6 +19,46 @@ class CategoryNavigationScrollable extends StatelessWidget {
     this.showAll = true,
   });
 
+  /// Получить список всех категорий включая "для тебя"
+  List<CategoryItem> _getAllCategories() {
+    final items = <CategoryItem>[];
+    if (showAll) {
+      items.add(CategoryItem(id: null, name: 'для тебя'));
+    }
+    for (var cat in categories) {
+      items.add(CategoryItem(id: cat.id, name: cat.name));
+    }
+    return items;
+  }
+
+  /// Найти индекс текущей выбранной категории
+  int _getCurrentIndex() {
+    final allCategories = _getAllCategories();
+    for (int i = 0; i < allCategories.length; i++) {
+      if (allCategories[i].id == selectedCategoryId) {
+        return i;
+      }
+    }
+    return 0; // По умолчанию первая ("для тебя")
+  }
+
+  /// Переключить на следующую/предыдущую категорию
+  void _switchCategory(int direction) {
+    // direction: -1 = влево (предыдущая), 1 = вправо (следующая)
+    final allCategories = _getAllCategories();
+    if (allCategories.isEmpty) return;
+
+    final currentIndex = _getCurrentIndex();
+    int newIndex = currentIndex + direction;
+
+    // Ограничиваем границы
+    if (newIndex < 0) newIndex = allCategories.length - 1;
+    if (newIndex >= allCategories.length) newIndex = 0;
+
+    final newCategory = allCategories[newIndex];
+    onCategorySelected(newCategory.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     // Debug: логируем количество категорий
@@ -59,12 +99,25 @@ class CategoryNavigationScrollable extends StatelessWidget {
     );
 
     return SliverToBoxAdapter(
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.4),
-        ),
-        child: ListView.builder(
+      child: GestureDetector(
+        onHorizontalDragEnd: (details) {
+          if (details.primaryVelocity == null) return;
+          
+          // Свайп вправо (отрицательная скорость) -> следующая категория
+          if (details.primaryVelocity! < -300) {
+            _switchCategory(1); // Следующая
+          }
+          // Свайп влево (положительная скорость) -> предыдущая категория
+          else if (details.primaryVelocity! > 300) {
+            _switchCategory(-1); // Предыдущая
+          }
+        },
+        child: Container(
+          height: height,
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.4),
+          ),
+          child: ListView.builder(
           scrollDirection: Axis.horizontal,
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           itemCount: categories.length + (showAll ? 1 : 0),
@@ -93,9 +146,18 @@ class CategoryNavigationScrollable extends StatelessWidget {
             );
           },
         ),
+        ),
       ),
     );
   }
+}
+
+/// Вспомогательный класс для представления категории
+class CategoryItem {
+  final String? id;
+  final String name;
+
+  CategoryItem({this.id, required this.name});
 }
 
 /// Текстовый элемент категории без видимых кнопок/рамок
