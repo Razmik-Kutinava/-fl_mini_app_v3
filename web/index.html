@@ -26,28 +26,43 @@
   <meta http-equiv="Expires" content="0">
   <meta name="version" content="19.0">
   
-  <!-- Service Worker Cache Bust -->
+  <!-- Service Worker Cache Bust - Version 19.1 -->
   <script>
-    // Принудительное обновление кеша при новой версии
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(registrations) {
-        for(let registration of registrations) {
-          registration.unregister().then(function(success) {
-            if (success) console.log('Service Worker unregistered');
-          });
-        }
-      });
-    }
-    // Очистка кеша
-    if ('caches' in window) {
-      caches.keys().then(function(names) {
-        for (let name of names) {
-          caches.delete(name).then(function(success) {
-            if (success) console.log('Cache deleted:', name);
-          });
-        }
-      });
-    }
+    (function() {
+      console.log('🚀 Cache Bust Script v19.1');
+      // Принудительное обновление кеша при новой версии
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          console.log('Found ' + registrations.length + ' service workers');
+          for(let registration of registrations) {
+            registration.unregister().then(function(success) {
+              console.log('Service Worker unregistered:', success);
+            }).catch(function(err) {
+              console.error('Error unregistering SW:', err);
+            });
+          }
+        });
+      }
+      // Очистка всех кешей
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          console.log('Found ' + names.length + ' caches to delete');
+          for (let name of names) {
+            caches.delete(name).then(function(success) {
+              console.log('Cache deleted:', name, success);
+            });
+          }
+          // Перезагрузка после очистки кеша (только если не первый раз)
+          if (names.length > 0 && sessionStorage.getItem('cacheCleared') !== '19.1') {
+            sessionStorage.setItem('cacheCleared', '19.1');
+            console.log('Cache cleared, reloading...');
+            setTimeout(function() {
+              window.location.reload(true);
+            }, 100);
+          }
+        });
+      }
+    })();
   </script>
   
   <!-- iOS meta tags & icons -->
