@@ -95,26 +95,29 @@ class LocationAppBar extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  // Название локации и статус
+                  // Название локации и статус (кликабельно)
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          location?.name ?? 'Кофейня',
-                          style: GoogleFonts.montserrat(
-                            fontWeight: FontWeight.bold,
-                            fontSize: fontSize,
-                            color: AppColors.textPrimary,
+                    child: GestureDetector(
+                      onTap: onLocationTap,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            location?.name ?? 'Кофейня',
+                            style: GoogleFonts.montserrat(
+                              fontWeight: FontWeight.bold,
+                              fontSize: fontSize,
+                              color: AppColors.textPrimary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                        ),
-                        const SizedBox(height: 4),
-                        // Статус бейдж
-                        _buildStatusBadge(),
-                      ],
+                          const SizedBox(height: 4),
+                          // Статус бейдж
+                          _buildStatusBadge(),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),

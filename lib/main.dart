@@ -19,9 +19,9 @@ import 'dart:ui'; // Для ImageFilter.blur
 import 'dart:js' as js; // Для экспорта версии в JS
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '20.7';
+const String DEPLOY_VERSION = '20.8';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-24 19:00:00'; // Обновлять при каждом деплое! Отключение вертикальных свайпов Telegram для работы наших свайпов
+    '2025-01-24 20:00:00'; // Обновлять при каждом деплое! Добавлены кнопки закрытия и списка кофеен на карте
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {

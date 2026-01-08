@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,8 @@ class LocationProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _userId; // Добавляем userId для обновления в БД
   static const String _lastLocationKey = 'last_selected_location_id';
+  static const String _recentLocationsKey = 'recent_locations_history';
+  static const int _maxRecentLocations = 10;
 
   Location? get selectedLocation => _selectedLocation;
   List<Location> get locations => _locations;
@@ -112,6 +115,86 @@ class LocationProvider with ChangeNotifier {
   void setLoading(bool loading) {
     _isLoading = loading;
     notifyListeners();
+  }
+
+  /// Добавляет локацию в историю посещений
+  Future<void> addToRecentLocations(Location location) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyJson = prefs.getStringList(_recentLocationsKey) ?? [];
+      
+      // Удаляем дубликаты (если эта локация уже есть в истории)
+      historyJson.removeWhere((json) {
+        try {
+          final map = jsonDecode(json) as Map<String, dynamic>;
+          return map['id'] == location.id;
+        } catch (e) {
+          return false;
+        }
+      });
+      
+      // Добавляем новую локацию в начало
+      final locationJson = jsonEncode({
+        'id': location.id,
+        'name': location.name,
+        'address': location.address,
+        'lat': location.lat,
+        'lng': location.lng,
+        'timestamp': DateTime.now().toIso8601String(),
+      });
+      historyJson.insert(0, locationJson);
+      
+      // Оставляем только последние N локаций
+      if (historyJson.length > _maxRecentLocations) {
+        historyJson.removeRange(_maxRecentLocations, historyJson.length);
+      }
+      
+      await prefs.setStringList(_recentLocationsKey, historyJson);
+      print('✅ Добавлена локация в историю: ${location.name}');
+    } catch (e) {
+      print('⚠️ Ошибка сохранения в историю: $e');
+    }
+  }
+
+  /// Получает последние посещенные локации
+  Future<List<Location>> getRecentLocations() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final historyJson = prefs.getStringList(_recentLocationsKey) ?? [];
+      
+      final recentLocations = <Location>[];
+      for (final jsonStr in historyJson) {
+        try {
+          final map = jsonDecode(jsonStr) as Map<String, dynamic>;
+          final locationId = map['id'] as String;
+          
+          // Ищем локацию в текущем списке локаций
+          try {
+            final location = _locations.firstWhere((loc) => loc.id == locationId);
+            recentLocations.add(location);
+          } catch (e) {
+            // Если локации нет в текущем списке, создаем из сохраненных данных
+            recentLocations.add(Location(
+              id: locationId,
+              name: map['name'] ?? 'Unknown',
+              address: map['address'] ?? '',
+              lat: (map['lat'] as num?)?.toDouble() ?? 0.0,
+              lng: (map['lng'] as num?)?.toDouble() ?? 0.0,
+              rating: 5.0,
+              workingHours: map['workingHours'] ?? '',
+              isOpen: map['isOpen'] ?? true,
+            ));
+          }
+        } catch (e) {
+          print('⚠️ Ошибка парсинга локации из истории: $e');
+        }
+      }
+      
+      return recentLocations;
+    } catch (e) {
+      print('⚠️ Ошибка загрузки истории: $e');
+      return [];
+    }
   }
 }
 

@@ -129,9 +129,15 @@ class CategoryNavigationScrollable extends StatelessWidget {
                 );
               },
             ),
-            // Прозрачный слой для обработки горизонтальных свайпов
+            // Прозрачный слой для обработки горизонтальных свайпов (НЕ блокирует клики благодаря HitTestBehavior.translucent)
             Positioned.fill(
               child: GestureDetector(
+                onHorizontalDragStart: (details) {
+                  print('🔄 Drag started at: ${details.localPosition}');
+                },
+                onHorizontalDragUpdate: (details) {
+                  print('🔄 Drag update: dx=${details.delta.dx}');
+                },
                 onHorizontalDragEnd: (details) {
                   if (details.primaryVelocity == null) return;
 
@@ -154,7 +160,6 @@ class CategoryNavigationScrollable extends StatelessWidget {
                   }
                 },
                 behavior: HitTestBehavior.translucent,
-                child: Container(color: Colors.transparent),
               ),
             ),
           ],

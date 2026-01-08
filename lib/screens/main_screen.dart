@@ -20,6 +20,7 @@ import '../widgets/promo_section.dart';
 import '../utils/responsive.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
+import 'location_map_screen.dart';
 import 'category_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -82,12 +83,25 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     menuProvider.setLoading(false);
   }
 
-  /// Обработка нажатия на иконку геолокации — открываем экран выбора кофейни.
+  /// Обработка нажатия на иконку геолокации — открываем экран карты локации.
   void _handleGeoRequest() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const LocationSelectScreen()),
-    );
+    final locationProvider = context.read<LocationProvider>();
+    final location = locationProvider.selectedLocation;
+    
+    if (location != null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LocationMapScreen(location: location),
+        ),
+      );
+    } else {
+      // Fallback: если локация не выбрана, открываем экран выбора
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LocationSelectScreen()),
+      );
+    }
   }
 
   /// Проверяет, выбрана ли категория "акции" или "для тебя"
@@ -159,7 +173,19 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               // Location App Bar
               LocationAppBar(
                 location: location,
-                onLocationTap: _handleGeoRequest,
+                onLocationTap: () {
+                  // Открываем экран карты локации при нажатии на иконку или название
+                  if (location != null) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => LocationMapScreen(location: location),
+                      ),
+                    );
+                  } else {
+                    _handleGeoRequest();
+                  }
+                },
                 onProfileTap: () {
                   // TODO: Открыть профиль
                 },
