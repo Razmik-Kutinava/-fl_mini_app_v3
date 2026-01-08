@@ -9,6 +9,7 @@ class CategoryNavigationScrollable extends StatelessWidget {
   final List<models.Category> categories;
   final String? selectedCategoryId;
   final Function(String?) onCategorySelected;
+  final Function(String?)? onCategoryExpand;
   final bool showAll;
 
   const CategoryNavigationScrollable({
@@ -16,6 +17,7 @@ class CategoryNavigationScrollable extends StatelessWidget {
     required this.categories,
     this.selectedCategoryId,
     required this.onCategorySelected,
+    this.onCategoryExpand,
     this.showAll = true,
   });
 
@@ -61,14 +63,6 @@ class CategoryNavigationScrollable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Debug: логируем количество категорий
-    print('🔍 CategoryNavigationScrollable: categories.length=${categories.length}');
-    print('🔍 CategoryNavigationScrollable: showAll=$showAll');
-    print('🔍 CategoryNavigationScrollable: selectedCategoryId=$selectedCategoryId');
-    for (var cat in categories) {
-      print('🔍 Category: id=${cat.id}, name=${cat.name}');
-    }
-    
     // Адаптивные размеры
     final fontSize = Responsive.responsiveSize(
       context,
@@ -76,7 +70,7 @@ class CategoryNavigationScrollable extends StatelessWidget {
       tablet: 16.0,
       desktop: 18.0,
     );
-    
+
     final height = Responsive.responsiveSize(
       context,
       mobile: 50.0,
@@ -99,53 +93,71 @@ class CategoryNavigationScrollable extends StatelessWidget {
     );
 
     return SliverToBoxAdapter(
-      child: GestureDetector(
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity == null) return;
-          
-          // Свайп вправо (отрицательная скорость) -> следующая категория
-          if (details.primaryVelocity! < -300) {
-            _switchCategory(1); // Следующая
-          }
-          // Свайп влево (положительная скорость) -> предыдущая категория
-          else if (details.primaryVelocity! > 300) {
-            _switchCategory(-1); // Предыдущая
-          }
-        },
-        child: Container(
-          height: height,
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.4),
-          ),
-          child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-          itemCount: categories.length + (showAll ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (showAll && index == 0) {
-              final isSelected = selectedCategoryId == null;
-              return _CategoryTextItem(
-                label: 'для тебя',
-                isSelected: isSelected,
-                fontSize: fontSize,
-                spacing: categorySpacing,
-                onTap: () => onCategorySelected(null),
-              );
-            }
+      child: Container(
+        height: height,
+        decoration: BoxDecoration(color: Colors.black.withOpacity(0.4)),
+        child: Stack(
+          children: [
+            // ListView для отображения категорий (только визуализация)
+            ListView.builder(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: categories.length + (showAll ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (showAll && index == 0) {
+                  final isSelected = selectedCategoryId == null;
+                  return _CategoryTextItem(
+                    label: 'для тебя',
+                    isSelected: isSelected,
+                    fontSize: fontSize,
+                    spacing: categorySpacing,
+                    onTap: () => onCategorySelected(null),
+                  );
+                }
 
-            final categoryIndex = showAll ? index - 1 : index;
-            final category = categories[categoryIndex];
-            final isSelected = selectedCategoryId == category.id;
+                final categoryIndex = showAll ? index - 1 : index;
+                final category = categories[categoryIndex];
+                final isSelected = selectedCategoryId == category.id;
 
-            return _CategoryTextItem(
-              label: category.name,
-              isSelected: isSelected,
-              fontSize: fontSize,
-              spacing: categorySpacing,
-              onTap: () => onCategorySelected(category.id),
-            );
-          },
-        ),
+                return _CategoryTextItem(
+                  label: category.name,
+                  isSelected: isSelected,
+                  fontSize: fontSize,
+                  spacing: categorySpacing,
+                  onTap: () => onCategorySelected(category.id),
+                );
+              },
+            ),
+            // Прозрачный слой для обработки горизонтальных свайпов
+            Positioned.fill(
+              child: GestureDetector(
+                onHorizontalDragEnd: (details) {
+                  if (details.primaryVelocity == null) return;
+
+                  final velocity = details.primaryVelocity!;
+                  print('🔄 Category swipe detected: velocity=$velocity');
+
+                  // Свайп вправо (отрицательная скорость) -> расширить категорию
+                  if (velocity < -300 && selectedCategoryId != null) {
+                    print(
+                      '➡️ Swipe right -> expand category: $selectedCategoryId',
+                    );
+                    if (onCategoryExpand != null) {
+                      onCategoryExpand!(selectedCategoryId);
+                    }
+                  }
+                  // Свайп влево (положительная скорость) -> предыдущая категория
+                  else if (velocity > 300) {
+                    print('⬅️ Swipe left -> previous category');
+                    _switchCategory(-1);
+                  }
+                },
+                behavior: HitTestBehavior.translucent,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -160,7 +172,7 @@ class CategoryItem {
   CategoryItem({this.id, required this.name});
 }
 
-/// Текстовый элемент категории без видимых кнопок/рамок
+/// Текстовый элемент категории - ТОЛЬКО onTap, БЕЗ обработки свайпов
 class _CategoryTextItem extends StatelessWidget {
   final String label;
   final bool isSelected;
@@ -178,27 +190,20 @@ class _CategoryTextItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    // Используем InkWell вместо GestureDetector для лучшей обработки тапов
+    // НЕ обрабатываем горизонтальные жесты здесь!
+    return InkWell(
       onTap: onTap,
-      onHorizontalDragEnd: (details) {
-        // Свайп вправо - открываем категорию (если это категория с товарами, не "для тебя")
-        if (details.primaryVelocity != null && details.primaryVelocity! < -500) {
-          // Свайп вправо (отрицательная скорость)
-          onTap();
-        }
-      },
-      behavior: HitTestBehavior.opaque,
       child: Container(
         margin: EdgeInsets.only(right: spacing),
         alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
         child: Text(
           label,
           style: GoogleFonts.montserrat(
             fontSize: fontSize,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
-                ? Colors.white
-                : Colors.white.withOpacity(0.6),
+            color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
             letterSpacing: 0.5,
           ),
         ),
@@ -206,4 +211,3 @@ class _CategoryTextItem extends StatelessWidget {
     );
   }
 }
-
