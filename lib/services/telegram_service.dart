@@ -19,6 +19,8 @@ extension TelegramWebAppExt on TelegramWebApp {
   external void requestLocationRaw(JSFunction? callback);
   external TelegramInitDataUnsafe? get initDataUnsafe;
   external TelegramMainButton get MainButton;
+  external void disableVerticalSwipes();
+  external void enableVerticalSwipes();
 }
 
 @JS()
@@ -81,6 +83,14 @@ class TelegramService {
     try {
       telegramWebApp?.ready();
       telegramWebApp?.expand();
+      // ⭐ КРИТИЧЕСКИ ВАЖНО: Отключаем вертикальные свайпы Telegram
+      // чтобы наши свайпы работали корректно
+      try {
+        telegramWebApp?.disableVerticalSwipes();
+        print('✅ Telegram WebApp: vertical swipes disabled');
+      } catch (e) {
+        print('⚠️ Could not disable Telegram vertical swipes: $e');
+      }
     } catch (e) {
       debugPrint('Telegram init error: $e');
     }
