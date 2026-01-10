@@ -5,7 +5,7 @@ import '../utils/responsive.dart';
 
 /// Навигация по категориям внутри скроллируемого контента
 /// Полупрозрачный черный фон, только текст, без кнопок
-class CategoryNavigationScrollable extends StatelessWidget {
+class CategoryNavigationScrollable extends StatefulWidget {
   final List<models.Category> categories;
   final String? selectedCategoryId;
   final Function(String?) onCategorySelected;
@@ -21,13 +21,24 @@ class CategoryNavigationScrollable extends StatelessWidget {
     this.showAll = true,
   });
 
+  @override
+  State<CategoryNavigationScrollable> createState() =>
+      _CategoryNavigationScrollableState();
+}
+
+class _CategoryNavigationScrollableState
+    extends State<CategoryNavigationScrollable> {
+  final ScrollController _scrollController = ScrollController();
+  double _lastScrollPosition = 0.0;
+  DateTime _lastScrollTime = DateTime.now();
+
   /// Получить список всех категорий включая "для тебя"
   List<CategoryItem> _getAllCategories() {
     final items = <CategoryItem>[];
-    if (showAll) {
+    if (widget.showAll) {
       items.add(CategoryItem(id: null, name: 'для тебя'));
     }
-    for (var cat in categories) {
+    for (var cat in widget.categories) {
       items.add(CategoryItem(id: cat.id, name: cat.name));
     }
     return items;
@@ -37,7 +48,7 @@ class CategoryNavigationScrollable extends StatelessWidget {
   int _getCurrentIndex() {
     final allCategories = _getAllCategories();
     for (int i = 0; i < allCategories.length; i++) {
-      if (allCategories[i].id == selectedCategoryId) {
+      if (allCategories[i].id == widget.selectedCategoryId) {
         return i;
       }
     }
@@ -58,7 +69,13 @@ class CategoryNavigationScrollable extends StatelessWidget {
     if (newIndex >= allCategories.length) newIndex = 0;
 
     final newCategory = allCategories[newIndex];
-    onCategorySelected(newCategory.id);
+    widget.onCategorySelected(newCategory.id);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -96,73 +113,62 @@ class CategoryNavigationScrollable extends StatelessWidget {
       child: Container(
         height: height,
         decoration: BoxDecoration(color: Colors.black.withOpacity(0.4)),
-        child: Stack(
-          children: [
-            // ListView для отображения категорий (только визуализация)
-            ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: categories.length + (showAll ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (showAll && index == 0) {
-                  final isSelected = selectedCategoryId == null;
-                  return _CategoryTextItem(
-                    label: 'для тебя',
-                    isSelected: isSelected,
-                    fontSize: fontSize,
-                    spacing: categorySpacing,
-                    onTap: () => onCategorySelected(null),
-                  );
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            // Отслеживаем быстрые свайпы для переключения категорий
+            if (notification is ScrollUpdateNotification) {
+              final now = DateTime.now();
+              final timeDelta = now.difference(_lastScrollTime).inMilliseconds;
+              final positionDelta =
+                  (_scrollController.position.pixels - _lastScrollPosition)
+                      .abs();
+
+              // Если скролл очень быстрый (большое смещение за короткое время)
+              // это может быть свайп для переключения категории
+              if (timeDelta > 0 && timeDelta < 100) {
+                final velocity = positionDelta / timeDelta * 1000; // пикселей в секунду
+                if (velocity > 1000) {
+                  // Очень быстрый скролл - возможен свайп для переключения
+                  // Но не обрабатываем здесь, чтобы не конфликтовать с обычным скроллом
                 }
+              }
 
-                final categoryIndex = showAll ? index - 1 : index;
-                final category = categories[categoryIndex];
-                final isSelected = selectedCategoryId == category.id;
-
+              _lastScrollPosition = _scrollController.position.pixels;
+              _lastScrollTime = now;
+            }
+            return false;
+          },
+          child: ListView.builder(
+            controller: _scrollController,
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+            physics: const BouncingScrollPhysics(),
+            itemCount: widget.categories.length + (widget.showAll ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (widget.showAll && index == 0) {
+                final isSelected = widget.selectedCategoryId == null;
                 return _CategoryTextItem(
-                  label: category.name,
+                  label: 'для тебя',
                   isSelected: isSelected,
                   fontSize: fontSize,
                   spacing: categorySpacing,
-                  onTap: () => onCategorySelected(category.id),
+                  onTap: () => widget.onCategorySelected(null),
                 );
-              },
-            ),
-            // Прозрачный слой для обработки горизонтальных свайпов (НЕ блокирует клики благодаря HitTestBehavior.translucent)
-            Positioned.fill(
-              child: GestureDetector(
-                onHorizontalDragStart: (details) {
-                  print('🔄 Drag started at: ${details.localPosition}');
-                },
-                onHorizontalDragUpdate: (details) {
-                  print('🔄 Drag update: dx=${details.delta.dx}');
-                },
-                onHorizontalDragEnd: (details) {
-                  if (details.primaryVelocity == null) return;
+              }
 
-                  final velocity = details.primaryVelocity!;
-                  print('🔄 Category swipe detected: velocity=$velocity');
+              final categoryIndex = widget.showAll ? index - 1 : index;
+              final category = widget.categories[categoryIndex];
+              final isSelected = widget.selectedCategoryId == category.id;
 
-                  // Свайп вправо (отрицательная скорость) -> расширить категорию
-                  if (velocity < -300 && selectedCategoryId != null) {
-                    print(
-                      '➡️ Swipe right -> expand category: $selectedCategoryId',
-                    );
-                    if (onCategoryExpand != null) {
-                      onCategoryExpand!(selectedCategoryId);
-                    }
-                  }
-                  // Свайп влево (положительная скорость) -> предыдущая категория
-                  else if (velocity > 300) {
-                    print('⬅️ Swipe left -> previous category');
-                    _switchCategory(-1);
-                  }
-                },
-                behavior: HitTestBehavior.translucent,
-              ),
-            ),
-          ],
+              return _CategoryTextItem(
+                label: category.name,
+                isSelected: isSelected,
+                fontSize: fontSize,
+                spacing: categorySpacing,
+                onTap: () => widget.onCategorySelected(category.id),
+              );
+            },
+          ),
         ),
       ),
     );
