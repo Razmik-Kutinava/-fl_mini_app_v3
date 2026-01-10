@@ -346,17 +346,19 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    final topHeight = screenHeight * 0.6;
     final bottomHeight = screenHeight * 0.4;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Верхняя часть (60%)
-          _buildTopSection(topHeight),
+          // Верхняя часть (скроллируемая, занимает все пространство)
+          Positioned.fill(
+            bottom: bottomHeight,
+            child: _buildTopSection(bottomHeight),
+          ),
           
-          // Нижняя часть (40%)
+          // Нижняя часть (40% - зафиксирована)
           Positioned(
             bottom: 0,
             left: 0,
@@ -383,15 +385,15 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     );
   }
 
-  Widget _buildTopSection(double height) {
+  Widget _buildTopSection(double bottomPadding) {
     return Container(
-      height: height,
       decoration: BoxDecoration(
         gradient: AppColors.gradient1,
       ),
       child: SafeArea(
-        child: Column(
-          children: [
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
             // Header
             Padding(
               padding: const EdgeInsets.all(16),
@@ -467,6 +469,24 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
                 .scale(begin: const Offset(0.9, 0.9)),
             
             const SizedBox(height: 24),
+            
+            // Product description
+            if (widget.product.description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Text(
+                  widget.product.description,
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.9),
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            
+            if (widget.product.description.isNotEmpty)
+              const SizedBox(height: 24),
             
             // Selected cubes section
             Padding(
@@ -619,8 +639,11 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
                 ],
               ),
             ),
+            // Padding снизу чтобы контент не перекрывался модификаторами
+            SizedBox(height: bottomPadding),
           ],
         ),
+      ),
       ),
     );
   }
