@@ -670,7 +670,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
           // Page indicator
           if (_screens.length > 1)
             Padding(
-              padding: const EdgeInsets.only(top: 16),
+              padding: const EdgeInsets.only(top: 16, bottom: 8),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
@@ -692,7 +692,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               ),
             ),
           
-          // Content
+          // Content - теперь с фиксированной высотой для кнопок
           Expanded(
             child: PageView.builder(
               controller: _pageController,
@@ -709,9 +709,19 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
             ),
           ),
           
-          // Button
-          Padding(
-            padding: const EdgeInsets.all(16),
+          // Button - зафиксированы внизу, не перекрывают контент
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
             child: _buildActionButton(),
           ),
         ],
@@ -738,9 +748,10 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     final currentSelection = _selectedModifiers[screen.key];
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             screen.title,
@@ -750,9 +761,12 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               color: AppColors.textPrimary,
             ),
           ),
-          const SizedBox(height: 20),
-          Expanded(
+          const SizedBox(height: 16),
+          // GridView теперь скроллируемый и не занимает все пространство
+          Flexible(
             child: GridView.builder(
+              shrinkWrap: true,
+              physics: const AlwaysScrollableScrollPhysics(),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 4,
                 crossAxisSpacing: 12,
@@ -815,13 +829,20 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     final screen = _currentPage < _screens.length ? _screens[_currentPage] : null;
     final canSkip = screen?.isOptional ?? false;
 
-    return Column(
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        // Кнопка "Пропустить" слева, компактная
         if (canSkip && !isLastPage)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+          Expanded(
+            flex: 1,
             child: TextButton(
               onPressed: _skipPage,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               child: Text(
                 'Пропустить',
                 style: GoogleFonts.montserrat(
@@ -831,43 +852,46 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               ),
             ),
           ),
-        Container(
-          width: double.infinity,
-          height: 56,
-          decoration: BoxDecoration(
-            gradient: _canProceed ? AppColors.gradient1 : null,
-            color: _canProceed ? null : Colors.grey[300],
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: _canProceed
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.4),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _canProceed ? _nextPage : null,
+        // Кнопка "Далее" справа, занимает оставшееся место
+        Expanded(
+          flex: canSkip && !isLastPage ? 3 : 1,
+          child: Container(
+            height: 56,
+            decoration: BoxDecoration(
+              gradient: _canProceed ? AppColors.gradient1 : null,
+              color: _canProceed ? null : Colors.grey[300],
               borderRadius: BorderRadius.circular(16),
-              child: Center(
-                child: Text(
-                  isLastPage ? 'Добавить в корзину' : 'Далее',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: _canProceed ? Colors.white : Colors.grey[600],
+              boxShadow: _canProceed
+                  ? [
+                      BoxShadow(
+                        color: AppColors.primary.withOpacity(0.4),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: _canProceed ? _nextPage : null,
+                borderRadius: BorderRadius.circular(16),
+                child: Center(
+                  child: Text(
+                    isLastPage ? 'Добавить в корзину' : 'Далее',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: _canProceed ? Colors.white : Colors.grey[600],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        )
-            .animate(target: _canProceed ? 1 : 0)
-            .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.02, 1.02)),
+          )
+              .animate(target: _canProceed ? 1 : 0)
+              .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.02, 1.02)),
+        ),
       ],
     );
   }
