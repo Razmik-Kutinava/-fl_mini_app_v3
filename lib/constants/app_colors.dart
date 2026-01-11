@@ -53,6 +53,18 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [Color(0xFFE91E63), Color(0xFF9C27B0)],
   );
+  
+  static const promoCardGradient3 = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF00E676), Color(0xFF00BCD4)],
+  );
+  
+  static const promoCardGradient4 = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
+  );
 
   // Bottom Navigation colors
   static const bottomNavActive = Color(0xFF2196F3);

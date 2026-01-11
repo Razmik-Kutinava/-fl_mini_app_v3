@@ -147,6 +147,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         emoji: '✨',
         gradient: AppColors.promoCardGradient2,
       ),
+      PromoItem(
+        title: 'Кофейная радость',
+        emoji: '☕',
+        gradient: AppColors.promoCardGradient3,
+      ),
+      PromoItem(
+        title: 'Сладкое настроение',
+        emoji: '🍰',
+        gradient: AppColors.promoCardGradient4,
+      ),
     ];
   }
 
