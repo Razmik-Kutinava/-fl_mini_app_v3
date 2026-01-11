@@ -469,25 +469,177 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
                 .fadeIn(duration: 300.ms)
                 .scale(begin: const Offset(0.9, 0.9)),
             
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             
-            // Product description - компактнее
+            // Product description - полный текст
             if (widget.product.description.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
                   widget.product.description,
                   style: GoogleFonts.inter(
-                    fontSize: 12,
+                    fontSize: 14,
                     color: Colors.white.withOpacity(0.9),
-                    height: 1.3,
+                    height: 1.4,
                   ),
                   textAlign: TextAlign.center,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             
+            if (widget.product.description.isNotEmpty)
+              const SizedBox(height: 24),
+            
+            // Selected cubes section - показываем выбранные модификаторы
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Вы добавили:',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white70,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _selectedCubes.isEmpty
+                      ? Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                              style: BorderStyle.solid,
+                            ),
+                          ),
+                          child: Text(
+                            'Выберите опции ниже',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              color: Colors.white60,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        )
+                      : Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: _selectedCubes.map((cube) {
+                            return Container(
+                              width: 70,
+                              height: 70,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.25),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.5),
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (cube.emoji != null)
+                                    Text(
+                                      cube.emoji!,
+                                      style: const TextStyle(fontSize: 20),
+                                    )
+                                        .animate()
+                                        .scale(begin: const Offset(0.5, 0.5), duration: 200.ms),
+                                  if (cube.emoji != null) const SizedBox(height: 4),
+                                  Text(
+                                    cube.label,
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.montserrat(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  if (cube.volume != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      cube.volume!,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 8,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                  if (cube.price > 0) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      '+${cube.price.toStringAsFixed(0)}₽',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 8,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            )
+                                .animate()
+                                .fadeIn(duration: 200.ms)
+                                .scale(begin: const Offset(0.5, 0.5), duration: 200.ms)
+                                .then()
+                                .shake(duration: 100.ms);
+                          }).toList(),
+                        ),
+                  if (_selectedCubes.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Итого:',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            '${_totalPrice.toStringAsFixed(0)}₽',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                        .animate()
+                        .fadeIn()
+                        .scale(begin: const Offset(0.9, 0.9)),
+                  ],
+                ],
+              ),
+            ),
             // Padding снизу чтобы контент не перекрывался модификаторами
             SizedBox(height: bottomPadding),
           ],
