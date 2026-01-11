@@ -14,31 +14,36 @@ class LocationListScreen extends StatefulWidget {
 }
 
 class _LocationListScreenState extends State<LocationListScreen> {
-  List<Location> _recentLocations = [];
+  Map<Location, DateTime> _recentLocationsWithDates = {};
+  List<Location> _allLocations = [];
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadRecentLocations();
+    _loadLocations();
   }
 
-  Future<void> _loadRecentLocations() async {
+  Future<void> _loadLocations() async {
     final locationProvider = context.read<LocationProvider>();
-    final recent = await locationProvider.getRecentLocations();
     
-    // Если истории нет, показываем все доступные локации
-    if (recent.isEmpty) {
-      setState(() {
-        _recentLocations = locationProvider.locations;
-        _isLoading = false;
-      });
-    } else {
-      setState(() {
-        _recentLocations = recent;
-        _isLoading = false;
-      });
-    }
+    // Загружаем последние посещенные кофейни с датами
+    final recentWithDates = await locationProvider.getRecentLocationsWithDates();
+    
+    // Загружаем все доступные кофейни
+    final allLocations = locationProvider.locations;
+    
+    // Фильтруем: оставляем все кофейни, которых нет в списке последних
+    final recentIds = recentWithDates.keys.map((loc) => loc.id).toSet();
+    final otherLocations = allLocations
+        .where((loc) => !recentIds.contains(loc.id))
+        .toList();
+    
+    setState(() {
+      _recentLocationsWithDates = recentWithDates;
+      _allLocations = otherLocations;
+      _isLoading = false;
+    });
   }
 
   void _navigateToMainMenu() {
@@ -84,30 +89,120 @@ class _LocationListScreenState extends State<LocationListScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : _recentLocations.isEmpty
-              ? Center(
-                  child: Text(
-                    'Нет последних кофеен',
-                    style: GoogleFonts.montserrat(
-                      color: Colors.white70,
-                      fontSize: 16,
+          : CustomScrollView(
+              slivers: [
+                // Секция последних кофеен
+                if (_recentLocationsWithDates.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                      child: Text(
+                        'Последние кофейни',
+                        style: GoogleFonts.montserrat(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _recentLocations.length,
-                  itemBuilder: (context, index) {
-                    final location = _recentLocations[index];
-                    return _buildLocationItem(location);
-                  },
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final entry = _recentLocationsWithDates.entries.elementAt(index);
+                        final location = entry.key;
+                        final visitDate = entry.value;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          child: _buildLocationItem(location, visitDate: visitDate),
+                        );
+                      },
+                      childCount: _recentLocationsWithDates.length,
+                    ),
+                  ),
+                  // Разделитель между секциями
+                  SliverToBoxAdapter(
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                      height: 1,
+                      color: Colors.white.withOpacity(0.2),
+                    ),
+                  ),
+                ],
+                // Секция всех работающих кофеен
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, _recentLocationsWithDates.isEmpty ? 16 : 0, 16, 8),
+                    child: Text(
+                      'Все кофейни',
+                      style: GoogleFonts.montserrat(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
+                if (_allLocations.isEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32),
+                      child: Center(
+                        child: Text(
+                          'Нет доступных кофеен',
+                          style: GoogleFonts.montserrat(
+                            color: Colors.white70,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final location = _allLocations[index];
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          child: _buildLocationItem(location),
+                        );
+                      },
+                      childCount: _allLocations.length,
+                    ),
+                  ),
+              ],
+            ),
     );
   }
 
-  Widget _buildLocationItem(Location location) {
+  Widget _buildLocationItem(Location location, {DateTime? visitDate}) {
+    // Форматируем дату посещения
+    String? visitDateText;
+    if (visitDate != null) {
+      final now = DateTime.now();
+      final difference = now.difference(visitDate);
+      
+      if (difference.inDays == 0) {
+        if (difference.inHours == 0) {
+          visitDateText = '${difference.inMinutes} мин назад';
+        } else {
+          visitDateText = '${difference.inHours} ч назад';
+        }
+      } else if (difference.inDays == 1) {
+        visitDateText = 'Вчера';
+      } else if (difference.inDays < 7) {
+        visitDateText = '${difference.inDays} дн назад';
+      } else if (difference.inDays < 30) {
+        final weeks = (difference.inDays / 7).floor();
+        visitDateText = '$weeks нед назад';
+      } else {
+        final months = (difference.inDays / 30).floor();
+        visitDateText = '$months мес назад';
+      }
+    }
+    
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.4),
@@ -142,16 +237,38 @@ class _LocationListScreenState extends State<LocationListScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  location.isOpen
-                      ? 'открыто'
-                      : 'откроемся завтра в 08:00',
-                  style: GoogleFonts.montserrat(
-                    color: location.isOpen
-                        ? AppColors.locationStatusOpen
-                        : AppColors.locationStatusClosed,
-                    fontSize: 12,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      location.isOpen
+                          ? 'открыто'
+                          : 'откроемся завтра в 08:00',
+                      style: GoogleFonts.montserrat(
+                        color: location.isOpen
+                            ? AppColors.locationStatusOpen
+                            : AppColors.locationStatusClosed,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (visitDateText != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        '•',
+                        style: GoogleFonts.montserrat(
+                          color: Colors.white.withOpacity(0.5),
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        visitDateText,
+                        style: GoogleFonts.montserrat(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

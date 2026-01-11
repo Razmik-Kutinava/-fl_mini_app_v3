@@ -156,25 +156,37 @@ class LocationProvider with ChangeNotifier {
     }
   }
 
-  /// Получает последние посещенные локации
-  Future<List<Location>> getRecentLocations() async {
+  /// Получает последние посещенные локации с датами посещений
+  Future<Map<Location, DateTime>> getRecentLocationsWithDates() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getStringList(_recentLocationsKey) ?? [];
       
-      final recentLocations = <Location>[];
+      final recentLocationsMap = <Location, DateTime>{};
       for (final jsonStr in historyJson) {
         try {
           final map = jsonDecode(jsonStr) as Map<String, dynamic>;
           final locationId = map['id'] as String;
+          final timestampStr = map['timestamp'] as String?;
+          
+          DateTime? visitDate;
+          if (timestampStr != null) {
+            try {
+              visitDate = DateTime.parse(timestampStr);
+            } catch (e) {
+              visitDate = DateTime.now();
+            }
+          } else {
+            visitDate = DateTime.now();
+          }
           
           // Ищем локацию в текущем списке локаций
           try {
             final location = _locations.firstWhere((loc) => loc.id == locationId);
-            recentLocations.add(location);
+            recentLocationsMap[location] = visitDate;
           } catch (e) {
             // Если локации нет в текущем списке, создаем из сохраненных данных
-            recentLocations.add(Location(
+            final location = Location(
               id: locationId,
               name: map['name'] ?? 'Unknown',
               address: map['address'] ?? '',
@@ -183,18 +195,25 @@ class LocationProvider with ChangeNotifier {
               rating: 5.0,
               workingHours: map['workingHours'] ?? '',
               isOpen: map['isOpen'] ?? true,
-            ));
+            );
+            recentLocationsMap[location] = visitDate;
           }
         } catch (e) {
           print('⚠️ Ошибка парсинга локации из истории: $e');
         }
       }
       
-      return recentLocations;
+      return recentLocationsMap;
     } catch (e) {
       print('⚠️ Ошибка загрузки истории: $e');
-      return [];
+      return {};
     }
+  }
+
+  /// Получает последние посещенные локации (для обратной совместимости)
+  Future<List<Location>> getRecentLocations() async {
+    final map = await getRecentLocationsWithDates();
+    return map.keys.toList();
   }
 }
 
