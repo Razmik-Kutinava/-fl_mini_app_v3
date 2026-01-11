@@ -22,8 +22,6 @@ class ProductModifiersScreen extends StatefulWidget {
 }
 
 class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
-  late PageController _pageController;
-  int _currentPage = 0;
   late List<ModifierScreenData> _screens;
   late Map<String, dynamic> _selectedModifiers;
   late ConfettiController _confettiController;
@@ -35,12 +33,10 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     _confettiController = ConfettiController(duration: const Duration(seconds: 1));
     _selectedModifiers = <String, dynamic>{}; // Явно указываем тип
     _buildScreens();
-    _pageController = PageController();
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
     _confettiController.dispose();
     super.dispose();
   }
@@ -101,25 +97,6 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     print('Total screens: ${_screens.length}');
   }
 
-  bool get _canProceed {
-    if (_currentPage >= _screens.length) return false;
-    final screen = _screens[_currentPage];
-    
-    if (screen.isFinal) return true;
-    if (screen.isOptional) return true;
-    
-    // Проверяем обязательные модификаторы
-    final value = _selectedModifiers[screen.key];
-    if (value == null) return false;
-    
-    // Для single типа должно быть int, для multiple - List<int> (не пустой)
-    final isSingle = screen.group!.type.toLowerCase() == 'single';
-    if (isSingle) {
-      return value is int || (value is List<int> && value.isNotEmpty);
-    } else {
-      return value is List<int> && value.isNotEmpty;
-    }
-  }
 
   double get _totalPrice {
     double total = widget.product.price;
@@ -262,25 +239,6 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     HapticFeedback.selectionClick();
   }
 
-  void _nextPage() {
-    if (_currentPage < _screens.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    } else {
-      _addToCart();
-    }
-  }
-
-  void _skipPage() {
-    if (_currentPage < _screens.length - 1) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
 
   Future<void> _addToCart() async {
     print('🛒 _addToCart called for product: ${widget.product.name}');
@@ -711,49 +669,25 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
       ),
       child: Column(
         children: [
-          // Page indicator - компактнее
-          if (_screens.length > 1)
-            Padding(
-              padding: const EdgeInsets.only(top: 12, bottom: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  _screens.length,
-                  (index) => Container(
-                    width: index == _currentPage ? 24 : 8,
-                    height: 8,
-                    margin: const EdgeInsets.symmetric(horizontal: 4),
-                    decoration: BoxDecoration(
-                      color: index == _currentPage
-                          ? AppColors.primary
-                          : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  )
-                      .animate()
-                      .scale(duration: 200.ms),
-                ),
-              ),
-            ),
-          
-          // Content - с равномерными отступами
+          // Все модификаторы в одном скроллируемом списке
           Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() {
-                  _currentPage = index;
-                });
-              },
-              itemCount: _screens.length,
-              itemBuilder: (context, index) {
-                final screen = _screens[index];
-                return _buildModifierGrid(screen);
-              },
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(top: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Показываем все группы модификаторов подряд
+                  for (var screen in _screens)
+                    if (!screen.isFinal)
+                      _buildModifierSection(screen),
+                  // Отступ снизу перед кнопками
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
           ),
           
-          // Button - компактнее, фиксированы внизу
+          // Button - фиксированы внизу
           Container(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
@@ -773,32 +707,20 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     );
   }
 
-  Widget _buildModifierGrid(ModifierScreenData screen) {
-    if (screen.isFinal) {
-      return Center(
-        child: Text(
-          'Готово! Нажмите "Добавить в корзину"',
-          style: GoogleFonts.montserrat(
-            fontSize: 16,
-            color: AppColors.textSecondary,
-          ),
-        ),
-      );
-    }
-
+  Widget _buildModifierSection(ModifierScreenData screen) {
     final group = screen.group!;
     // Проверяем тип без учета регистра
     final isMultiple = group.type.toLowerCase() == 'multiple';
     final currentSelection = _selectedModifiers[screen.key];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Заголовок с равномерным отступом сверху
+          // Заголовок группы
           Padding(
-            padding: const EdgeInsets.only(top: 16, bottom: 16),
+            padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               screen.title,
               style: GoogleFonts.montserrat(
@@ -808,141 +730,121 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               ),
             ),
           ),
-          // GridView без скролла - все модификаторы видны сразу
-          // Равномерный отступ снизу
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: GridView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 1.0,
-                ),
-                itemCount: group.options.length,
-                itemBuilder: (context, index) {
-                final option = group.options[index];
-                bool isSelected = false;
-                
-                // Безопасная проверка типа с явным приведением
-                final selection = currentSelection;
-                
-                if (isMultiple) {
-                  // Для multiple типа ожидаем List<int>
-                  if (selection != null) {
-                    if (selection is List<int>) {
-                      isSelected = selection.contains(index);
-                    } else {
-                      // Если по ошибке сохранено как int, игнорируем
-                      isSelected = false;
-                    }
-                  }
-                } else {
-                  // Для single типа ожидаем int
-                  if (selection != null) {
-                    if (selection is int) {
-                      isSelected = selection == index;
-                    } else if (selection is List<int> && selection.length == 1) {
-                      // Fallback для старой версии
-                      isSelected = selection[0] == index;
-                    } else {
-                      isSelected = false;
-                    }
+          // GridView со скроллом - все модификаторы видны, можно скроллить
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(), // Скролл через родительский SingleChildScrollView
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.0,
+            ),
+            itemCount: group.options.length,
+            itemBuilder: (context, index) {
+              final option = group.options[index];
+              bool isSelected = false;
+              
+              // Безопасная проверка типа с явным приведением
+              final selection = currentSelection;
+              
+              if (isMultiple) {
+                // Для multiple типа ожидаем List<int>
+                if (selection != null) {
+                  if (selection is List<int>) {
+                    isSelected = selection.contains(index);
+                  } else {
+                    // Если по ошибке сохранено как int, игнорируем
+                    isSelected = false;
                   }
                 }
+              } else {
+                // Для single типа ожидаем int
+                if (selection != null) {
+                  if (selection is int) {
+                    isSelected = selection == index;
+                  } else if (selection is List<int> && selection.length == 1) {
+                    // Fallback для старой версии
+                    isSelected = selection[0] == index;
+                  } else {
+                    isSelected = false;
+                  }
+                }
+              }
 
-                return ModifierCube(
-                  label: option.label,
-                  emoji: option.emoji,
-                  volume: option.volume,
-                  price: option.price,
-                  isSelected: isSelected,
-                  onTap: () => _onModifierTap(screen, index),
-                )
-                    .animate(delay: (index * 50).ms)
-                    .fadeIn(duration: 300.ms)
-                    .slideY(begin: 0.2, end: 0, duration: 300.ms);
-              },
-            ),
-            ),
+              return ModifierCube(
+                label: option.label,
+                emoji: option.emoji,
+                volume: option.volume,
+                price: option.price,
+                isSelected: isSelected,
+                onTap: () => _onModifierTap(screen, index),
+              )
+                  .animate(delay: (index * 50).ms)
+                  .fadeIn(duration: 300.ms)
+                  .slideY(begin: 0.2, end: 0, duration: 300.ms);
+            },
           ),
+          // Отступ между группами
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
   Widget _buildActionButton() {
-    final isLastPage = _currentPage >= _screens.length - 1;
-    final screen = _currentPage < _screens.length ? _screens[_currentPage] : null;
-    final canSkip = screen?.isOptional ?? false;
+    // Теперь все модификаторы в одном окне, проверяем все обязательные
+    final hasRequiredUnselected = _screens.any((screen) {
+      if (screen.isFinal || screen.isOptional) return false;
+      final value = _selectedModifiers[screen.key];
+      if (value == null) return true;
+      final isSingle = screen.group!.type.toLowerCase() == 'single';
+      if (isSingle) {
+        return value is! int && !(value is List<int> && value.isNotEmpty);
+      } else {
+                    return value is! List<int> || value.isEmpty;
+      }
+    });
+    
+    final canProceed = !hasRequiredUnselected;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // Кнопка "Пропустить" слева, компактная
-        if (canSkip && !isLastPage)
-          Expanded(
-            flex: 1,
-            child: TextButton(
-              onPressed: _skipPage,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                'Пропустить',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  color: AppColors.textSecondary,
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: canProceed ? AppColors.gradient1 : null,
+        color: canProceed ? null : Colors.grey[300],
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: canProceed
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
                 ),
+              ]
+            : null,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: canProceed ? _addToCart : null,
+          borderRadius: BorderRadius.circular(16),
+          child: Center(
+            child: Text(
+              'Добавить в корзину',
+              style: GoogleFonts.montserrat(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: canProceed ? Colors.white : Colors.grey[600],
               ),
             ),
           ),
-        // Кнопка "Далее" справа, занимает оставшееся место
-        Expanded(
-          flex: canSkip && !isLastPage ? 3 : 1,
-          child: Container(
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: _canProceed ? AppColors.gradient1 : null,
-              color: _canProceed ? null : Colors.grey[300],
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: _canProceed
-                  ? [
-                      BoxShadow(
-                        color: AppColors.primary.withOpacity(0.4),
-                        blurRadius: 12,
-                        offset: const Offset(0, 6),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: _canProceed ? _nextPage : null,
-                borderRadius: BorderRadius.circular(16),
-                child: Center(
-                  child: Text(
-                    isLastPage ? 'Добавить в корзину' : 'Далее',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: _canProceed ? Colors.white : Colors.grey[600],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          )
-              .animate(target: _canProceed ? 1 : 0)
-              .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.02, 1.02)),
         ),
-      ],
-    );
+      ),
+    )
+        .animate(target: canProceed ? 1 : 0)
+        .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.02, 1.02));
   }
 }
 
