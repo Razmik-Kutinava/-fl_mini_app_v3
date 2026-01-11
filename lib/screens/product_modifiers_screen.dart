@@ -27,6 +27,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
   late List<ModifierScreenData> _screens;
   late Map<String, dynamic> _selectedModifiers;
   late ConfettiController _confettiController;
+  bool _isDescriptionExpanded = false;
 
   @override
   void initState() {
@@ -469,25 +470,67 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
                 .fadeIn(duration: 300.ms)
                 .scale(begin: const Offset(0.9, 0.9)),
             
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
             
-            // Product description - полный текст
+            // Product description - сворачиваемое
             if (widget.product.description.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  widget.product.description,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
-                    height: 1.4,
-                  ),
-                  textAlign: TextAlign.center,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Кнопка "Описание" с иконкой разворачивания
+                    InkWell(
+                      onTap: () {
+                        setState(() {
+                          _isDescriptionExpanded = !_isDescriptionExpanded;
+                        });
+                        HapticFeedback.selectionClick();
+                      },
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Описание:',
+                              style: GoogleFonts.montserrat(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Icon(
+                              _isDescriptionExpanded
+                                  ? Icons.keyboard_arrow_up
+                                  : Icons.keyboard_arrow_down,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Полный текст описания (показывается при разворачивании)
+                    if (_isDescriptionExpanded) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.product.description,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          color: Colors.white.withOpacity(0.9),
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ],
                 ),
               ),
             
-            if (widget.product.description.isNotEmpty)
-              const SizedBox(height: 24),
+            const SizedBox(height: 16),
             
             // Selected cubes section - показываем выбранные модификаторы
             Padding(
