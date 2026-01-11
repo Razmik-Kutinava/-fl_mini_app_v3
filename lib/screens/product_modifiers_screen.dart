@@ -346,8 +346,8 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    // Увеличиваем нижнюю секцию до 60% чтобы модификаторы были видны
-    final bottomHeight = screenHeight * 0.6;
+    // Оптимальная высота нижней секции - 55% для равномерных отступов
+    final bottomHeight = screenHeight * 0.55;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -516,10 +516,10 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
       ),
       child: Column(
         children: [
-          // Page indicator
+          // Page indicator - компактнее
           if (_screens.length > 1)
             Padding(
-              padding: const EdgeInsets.only(top: 16, bottom: 8),
+              padding: const EdgeInsets.only(top: 12, bottom: 4),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
@@ -541,7 +541,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
               ),
             ),
           
-          // Content - теперь с фиксированной высотой для кнопок
+          // Content - с равномерными отступами
           Expanded(
             child: PageView.builder(
               controller: _pageController,
@@ -558,9 +558,9 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
             ),
           ),
           
-          // Button - зафиксированы внизу, не перекрывают контент
+          // Button - компактнее, фиксированы внизу
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -597,31 +597,37 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     final currentSelection = _selectedModifiers[screen.key];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            screen.title,
-            style: GoogleFonts.montserrat(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
+          // Заголовок с равномерным отступом сверху
+          Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 16),
+            child: Text(
+              screen.title,
+              style: GoogleFonts.montserrat(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
           // GridView без скролла - все модификаторы видны сразу
+          // Равномерный отступ снизу
           Expanded(
-            child: GridView.builder(
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-                childAspectRatio: 1.0,
-              ),
-              itemCount: group.options.length,
-              itemBuilder: (context, index) {
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 4,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.0,
+                ),
+                itemCount: group.options.length,
+                itemBuilder: (context, index) {
                 final option = group.options[index];
                 bool isSelected = false;
                 
@@ -664,6 +670,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
                     .fadeIn(duration: 300.ms)
                     .slideY(begin: 0.2, end: 0, duration: 300.ms);
               },
+            ),
             ),
           ),
         ],
