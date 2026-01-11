@@ -151,6 +151,9 @@ class LocationProvider with ChangeNotifier {
       
       await prefs.setStringList(_recentLocationsKey, historyJson);
       print('✅ Добавлена локация в историю: ${location.name}');
+      print('📋 Всего записей в истории: ${historyJson.length}');
+      // Уведомляем слушателей об изменении
+      notifyListeners();
     } catch (e) {
       print('⚠️ Ошибка сохранения в историю: $e');
     }
@@ -161,6 +164,8 @@ class LocationProvider with ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       final historyJson = prefs.getStringList(_recentLocationsKey) ?? [];
+      
+      print('📋 Загрузка истории посещений: найдено записей ${historyJson.length}');
       
       final recentLocationsMap = <Location, DateTime>{};
       for (final jsonStr in historyJson) {
@@ -174,6 +179,7 @@ class LocationProvider with ChangeNotifier {
             try {
               visitDate = DateTime.parse(timestampStr);
             } catch (e) {
+              print('⚠️ Ошибка парсинга даты: $e');
               visitDate = DateTime.now();
             }
           } else {
@@ -184,8 +190,10 @@ class LocationProvider with ChangeNotifier {
           try {
             final location = _locations.firstWhere((loc) => loc.id == locationId);
             recentLocationsMap[location] = visitDate;
+            print('✅ Найдена локация в списке: ${location.name}, дата: $visitDate');
           } catch (e) {
             // Если локации нет в текущем списке, создаем из сохраненных данных
+            print('⚠️ Локация $locationId не найдена в текущем списке, создаем из сохраненных данных');
             final location = Location(
               id: locationId,
               name: map['name'] ?? 'Unknown',
@@ -197,12 +205,14 @@ class LocationProvider with ChangeNotifier {
               isOpen: map['isOpen'] ?? true,
             );
             recentLocationsMap[location] = visitDate;
+            print('✅ Создана локация из истории: ${location.name}');
           }
         } catch (e) {
           print('⚠️ Ошибка парсинга локации из истории: $e');
         }
       }
       
+      print('📋 Итого загружено последних локаций: ${recentLocationsMap.length}');
       return recentLocationsMap;
     } catch (e) {
       print('⚠️ Ошибка загрузки истории: $e');

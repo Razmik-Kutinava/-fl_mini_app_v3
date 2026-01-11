@@ -24,20 +24,33 @@ class _LocationListScreenState extends State<LocationListScreen> {
     _loadLocations();
   }
 
+  @override
+  void didUpdateWidget(LocationListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Обновляем список при обновлении виджета
+    _loadLocations();
+  }
+
   Future<void> _loadLocations() async {
     final locationProvider = context.read<LocationProvider>();
     
+    print('📋 Загрузка списка кофеен...');
+    
     // Загружаем последние посещенные кофейни с датами
     final recentWithDates = await locationProvider.getRecentLocationsWithDates();
+    print('📋 Найдено последних кофеен: ${recentWithDates.length}');
     
     // Загружаем все доступные кофейни
     final allLocations = locationProvider.locations;
+    print('📋 Всего доступно кофеен: ${allLocations.length}');
     
     // Фильтруем: оставляем все кофейни, которых нет в списке последних
     final recentIds = recentWithDates.keys.map((loc) => loc.id).toSet();
     final otherLocations = allLocations
         .where((loc) => !recentIds.contains(loc.id))
         .toList();
+    
+    print('📋 Кофеен в секции "Все кофейни": ${otherLocations.length}');
     
     setState(() {
       _recentLocationsWithDates = recentWithDates;
