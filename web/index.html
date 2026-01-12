@@ -18,19 +18,19 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-      <meta name="description" content="Coffee Mini App v21.1">
+      <meta name="description" content="Coffee Mini App v21.2">
   
   <!-- Cache control -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <meta name="version" content="21.1">
+  <meta name="version" content="21.2">
   
-  <!-- Service Worker Cache Bust - Version 21.1 -->
+  <!-- Service Worker Cache Bust - Version 21.2 -->
   <!-- КРИТИЧНО: Этот скрипт выполняется ПЕРВЫМ для отключения Service Workers ДО загрузки приложения -->
   <script>
     (function() {
-      var EXPECTED_VERSION = '21.1';
+      var EXPECTED_VERSION = '21.2';
       var VERSION_TIMESTAMP = Date.now();
       console.log('🚀 Cache Bust Script v' + EXPECTED_VERSION + ' at ' + new Date().toISOString());
       
@@ -224,7 +224,7 @@
   <script>
     // Модифицируем _flutter.buildConfig перед загрузкой bootstrap для добавления версии к main.dart.js
     (function() {
-      var EXPECTED_VERSION = '21.1';
+      var EXPECTED_VERSION = '21.2';
       var VERSION_TIMESTAMP = Date.now();
       
       // Перехватываем установку _flutter.buildConfig
@@ -266,6 +266,6 @@
       }
     })();
   </script>
-      <script src="flutter_bootstrap.js?v=21.1" async></script>
+      <script src="flutter_bootstrap.js?v=21.2" async></script>
 </body>
 </html>

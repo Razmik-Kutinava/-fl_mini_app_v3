@@ -19,9 +19,9 @@ import 'dart:ui'; // Для ImageFilter.blur
 import 'dart:js' as js; // Для экспорта версии в JS
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
-const String DEPLOY_VERSION = '21.1';
+const String DEPLOY_VERSION = '21.2';
 const String DEPLOY_TIMESTAMP =
-    '2025-01-27 16:15:00'; // Обновлять при каждом деплое! Добавлен GIF фон на главное меню
+    '2025-01-27 17:00:00'; // Обновлять при каждом деплое! Исправлен путь к GIF фону
 
 /// Глобальный класс для хранения preferredLocationId из БД
 class UserLocationContext {
