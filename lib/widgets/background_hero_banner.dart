@@ -16,7 +16,7 @@ class BackgroundHeroBanner extends StatelessWidget {
             ? Offset(0, -scrollController!.offset * 0.3)
             : Offset.zero,
         child: Image.asset(
-          'image/gif.gif',
+          'assets/image/gif.gif',
           fit: BoxFit.cover,
           errorBuilder: (context, error, stackTrace) {
             print('⚠️ Ошибка загрузки GIF: $error');
