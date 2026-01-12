@@ -9142,13 +9142,13 @@ var $async$aLQ=A.p(function(a,b){if(a===1)return A.q(b,r)
 for(;;)switch(s){case 0:A.w("")
 A.w(u.X)
 A.w("\ud83d\ude80 DEPLOY INFO - \u041f\u0420\u041e\u0412\u0415\u0420\u041a\u0410 \u041e\u0411\u041d\u041e\u0412\u041b\u0415\u041d\u0418\u0419 \u041a\u041e\u0414\u0410")
-A.w("\ud83d\ude80 VERSION: 21.2")
-A.w("\ud83d\ude80 TIMESTAMP: 2025-01-27 17:00:00")
+A.w("\ud83d\ude80 VERSION: 21.3")
+A.w("\ud83d\ude80 TIMESTAMP: 2025-01-27 17:10:00")
 A.w(u.X)
 A.w("")
 try{p=$.b0i()
-p.m(0,"DEPLOY_VERSION","21.2")
-p.m(0,"DEPLOY_TIMESTAMP","2025-01-27 17:00:00")}catch(h){q=A.U(h)
+p.m(0,"DEPLOY_VERSION","21.3")
+p.m(0,"DEPLOY_TIMESTAMP","2025-01-27 17:10:00")}catch(h){q=A.U(h)
 A.w("\u26a0\ufe0f Could not export version to JS: "+A.f(q))}if($.af==null)A.aOT()
 $.af.toString
 s=2
@@ -50000,8 +50000,8 @@ A.YU.prototype={
 ao(){var s="\ud83d\ude80 =========================================="
 this.aG()
 A.w(s)
-A.w("\ud83d\ude80 DEPLOY VERSION: 21.2")
-A.w("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-27 17:00:00")
+A.w("\ud83d\ude80 DEPLOY VERSION: 21.3")
+A.w("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-27 17:10:00")
 A.w(s)
 this.k6()},
 vd(){var s=0,r=A.u(t.y),q,p,o,n,m
@@ -50025,8 +50025,8 @@ return A.t($async$vd,r)},
 k6(){var s=0,r=A.u(t.H),q=1,p=[],o=this,n,m,l,k,j,i,h,g,f,e,d,c,b,a,a0,a1,a2,a3,a4,a5,a6,a7,a8,a9,b0,b1,b2,b3,b4,b5,b6,b7,b8,b9,c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,d0,d1,d2,d3,d4,d5,d6,d7,d8,d9,e0,e1,e2,e3,e4,e5,e6,e7,e8,e9,f0,f1,f2,f3,f4,f5
 var $async$k6=A.p(function(f7,f8){if(f7===1){p.push(f8)
 s=q}for(;;)switch(s){case 0:A.w("\ud83d\ude80 Starting user initialization...")
-A.w("\ud83d\ude80 VERSION: 21.2 - WITH REPEAT ORDER SUPPORT!")
-A.w("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-27 17:00:00")
+A.w("\ud83d\ude80 VERSION: 21.3 - WITH REPEAT ORDER SUPPORT!")
+A.w("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-27 17:10:00")
 c0=o.c
 c0.toString
 c1=A.dT(c0,!1,t.nj)
@@ -50215,8 +50215,8 @@ if(!o.w)o.y=!0}}}else A.w("\u26a0\ufe0f Could not get user from DB")
 s=27
 break
 case 28:A.w("\u26a0\ufe0f No telegramId available (not from hash, not from WebApp)")
-case 27:A.w("\ud83d\ude80 VERSION: 21.2 - WITH VISIT COUNTER!")
-A.w("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-27 17:00:00")
+case 27:A.w("\ud83d\ude80 VERSION: 21.3 - WITH VISIT COUNTER!")
+A.w("\ud83d\ude80 DEPLOY TIMESTAMP: 2025-01-27 17:10:00")
 q=31
 A.w("\ud83d\udccd Loading active locations from Supabase...")
 s=34
