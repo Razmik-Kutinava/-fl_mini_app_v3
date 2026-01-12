@@ -52981,7 +52981,7 @@ this.Av()},
 Av(){var s=0,r=A.t(t.H),q=1,p=[],o=this,n,m,l,k
 var $async$Av=A.o(function(a,b){if(a===1){p.push(b)
 s=q}for(;;)switch(s){case 0:q=3
-m=new A.Is("lib/assets/image/grok-video-e1b52f68-34b4-4887-a4f3-90282da9d9a1.mp4",B.a2q,$.aE())
+m=new A.Is("assets/image/grok-video-e1b52f68-34b4-4887-a4f3-90282da9d9a1.mp4",B.a2q,$.aE())
 o.d=m
 s=6
 return A.k(m.dk(0),$async$Av)
