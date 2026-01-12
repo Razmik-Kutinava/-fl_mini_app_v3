@@ -32,7 +32,7 @@ class _BackgroundHeroBannerState extends State<BackgroundHeroBanner> {
   Future<void> _initializeVideo() async {
     try {
       _videoController = VideoPlayerController.asset(
-        'lib/assets/image/grok-video-e1b52f68-34b4-4887-a4f3-90282da9d9a1.mp4',
+        'assets/image/grok-video-e1b52f68-34b4-4887-a4f3-90282da9d9a1.mp4',
       );
       
       await _videoController!.initialize();
