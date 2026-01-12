@@ -6,12 +6,8 @@ import '../utils/responsive.dart';
 class BackgroundHeroBanner extends StatelessWidget {
   final ScrollController? scrollController;
   final String? imageUrl;
-  
-  const BackgroundHeroBanner({
-    super.key,
-    this.scrollController,
-    this.imageUrl,
-  });
+
+  const BackgroundHeroBanner({super.key, this.scrollController, this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
@@ -26,16 +22,18 @@ class BackgroundHeroBanner extends StatelessWidget {
             // GIF фон (приоритет)
             Positioned.fill(
               child: Image.asset(
-                'assets/image/gif.gif',
+                'image/gif.gif',
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                    _buildGradientBackground(),
+                errorBuilder: (context, error, stackTrace) {
+                  print('⚠️ Ошибка загрузки GIF: $error');
+                  return _buildGradientBackground();
+                },
               ),
             ),
-            
+
             // Декоративные элементы - снежинки
             _buildSnowflakes(),
-            
+
             // Декоративные круги (как на скриншоте)
             _buildDecorativeCircles(),
           ],
@@ -46,18 +44,12 @@ class BackgroundHeroBanner extends StatelessWidget {
 
   Widget _buildGradientBackground() {
     return Container(
-      decoration: BoxDecoration(
-        gradient: AppColors.heroGradient,
-      ),
+      decoration: BoxDecoration(gradient: AppColors.heroGradient),
     );
   }
 
   Widget _buildSnowflakes() {
-    return Positioned.fill(
-      child: CustomPaint(
-        painter: SnowflakesPainter(),
-      ),
-    );
+    return Positioned.fill(child: CustomPaint(painter: SnowflakesPainter()));
   }
 
   Widget _buildDecorativeCircles() {
@@ -152,12 +144,12 @@ class SnowflakesPainter extends CustomPainter {
   void _drawSnowflake(Canvas canvas, Offset center, Paint paint) {
     final radius = 3.0;
     canvas.drawCircle(center, radius, paint);
-    
+
     // Простые линии снежинки
     final linePaint = Paint()
       ..color = Colors.white.withOpacity(0.3)
       ..strokeWidth = 1;
-    
+
     canvas.drawLine(
       Offset(center.dx - radius * 2, center.dy),
       Offset(center.dx + radius * 2, center.dy),
@@ -173,4 +165,3 @@ class SnowflakesPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
