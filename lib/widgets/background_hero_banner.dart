@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'package:video_player/video_player.dart';
 import '../constants/app_colors.dart';
 import '../utils/responsive.dart';
 
-class BackgroundHeroBanner extends StatefulWidget {
+class BackgroundHeroBanner extends StatelessWidget {
   final ScrollController? scrollController;
   final String? imageUrl;
   
@@ -15,85 +14,24 @@ class BackgroundHeroBanner extends StatefulWidget {
   });
 
   @override
-  State<BackgroundHeroBanner> createState() => _BackgroundHeroBannerState();
-}
-
-class _BackgroundHeroBannerState extends State<BackgroundHeroBanner> {
-  VideoPlayerController? _videoController;
-  bool _isVideoInitialized = false;
-  bool _hasVideoError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeVideo();
-  }
-
-  Future<void> _initializeVideo() async {
-    try {
-      _videoController = VideoPlayerController.asset(
-        'assets/image/grok-video-e1b52f68-34b4-4887-a4f3-90282da9d9a1.mp4',
-      );
-      
-      await _videoController!.initialize();
-      _videoController!.setLooping(true); // Зацикливание
-      _videoController!.play();
-      
-      if (mounted) {
-        setState(() {
-          _isVideoInitialized = true;
-        });
-      }
-    } catch (e) {
-      print('⚠️ Ошибка инициализации видео: $e');
-      if (mounted) {
-        setState(() {
-          _hasVideoError = true;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _videoController?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Positioned.fill(
       child: Transform.translate(
         // Параллакс эффект при скролле
-        offset: widget.scrollController != null && widget.scrollController!.hasClients
-            ? Offset(0, -widget.scrollController!.offset * 0.3)
+        offset: scrollController != null && scrollController!.hasClients
+            ? Offset(0, -scrollController!.offset * 0.3)
             : Offset.zero,
         child: Stack(
           children: [
-            // Видео фон (приоритет)
-            if (_isVideoInitialized && _videoController != null && !_hasVideoError)
-              Positioned.fill(
-                child: FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: _videoController!.value.size.width,
-                    height: _videoController!.value.size.height,
-                    child: VideoPlayer(_videoController!),
-                  ),
-                ),
-              )
-            // Fallback - градиент или изображение
-            else if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty)
-              Positioned.fill(
-                child: Image.network(
-                  widget.imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      _buildGradientBackground(),
-                ),
-              )
-            else
-              _buildGradientBackground(),
+            // GIF фон (приоритет)
+            Positioned.fill(
+              child: Image.asset(
+                'assets/image/gif.gif',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) =>
+                    _buildGradientBackground(),
+              ),
+            ),
             
             // Декоративные элементы - снежинки
             _buildSnowflakes(),
