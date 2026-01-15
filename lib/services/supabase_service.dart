@@ -782,6 +782,58 @@ class SupabaseService {
     }
   }
 
+  // ==================== LAST DRINKS ====================
+
+  /// Получает последние напитки пользователя из заказов
+  static Future<List<Map<String, dynamic>>> getUserLastDrinks(String userId, {int limit = 2}) async {
+    try {
+      print('🔍 [getUserLastDrinks] Getting last drinks for user: $userId');
+      
+      // Получаем последние заказы пользователя
+      final orders = await client
+          .from('Order')
+          .select('id, createdAt, OrderItem(productId, productName)')
+          .eq('userId', userId)
+          .inFilter('paymentStatus', ['succeeded', 'paid', 'PAID', 'SUCCEEDED'])
+          .order('createdAt', ascending: false)
+          .limit(10);
+      
+      print('🔍 [getUserLastDrinks] Found ${orders.length} orders');
+      
+      // Собираем уникальные напитки (по productId) в порядке последнего заказа
+      final seenProductIds = <String>{};
+      final lastDrinks = <Map<String, dynamic>>[];
+      
+      for (final order in orders) {
+        final orderItems = order['OrderItem'] as List?;
+        if (orderItems == null) continue;
+        
+        for (final item in orderItems) {
+          final productId = item['productId'] as String?;
+          if (productId == null || seenProductIds.contains(productId)) continue;
+          
+          seenProductIds.add(productId);
+          lastDrinks.add({
+            'productId': productId,
+            'productName': item['productName'] ?? '',
+            'orderDate': order['createdAt'],
+          });
+          
+          if (lastDrinks.length >= limit) break;
+        }
+        
+        if (lastDrinks.length >= limit) break;
+      }
+      
+      print('✅ [getUserLastDrinks] Found ${lastDrinks.length} unique drinks');
+      return lastDrinks;
+    } catch (e, stackTrace) {
+      print('❌ [getUserLastDrinks] Error: $e');
+      print('❌ [getUserLastDrinks] Stack: $stackTrace');
+      return [];
+    }
+  }
+
   // ==================== REPEAT ORDER ====================
 
   /// Получает товары заказа для повторного заказа

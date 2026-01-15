@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'promo_card.dart';
+import '../models/product.dart';
+import 'product_card.dart';
 
 class PromoSection extends StatelessWidget {
   final List<PromoItem> promotions;
+  final List<Product> products;
 
   const PromoSection({
     super.key,
     required this.promotions,
+    this.products = const [],
   });
 
   @override
   Widget build(BuildContext context) {
-    if (promotions.isEmpty) {
-      return const SizedBox.shrink();
-    }
+    // Первая акция "Весеннее настроение" - всегда первая
+    final firstPromo = promotions.isNotEmpty ? promotions[0] : null;
+    // Первые два товара из категории
+    final firstTwoProducts = products.take(2).toList();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
@@ -31,28 +36,70 @@ class PromoSection extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          // Grid промо-карточек
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.0, // Квадратные карточки
+          
+          // Первая акция "Весеннее настроение" - одна в строке, квадратик
+          if (firstPromo != null)
+            Builder(
+              builder: (context) {
+                final screenWidth = MediaQuery.of(context).size.width;
+                final padding = 16.0 * 2; // горизонтальный padding контейнера
+                final cardWidth = screenWidth - padding;
+                return SizedBox(
+                  width: double.infinity,
+                  height: cardWidth,
+                  child: PromoCard(
+                    title: firstPromo.title,
+                    imageUrl: firstPromo.imageUrl,
+                    emoji: firstPromo.emoji,
+                    gradient: firstPromo.gradient,
+                    onTap: firstPromo.onTap,
+                  ),
+                );
+              },
             ),
-            itemCount: promotions.length,
-            itemBuilder: (context, index) {
-              final promo = promotions[index];
-              return PromoCard(
-                title: promo.title,
-                imageUrl: promo.imageUrl,
-                emoji: promo.emoji,
-                gradient: promo.gradient,
-                onTap: promo.onTap,
-              );
-            },
-          ),
+          
+          // Визуальный разделитель
+          if (firstTwoProducts.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Container(
+              height: 1,
+              color: Colors.grey[300],
+              margin: const EdgeInsets.symmetric(vertical: 8),
+            ),
+            const SizedBox(height: 16),
+          ],
+          
+          // Две карточки товара в ряд
+          if (firstTwoProducts.isNotEmpty)
+            Builder(
+              builder: (context) {
+                final screenWidth = MediaQuery.of(context).size.width;
+                final padding = 16.0 * 2; // горизонтальный padding контейнера
+                final spacing = 16.0; // расстояние между карточками
+                final cardWidth = (screenWidth - padding - spacing) / 2;
+                final cardHeight = cardWidth / 0.75; // aspectRatio 0.75 как в GridView
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: cardHeight,
+                        child: ProductCard(product: firstTwoProducts[0]),
+                      ),
+                    ),
+                    SizedBox(width: spacing),
+                    Expanded(
+                      child: firstTwoProducts.length > 1
+                          ? SizedBox(
+                              height: cardHeight,
+                              child: ProductCard(product: firstTwoProducts[1]),
+                            )
+                          : const SizedBox(),
+                    ),
+                  ],
+                );
+              },
+            ),
         ],
       ),
     );

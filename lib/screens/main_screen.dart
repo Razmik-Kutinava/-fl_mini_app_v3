@@ -41,6 +41,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   late Animation<double> _expansionAnimation;
   late PageController _categoryPageController;
   int _currentCategoryPageIndex = 0;
+  
+  // Состояние промо-акций
+  List<PromoItem> _promotions = [];
+  bool _isLoadingPromotions = false;
 
   @override
   void initState() {
@@ -81,6 +85,30 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     menuProvider.setCategories(menuData['categories']);
     menuProvider.setProducts(menuData['products']);
     menuProvider.setLoading(false);
+    
+    // Загружаем промо после загрузки меню
+    _loadPromotions();
+  }
+  
+  Future<void> _loadPromotions() async {
+    if (_isLoadingPromotions) return;
+    
+    setState(() {
+      _isLoadingPromotions = true;
+    });
+    
+    try {
+      final promotions = await _getPromotions();
+      setState(() {
+        _promotions = promotions;
+        _isLoadingPromotions = false;
+      });
+    } catch (e) {
+      print('⚠️ [loadPromotions] Error: $e');
+      setState(() {
+        _isLoadingPromotions = false;
+      });
+    }
   }
 
   /// Обработка нажатия на иконку геолокации — открываем экран карты локации.
@@ -133,31 +161,22 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   }
 
   /// Получает список промо-акций для отображения
-  List<PromoItem> _getPromotions() {
-    // TODO: Загружать реальные промо из API или БД
-    // Пока используем моковые данные
-    return [
+  Future<List<PromoItem>> _getPromotions() async {
+    final promotions = <PromoItem>[];
+    
+    // ВСЕГДА добавляем первую акцию "Весеннее настроение" - одна в строке
+    promotions.add(
       PromoItem(
-        title: 'Время чудес',
-        emoji: '❄️',
-        gradient: AppColors.promoCardGradient1,
+        title: 'Весеннее настроение',
+        emoji: '🌸',
+        gradient: AppColors.promoCardGradientSpring,
       ),
-      PromoItem(
-        title: 'Shimmering sprinkles',
-        emoji: '✨',
-        gradient: AppColors.promoCardGradient2,
-      ),
-      PromoItem(
-        title: 'Кофейная радость',
-        emoji: '☕',
-        gradient: AppColors.promoCardGradient3,
-      ),
-      PromoItem(
-        title: 'Сладкое настроение',
-        emoji: '🍰',
-        gradient: AppColors.promoCardGradient4,
-      ),
-    ];
+    );
+    
+    print('✅ [getPromotions] Added "Весеннее настроение" promo');
+    
+    print('✅ [getPromotions] Total promotions: ${promotions.length}');
+    return promotions;
   }
 
   @override
@@ -272,9 +291,31 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                           // Динамический контент в зависимости от категории
                                           if (isPromotions)
                                             // Промо секция (если выбрана категория "для тебя" или акции)
-                                            PromoSection(
-                                              promotions: _getPromotions(),
-                                            )
+                                            _isLoadingPromotions
+                                                ? const Center(
+                                                    child: Padding(
+                                                      padding: EdgeInsets.all(24.0),
+                                                      child: CircularProgressIndicator(),
+                                                    ),
+                                                  )
+                                                : Builder(
+                                                    builder: (context) {
+                                                      // Получаем первые два товара из первой категории
+                                                      List<Product> firstTwoProducts = [];
+                                                      if (menuProvider.categories.isNotEmpty) {
+                                                        final firstCategory = menuProvider.categories.first;
+                                                        final categoryProducts = _getProductsForCategory(
+                                                          firstCategory.id,
+                                                          menuProvider,
+                                                        );
+                                                        firstTwoProducts = categoryProducts.take(2).toList();
+                                                      }
+                                                      return PromoSection(
+                                                        promotions: _promotions,
+                                                        products: firstTwoProducts,
+                                                      );
+                                                    },
+                                                  )
                                           else
                                             // Товары в GridView (не Sliver, так как уже внутри SliverToBoxAdapter)
                                             _buildProductsGrid(

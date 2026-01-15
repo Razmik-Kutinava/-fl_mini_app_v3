@@ -65,6 +65,12 @@ class AppColors {
     end: Alignment.bottomRight,
     colors: [Color(0xFFFF9800), Color(0xFFFF5722)],
   );
+  
+  static const promoCardGradientSpring = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF81C784), Color(0xFFF48FB1), Color(0xFFFFD54F)],
+  );
 
   // Bottom Navigation colors
   static const bottomNavActive = Color(0xFF2196F3);

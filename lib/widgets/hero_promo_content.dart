@@ -24,13 +24,6 @@ class HeroPromoContent extends StatelessWidget {
             : screenHeight * 0.55;
 
     // Адаптивные размеры текста
-    final titleFontSize = Responsive.responsiveSize(
-      context,
-      mobile: 32.0,
-      tablet: 40.0,
-      desktop: 48.0,
-    );
-
     final subtitleFontSize = Responsive.responsiveSize(
       context,
       mobile: 16.0,
@@ -56,25 +49,11 @@ class HeroPromoContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Spacer(flex: 2),
-          // Большой текст промо
-          Text(
-            title ?? 'Каждому другу – по\nподарку! Выбирай и\nотправляй',
-            style: GoogleFonts.montserrat(
-              fontSize: titleFontSize,
-              fontWeight: FontWeight.bold,
-              height: 1.2,
-              color: Colors.white,
-              shadows: [
-                Shadow(
-                  offset: const Offset(0, 2),
-                  blurRadius: 8,
-                  color: Colors.black.withOpacity(0.3),
-                ),
-              ],
-            ),
-          ).animate()
-              .fadeIn(duration: 600.ms)
-              .slideY(begin: 0.2, end: 0, duration: 600.ms),
+          // Большой текст промо - убран по требованию
+          // Text(
+          //   title ?? 'Каждому другу – по\nподарку! Выбирай и\nотправляй',
+          //   ...
+          // ),
           const SizedBox(height: 16),
           // Подзаголовок (опционально)
           if (subtitle != null)

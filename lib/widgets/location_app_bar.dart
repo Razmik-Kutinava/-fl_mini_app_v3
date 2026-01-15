@@ -61,7 +61,7 @@ class LocationAppBar extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: Colors.white.withOpacity(0.3),
