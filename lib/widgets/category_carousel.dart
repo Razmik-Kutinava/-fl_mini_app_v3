@@ -15,6 +15,7 @@ class CategoryCarousel extends StatefulWidget {
   final List<PromoItem> promotions;
   final Function(String?) onCategoryChanged;
   final Function(String?)? onCategoryExpand;
+  final PageController? pageController; // Внешний контроллер для синхронизации
 
   const CategoryCarousel({
     super.key,
@@ -22,6 +23,7 @@ class CategoryCarousel extends StatefulWidget {
     required this.promotions,
     required this.onCategoryChanged,
     this.onCategoryExpand,
+    this.pageController,
   });
 
   @override
@@ -31,6 +33,8 @@ class CategoryCarousel extends StatefulWidget {
 class _CategoryCarouselState extends State<CategoryCarousel> {
   late PageController _pageController;
   int _currentPage = 0;
+  
+  PageController get pageController => widget.pageController ?? _pageController;
 
   /// Получить список всех категорий включая "для тебя"
   List<CategoryPageItem> _getAllCategoryPages() {
@@ -68,7 +72,10 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: 0);
+    // Используем внешний контроллер или создаем свой
+    if (widget.pageController == null) {
+      _pageController = PageController(initialPage: 0);
+    }
     
     // Синхронизируем с выбранной категорией из provider
     _syncWithSelectedCategory();
@@ -105,15 +112,18 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
     }
     
     // Если текущая страница не совпадает с выбранной, переключаем
-    if (_currentPage != targetIndex && _pageController.hasClients) {
-      _pageController.jumpToPage(targetIndex);
+    if (_currentPage != targetIndex && pageController.hasClients) {
+      pageController.jumpToPage(targetIndex);
       _currentPage = targetIndex;
     }
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    // Удаляем только если мы создали контроллер сами
+    if (widget.pageController == null) {
+      _pageController.dispose();
+    }
     super.dispose();
   }
 
@@ -130,7 +140,7 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
     return SliverFillRemaining(
       hasScrollBody: false,
       child: PageView.builder(
-        controller: _pageController,
+        controller: pageController,
         scrollDirection: Axis.horizontal,
         onPageChanged: (index) {
           setState(() {
@@ -158,59 +168,17 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.4),
       ),
-      child: Column(
-        children: [
-          // Заголовок категории (полупрозрачный черный фон)
-          _buildCategoryHeader(page),
-          
-          // Контент: промо или товары
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(30),
-                  topRight: Radius.circular(30),
-                ),
-              ),
-              child: page.isPromo
-                  ? _buildPromoContent(products)
-                  : _buildProductsContent(products),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Заголовок категории
-  Widget _buildCategoryHeader(CategoryPageItem page) {
-    final height = Responsive.responsiveSize(
-      context,
-      mobile: 50.0,
-      tablet: 55.0,
-      desktop: 60.0,
-    );
-
-    final fontSize = Responsive.responsiveSize(
-      context,
-      mobile: 14.0,
-      tablet: 16.0,
-      desktop: 18.0,
-    );
-
-    return Container(
-      height: height,
-      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.4)),
-      alignment: Alignment.center,
-      child: Text(
-        page.name,
-        style: GoogleFonts.montserrat(
-          fontSize: fontSize,
-          fontWeight: FontWeight.w700,
+      child: Container(
+        decoration: const BoxDecoration(
           color: Colors.white,
-          letterSpacing: 0.5,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(30),
+            topRight: Radius.circular(30),
+          ),
         ),
+        child: page.isPromo
+            ? _buildPromoContent(products)
+            : _buildProductsContent(products),
       ),
     );
   }

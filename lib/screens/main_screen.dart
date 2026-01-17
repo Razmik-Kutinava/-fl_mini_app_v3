@@ -10,14 +10,13 @@ import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/menu_provider.dart';
 import '../services/api_service.dart';
-import '../widgets/product_card.dart';
 import '../models/product.dart';
 import '../widgets/background_hero_banner.dart';
 import '../widgets/location_app_bar.dart';
 import '../widgets/hero_promo_content.dart';
 import '../widgets/promo_section.dart';
 import '../widgets/category_carousel.dart';
-import '../utils/responsive.dart';
+import '../widgets/category_navigation_scrollable.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
 import 'location_map_screen.dart';
@@ -33,13 +32,13 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
+  final PageController _categoryPageController = PageController(initialPage: 0);
 
   // Состояние расширения категории
   bool _isCategoryExpanded = false;
   String? _expandedCategoryId;
   late AnimationController _expansionController;
   late Animation<double> _expansionAnimation;
-  late PageController _categoryPageController;
   int _currentCategoryPageIndex = 0;
   
   // Состояние промо-акций
@@ -61,15 +60,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       curve: Curves.easeInOut,
     );
 
-    // Инициализация PageController для переключения категорий
-    _categoryPageController = PageController(initialPage: 0);
+    // PageController уже инициализирован в объявлении
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
-    _expansionController.dispose();
     _categoryPageController.dispose();
+    _expansionController.dispose();
     super.dispose();
   }
 
@@ -132,23 +130,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     }
   }
 
-  /// Проверяет, выбрана ли категория "акции" или "для тебя"
-  bool _isPromotionsCategory(String? categoryId, List categories) {
-    // Категория "для тебя" (selectedCategoryId == null) показывает промо
-    if (categoryId == null) return true;
-
-    // Ищем категорию по id
-    try {
-      final category = categories.firstWhere((cat) => cat.id == categoryId);
-      // Проверяем название категории - если это "акции" или "промо", показываем промо
-      final name = category.name.toLowerCase();
-      return name.contains('акци') || name.contains('промо');
-    } catch (e) {
-      // Если категория не найдена, показываем товары (не промо)
-      return false;
-    }
-  }
-
   /// Получает товары для категории
   List<Product> _getProductsForCategory(
     String? categoryId,
@@ -158,6 +139,33 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     return menuProvider.allProducts
         .where((p) => p.categoryId == categoryId)
         .toList();
+  }
+
+  /// Переключает карусель на указанную категорию
+  void _switchToCategory(String? categoryId, MenuProvider menuProvider) {
+    // Вычисляем индекс категории
+    int targetIndex = 0; // По умолчанию "для тебя"
+    
+    if (categoryId == null) {
+      targetIndex = 0;
+    } else {
+      // Ищем индекс категории (начиная с 1, так как 0 - "для тебя")
+      for (int i = 0; i < menuProvider.categories.length; i++) {
+        if (menuProvider.categories[i].id == categoryId) {
+          targetIndex = i + 1; // +1 потому что первая страница - "для тебя"
+          break;
+        }
+      }
+    }
+    
+    // Переключаем карусель
+    if (_categoryPageController.hasClients) {
+      _categoryPageController.animateToPage(
+        targetIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   /// Получает список промо-акций для отображения
@@ -233,6 +241,32 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                   .slideY(begin: 0.2, end: 0),
                             ),
 
+                            // Навигация по категориям (все заголовки видны)
+                            CategoryNavigationScrollable(
+                              categories: menuProvider.categories,
+                              selectedCategoryId: menuProvider.selectedCategoryId,
+                              onCategorySelected: (categoryId) {
+                                // При клике на категорию - переключаем карусель
+                                menuProvider.selectCategory(categoryId);
+                                _switchToCategory(categoryId, menuProvider);
+                              },
+                              onCategoryExpand: (categoryId) {
+                                // При свайпе вправо на категории - расширяем на полный экран
+                                if (categoryId != null && !_isCategoryExpanded) {
+                                  print(
+                                    '🔥 Expanding category from swipe: $categoryId',
+                                  );
+                                  final products = _getProductsForCategory(
+                                    categoryId,
+                                    menuProvider,
+                                  );
+                                  if (products.isNotEmpty) {
+                                    _expandCategory(categoryId);
+                                  }
+                                }
+                              },
+                            ),
+
                             // Карусель категорий с товарами
                             _isLoadingPromotions
                                 ? const SliverToBoxAdapter(
@@ -246,6 +280,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                 : CategoryCarousel(
                                     menuProvider: menuProvider,
                                     promotions: _promotions,
+                                    pageController: _categoryPageController,
                                     onCategoryChanged: (categoryId) {
                                       // Обновляем выбранную категорию при свайпе
                                       menuProvider.selectCategory(categoryId);
