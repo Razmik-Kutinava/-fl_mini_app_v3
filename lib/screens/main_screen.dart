@@ -15,8 +15,8 @@ import '../models/product.dart';
 import '../widgets/background_hero_banner.dart';
 import '../widgets/location_app_bar.dart';
 import '../widgets/hero_promo_content.dart';
-import '../widgets/category_navigation_scrollable.dart';
 import '../widgets/promo_section.dart';
+import '../widgets/category_carousel.dart';
 import '../utils/responsive.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
@@ -184,10 +184,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final locationProvider = context.watch<LocationProvider>();
     final menuProvider = context.watch<MenuProvider>();
     final location = locationProvider.selectedLocation;
-    final isPromotions = _isPromotionsCategory(
-      menuProvider.selectedCategoryId,
-      menuProvider.categories,
-    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -237,65 +233,40 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                   .slideY(begin: 0.2, end: 0),
                             ),
 
-                            // Навигация по категориям (внутри скролла, полупрозрачный черный фон)
-                            CategoryNavigationScrollable(
-                              categories: menuProvider.categories,
-                              selectedCategoryId:
-                                  menuProvider.selectedCategoryId,
-                              onCategorySelected: (categoryId) {
-                                // При нажатии просто показываем товары на главном экране
-                                menuProvider.selectCategory(categoryId);
-                              },
-                              onCategoryExpand: (categoryId) {
-                                // При свайпе вправо на категории - расширяем на полный экран
-                                if (categoryId != null &&
-                                    !_isCategoryExpanded) {
-                                  print(
-                                    '🔥 Expanding category from swipe: $categoryId',
-                                  );
-                                  final products = _getProductsForCategory(
-                                    categoryId,
-                                    menuProvider,
-                                  );
-                                  if (products.isNotEmpty) {
-                                    _expandCategory(categoryId);
-                                  }
-                                }
-                              },
-                            ),
-
-                            // Контент
-                            if (isPromotions)
-                              // Промо секция
-                              SliverToBoxAdapter(
-                                child: _isLoadingPromotions
-                                    ? const Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(24.0),
-                                          child: CircularProgressIndicator(),
-                                        ),
-                                      )
-                                    : Builder(
-                                        builder: (context) {
-                                          List<Product> firstTwoProducts = [];
-                                          if (menuProvider.categories.isNotEmpty) {
-                                            final firstCategory = menuProvider.categories.first;
-                                            final categoryProducts = _getProductsForCategory(
-                                              firstCategory.id,
-                                              menuProvider,
-                                            );
-                                            firstTwoProducts = categoryProducts.take(2).toList();
-                                          }
-                                          return PromoSection(
-                                            promotions: _promotions,
-                                            products: firstTwoProducts,
-                                          );
-                                        },
+                            // Карусель категорий с товарами
+                            _isLoadingPromotions
+                                ? const SliverToBoxAdapter(
+                                    child: Center(
+                                      child: Padding(
+                                        padding: EdgeInsets.all(24.0),
+                                        child: CircularProgressIndicator(),
                                       ),
-                              )
-                            else
-                              // Товары в SliverPadding + SliverGrid
-                              _buildProductsSliverGrid(context, menuProvider),
+                                    ),
+                                  )
+                                : CategoryCarousel(
+                                    menuProvider: menuProvider,
+                                    promotions: _promotions,
+                                    onCategoryChanged: (categoryId) {
+                                      // Обновляем выбранную категорию при свайпе
+                                      menuProvider.selectCategory(categoryId);
+                                    },
+                                    onCategoryExpand: (categoryId) {
+                                      // При свайпе вправо на категории - расширяем на полный экран
+                                      if (categoryId != null &&
+                                          !_isCategoryExpanded) {
+                                        print(
+                                          '🔥 Expanding category from swipe: $categoryId',
+                                        );
+                                        final products = _getProductsForCategory(
+                                          categoryId,
+                                          menuProvider,
+                                        );
+                                        if (products.isNotEmpty) {
+                                          _expandCategory(categoryId);
+                                        }
+                                      }
+                                    },
+                                  ),
                           ],
                         ),
                       ),
@@ -347,54 +318,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           }
           return const SizedBox.shrink();
         },
-      ),
-    );
-  }
-
-  /// Горизонтальный список товаров с синхронизацией скролла категорий
-  Widget _buildProductsSliverGrid(BuildContext context, MenuProvider menuProvider) {
-    // Адаптивные отступы
-    final padding = Responsive.responsiveSize(
-      context,
-      mobile: 16.0,
-      tablet: 24.0,
-      desktop: 32.0,
-    );
-
-    // Ширина карточки товара (адаптивная)
-    final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = Responsive.responsiveSize(
-      context,
-      mobile: screenWidth * 0.45, // 45% ширины экрана на мобильных
-      tablet: 200.0,
-      desktop: 250.0,
-    );
-
-    // Высота карточки (aspectRatio 0.75 = ширина/высота)
-    final cardHeight = cardWidth / 0.75;
-
-    return SliverToBoxAdapter(
-      child: Container(
-        padding: EdgeInsets.symmetric(vertical: padding),
-        height: cardHeight + padding * 2,
-        child: ListView.builder(
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: padding),
-          physics: const BouncingScrollPhysics(),
-          itemCount: menuProvider.products.length,
-          itemBuilder: (context, index) {
-            final product = menuProvider.products[index];
-            return Container(
-              width: cardWidth,
-              height: cardHeight,
-              margin: EdgeInsets.only(right: padding),
-              child: ProductCard(product: product)
-                  .animate(delay: Duration(milliseconds: 50 * index))
-                  .fadeIn()
-                  .scale(begin: const Offset(0.9, 0.9)),
-            );
-          },
-        ),
       ),
     );
   }
