@@ -12,6 +12,7 @@ class CategoryNavigationScrollable extends StatefulWidget {
   final Function(String?) onCategorySelected;
   final Function(String?)? onCategoryExpand;
   final bool showAll;
+  final ScrollController? horizontalScrollController; // Общий контроллер для синхронизации
 
   const CategoryNavigationScrollable({
     super.key,
@@ -20,6 +21,7 @@ class CategoryNavigationScrollable extends StatefulWidget {
     required this.onCategorySelected,
     this.onCategoryExpand,
     this.showAll = true,
+    this.horizontalScrollController,
   });
 
   @override
@@ -29,12 +31,19 @@ class CategoryNavigationScrollable extends StatefulWidget {
 
 class _CategoryNavigationScrollableState
     extends State<CategoryNavigationScrollable> {
-  final ScrollController _scrollController = ScrollController();
+  late ScrollController _scrollController;
   final Map<String, GlobalKey> _categoryKeys = {};
+  bool _isProgrammaticScroll = false;
 
   @override
   void initState() {
     super.initState();
+    // Используем внешний контроллер или создаем свой
+    _scrollController = widget.horizontalScrollController ?? ScrollController();
+    
+    // Добавляем listener для синхронизации
+    _scrollController.addListener(_onScroll);
+    
     print(
       '🚀 [CategoryRow] initState: selectedCategoryId=${widget.selectedCategoryId}, categories count=${widget.categories.length}',
     );
@@ -44,6 +53,11 @@ class _CategoryNavigationScrollableState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSelectedCategory();
     });
+  }
+
+  void _onScroll() {
+    // При скролле навигации синхронизируем с товарами
+    // Это обрабатывается в CategoryCarousel через общий контроллер
   }
 
   @override
@@ -73,6 +87,7 @@ class _CategoryNavigationScrollableState
 
   void _scrollToSelectedCategory() {
     if (!_scrollController.hasClients) return;
+    if (_isProgrammaticScroll) return; // Не скроллим если это программный скролл
 
     GlobalKey? targetKey;
     if (widget.selectedCategoryId == null) {
@@ -90,18 +105,25 @@ class _CategoryNavigationScrollableState
         final categoryCenter = position.dx + (renderBox.size.width / 2);
         final scrollOffset = categoryCenter - (screenWidth / 2);
 
+        _isProgrammaticScroll = true;
         _scrollController.animateTo(
           scrollOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-        );
+        ).then((_) {
+          _isProgrammaticScroll = false;
+        });
       }
     }
   }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _scrollController.removeListener(_onScroll);
+    // Удаляем только если мы создали контроллер сами
+    if (widget.horizontalScrollController == null) {
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 

@@ -16,6 +16,7 @@ class CategoryCarousel extends StatefulWidget {
   final Function(String?) onCategoryChanged;
   final Function(String?)? onCategoryExpand;
   final PageController? pageController; // Внешний контроллер для синхронизации
+  final ScrollController? horizontalScrollController; // Общий контроллер для синхронизации скролла
 
   const CategoryCarousel({
     super.key,
@@ -24,6 +25,7 @@ class CategoryCarousel extends StatefulWidget {
     required this.onCategoryChanged,
     this.onCategoryExpand,
     this.pageController,
+    this.horizontalScrollController,
   });
 
   @override
@@ -33,6 +35,8 @@ class CategoryCarousel extends StatefulWidget {
 class _CategoryCarouselState extends State<CategoryCarousel> {
   late PageController _pageController;
   int _currentPage = 0;
+  final Map<int, ScrollController> _productScrollControllers = {}; // Контроллеры для каждой страницы товаров
+  bool _isSyncingScroll = false;
   
   PageController get pageController => widget.pageController ?? _pageController;
 
@@ -77,8 +81,40 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       _pageController = PageController(initialPage: 0);
     }
     
+    // Добавляем listener на общий контроллер для синхронизации
+    if (widget.horizontalScrollController != null) {
+      widget.horizontalScrollController!.addListener(_onHorizontalScroll);
+    }
+    
     // Синхронизируем с выбранной категорией из provider
     _syncWithSelectedCategory();
+  }
+
+  void _onHorizontalScroll() {
+    if (_isSyncingScroll) return; // Предотвращаем цикл синхронизации
+    
+    // Синхронизируем скролл товаров с навигацией только для текущей страницы
+    final currentProductsController = _productScrollControllers[_currentPage];
+    if (currentProductsController != null && 
+        widget.horizontalScrollController != null &&
+        widget.horizontalScrollController!.hasClients &&
+        currentProductsController.hasClients) {
+      final navOffset = widget.horizontalScrollController!.offset;
+      final navMax = widget.horizontalScrollController!.position.maxScrollExtent;
+      
+      if (navMax > 0) {
+        final productsMax = currentProductsController.position.maxScrollExtent;
+        if (productsMax > 0) {
+          // Пропорционально синхронизируем скролл
+          final ratio = navOffset / navMax;
+          final targetOffset = ratio * productsMax;
+          
+          _isSyncingScroll = true;
+          currentProductsController.jumpTo(targetOffset.clamp(0.0, productsMax));
+          _isSyncingScroll = false;
+        }
+      }
+    }
   }
 
   @override
@@ -120,6 +156,17 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
 
   @override
   void dispose() {
+    // Удаляем listener
+    if (widget.horizontalScrollController != null) {
+      widget.horizontalScrollController!.removeListener(_onHorizontalScroll);
+    }
+    
+    // Удаляем контроллеры товаров
+    for (var controller in _productScrollControllers.values) {
+      controller.dispose();
+    }
+    _productScrollControllers.clear();
+    
     // Удаляем только если мы создали контроллер сами
     if (widget.pageController == null) {
       _pageController.dispose();
@@ -154,14 +201,14 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
         itemCount: pages.length,
         itemBuilder: (context, index) {
           final page = pages[index];
-          return _buildCategoryPage(page);
+          return _buildCategoryPage(page, index);
         },
       ),
     );
   }
 
   /// Строит страницу категории с товарами
-  Widget _buildCategoryPage(CategoryPageItem page) {
+  Widget _buildCategoryPage(CategoryPageItem page, int pageIndex) {
     final products = _getProductsForCategory(page.id);
     
     return Container(
@@ -178,7 +225,7 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
         ),
         child: page.isPromo
             ? _buildPromoContent(products)
-            : _buildProductsContent(products),
+            : _buildProductsContent(products, pageIndex),
       ),
     );
   }
@@ -202,7 +249,7 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
   }
 
   /// Контент с товарами
-  Widget _buildProductsContent(List<Product> products) {
+  Widget _buildProductsContent(List<Product> products, int pageIndex) {
     final padding = Responsive.responsiveSize(
       context,
       mobile: 16.0,
@@ -232,9 +279,43 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       );
     }
 
+    // Создаем или получаем контроллер для этой страницы
+    if (!_productScrollControllers.containsKey(pageIndex)) {
+      _productScrollControllers[pageIndex] = ScrollController();
+      // Добавляем listener для синхронизации обратно с навигацией
+      _productScrollControllers[pageIndex]!.addListener(() {
+        if (_isSyncingScroll) return;
+        // Синхронизируем только если это текущая активная страница
+        if (pageIndex != _currentPage) return;
+        
+        final productsController = _productScrollControllers[pageIndex];
+        if (productsController != null && 
+            widget.horizontalScrollController != null &&
+            widget.horizontalScrollController!.hasClients &&
+            productsController.hasClients) {
+          final productsOffset = productsController.offset;
+          final productsMax = productsController.position.maxScrollExtent;
+          
+          if (productsMax > 0) {
+            final navMax = widget.horizontalScrollController!.position.maxScrollExtent;
+            if (navMax > 0) {
+              // Пропорционально синхронизируем скролл навигации
+              final ratio = productsOffset / productsMax;
+              final targetOffset = ratio * navMax;
+              
+              _isSyncingScroll = true;
+              widget.horizontalScrollController!.jumpTo(targetOffset.clamp(0.0, navMax));
+              _isSyncingScroll = false;
+            }
+          }
+        }
+      });
+    }
+
     return Container(
       padding: EdgeInsets.symmetric(vertical: padding),
       child: ListView.builder(
+        controller: _productScrollControllers[pageIndex],
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.symmetric(horizontal: padding),
         physics: const BouncingScrollPhysics(),

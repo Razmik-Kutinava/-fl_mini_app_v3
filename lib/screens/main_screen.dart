@@ -33,6 +33,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
   final PageController _categoryPageController = PageController(initialPage: 0);
+  final ScrollController _horizontalScrollController = ScrollController(); // Общий контроллер для синхронизации
 
   // Состояние расширения категории
   bool _isCategoryExpanded = false;
@@ -67,6 +68,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void dispose() {
     _scrollController.dispose();
     _categoryPageController.dispose();
+    _horizontalScrollController.dispose();
     _expansionController.dispose();
     super.dispose();
   }
@@ -245,6 +247,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                             CategoryNavigationScrollable(
                               categories: menuProvider.categories,
                               selectedCategoryId: menuProvider.selectedCategoryId,
+                              horizontalScrollController: _horizontalScrollController,
                               onCategorySelected: (categoryId) {
                                 // При клике на категорию - переключаем карусель
                                 menuProvider.selectCategory(categoryId);
@@ -281,6 +284,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                     menuProvider: menuProvider,
                                     promotions: _promotions,
                                     pageController: _categoryPageController,
+                                    horizontalScrollController: _horizontalScrollController,
                                     onCategoryChanged: (categoryId) {
                                       // Обновляем выбранную категорию при свайпе
                                       menuProvider.selectCategory(categoryId);
