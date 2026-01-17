@@ -29,12 +29,80 @@ class CategoryNavigationScrollable extends StatefulWidget {
 
 class _CategoryNavigationScrollableState
     extends State<CategoryNavigationScrollable> {
+  final ScrollController _scrollController = ScrollController();
+  final Map<String, GlobalKey> _categoryKeys = {};
+
   @override
   void initState() {
     super.initState();
     print(
       '🚀 [CategoryRow] initState: selectedCategoryId=${widget.selectedCategoryId}, categories count=${widget.categories.length}',
     );
+    // Создаем ключи для каждой категории
+    _createCategoryKeys();
+    // Скроллим к выбранной категории после первого кадра
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scrollToSelectedCategory();
+    });
+  }
+
+  @override
+  void didUpdateWidget(CategoryNavigationScrollable oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Если категории изменились, обновляем ключи
+    if (oldWidget.categories.length != widget.categories.length) {
+      _createCategoryKeys();
+    }
+    // Если выбранная категория изменилась, скроллим к ней
+    if (oldWidget.selectedCategoryId != widget.selectedCategoryId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToSelectedCategory();
+      });
+    }
+  }
+
+  void _createCategoryKeys() {
+    _categoryKeys.clear();
+    if (widget.showAll) {
+      _categoryKeys['для тебя'] = GlobalKey();
+    }
+    for (var category in widget.categories) {
+      _categoryKeys[category.id] = GlobalKey();
+    }
+  }
+
+  void _scrollToSelectedCategory() {
+    if (!_scrollController.hasClients) return;
+
+    GlobalKey? targetKey;
+    if (widget.selectedCategoryId == null) {
+      targetKey = _categoryKeys['для тебя'];
+    } else {
+      targetKey = _categoryKeys[widget.selectedCategoryId];
+    }
+
+    if (targetKey?.currentContext != null) {
+      final RenderBox? renderBox =
+          targetKey!.currentContext!.findRenderObject() as RenderBox?;
+      if (renderBox != null) {
+        final position = renderBox.localToGlobal(Offset.zero);
+        final screenWidth = MediaQuery.of(context).size.width;
+        final categoryCenter = position.dx + (renderBox.size.width / 2);
+        final scrollOffset = categoryCenter - (screenWidth / 2);
+
+        _scrollController.animateTo(
+          scrollOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -73,12 +141,14 @@ class _CategoryNavigationScrollableState
         height: height,
         decoration: BoxDecoration(color: Colors.black.withOpacity(0.4)),
         child: SingleChildScrollView(
+          controller: _scrollController,
           scrollDirection: Axis.horizontal,
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           child: Row(
             children: [
               if (widget.showAll)
                 _CategoryTextItem(
+                  key: _categoryKeys['для тебя'],
                   label: 'для тебя',
                   isSelected: widget.selectedCategoryId == null,
                   fontSize: fontSize,
@@ -88,6 +158,7 @@ class _CategoryNavigationScrollableState
               ...widget.categories.map((category) {
                 final isSelected = widget.selectedCategoryId == category.id;
                 return _CategoryTextItem(
+                  key: _categoryKeys[category.id],
                   label: category.name,
                   isSelected: isSelected,
                   fontSize: fontSize,
@@ -112,6 +183,7 @@ class _CategoryTextItem extends StatelessWidget {
   final VoidCallback onTap;
 
   const _CategoryTextItem({
+    super.key,
     required this.label,
     required this.isSelected,
     required this.fontSize,
