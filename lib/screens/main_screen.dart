@@ -33,8 +33,6 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
-  final ScrollController _categoryScrollController = ScrollController();
-  final ScrollController _productsScrollController = ScrollController();
 
   // Состояние расширения категории
   bool _isCategoryExpanded = false;
@@ -70,8 +68,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _scrollController.dispose();
-    _categoryScrollController.dispose();
-    _productsScrollController.dispose();
     _expansionController.dispose();
     _categoryPageController.dispose();
     super.dispose();
@@ -246,8 +242,6 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                               categories: menuProvider.categories,
                               selectedCategoryId:
                                   menuProvider.selectedCategoryId,
-                              horizontalScrollController: _categoryScrollController,
-                              productsScrollController: _productsScrollController,
                               onCategorySelected: (categoryId) {
                                 // При нажатии просто показываем товары на главном экране
                                 menuProvider.selectCategory(categoryId);
@@ -380,48 +374,26 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final cardHeight = cardWidth / 0.75;
 
     return SliverToBoxAdapter(
-      child: NotificationListener<ScrollNotification>(
-        onNotification: (notification) {
-          // При скролле товаров - НЕ блокируем события категорий
-          // Позволяем им скроллиться вместе
-          if (notification is ScrollUpdateNotification) {
-            // Синхронизируем скролл категорий с товарами
-            if (_categoryScrollController.hasClients) {
-              final scrollDelta = notification.scrollDelta ?? 0.0;
-              final newOffset = _categoryScrollController.offset + scrollDelta;
-              final maxScroll = _categoryScrollController.position.maxScrollExtent;
-              final clampedOffset = newOffset.clamp(0.0, maxScroll);
-
-              _categoryScrollController.jumpTo(clampedOffset);
-              print('🔗 [ProductScroll] Synced categories scroll to: $clampedOffset');
-            }
-          }
-
-          // БЛОКИРУЕМ только вертикальный скролл
-          return true;
-        },
-        child: SizedBox(
-          height: cardHeight + padding * 2,
-          child: ListView.builder(
-            controller: _productsScrollController,
-            scrollDirection: Axis.horizontal,
-            padding: EdgeInsets.symmetric(horizontal: padding),
-            physics: const AlwaysScrollableScrollPhysics(),
-            primary: false,
-            itemCount: menuProvider.products.length,
-            itemBuilder: (context, index) {
-              final product = menuProvider.products[index];
-              return Container(
-                width: cardWidth,
-                height: cardHeight,
-                margin: EdgeInsets.only(right: padding),
-                child: ProductCard(product: product)
-                    .animate(delay: Duration(milliseconds: 50 * index))
-                    .fadeIn()
-                    .scale(begin: const Offset(0.9, 0.9)),
-              );
-            },
-          ),
+      child: Container(
+        padding: EdgeInsets.symmetric(vertical: padding),
+        height: cardHeight + padding * 2,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.symmetric(horizontal: padding),
+          physics: const BouncingScrollPhysics(),
+          itemCount: menuProvider.products.length,
+          itemBuilder: (context, index) {
+            final product = menuProvider.products[index];
+            return Container(
+              width: cardWidth,
+              height: cardHeight,
+              margin: EdgeInsets.only(right: padding),
+              child: ProductCard(product: product)
+                  .animate(delay: Duration(milliseconds: 50 * index))
+                  .fadeIn()
+                  .scale(begin: const Offset(0.9, 0.9)),
+            );
+          },
         ),
       ),
     );
