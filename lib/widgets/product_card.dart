@@ -27,6 +27,7 @@ class ProductCard extends StatelessWidget {
           ),
         );
       },
+      behavior: HitTestBehavior.translucent,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),

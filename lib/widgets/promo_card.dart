@@ -24,6 +24,7 @@ class PromoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.translucent,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),

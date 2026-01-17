@@ -33,6 +33,8 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
+  final ScrollController _categoryScrollController = ScrollController();
+  final ScrollController _productsScrollController = ScrollController();
 
   // Состояние расширения категории
   bool _isCategoryExpanded = false;
@@ -68,6 +70,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _scrollController.dispose();
+    _categoryScrollController.dispose();
+    _productsScrollController.dispose();
     _expansionController.dispose();
     _categoryPageController.dispose();
     super.dispose();
@@ -242,6 +246,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                               categories: menuProvider.categories,
                               selectedCategoryId:
                                   menuProvider.selectedCategoryId,
+                              horizontalScrollController: _categoryScrollController,
+                              productsScrollController: _productsScrollController,
                               onCategorySelected: (categoryId) {
                                 // При нажатии просто показываем товары на главном экране
                                 menuProvider.selectCategory(categoryId);
@@ -264,71 +270,38 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                               },
                             ),
 
-                            // Темный полупрозрачный фон для товаров/промо
-                            SliverToBoxAdapter(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.4),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Белый контейнер с закругленными верхними углами (внутри темного фона)
-                                    Container(
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        borderRadius: BorderRadius.only(
-                                          topLeft: Radius.circular(30),
-                                          topRight: Radius.circular(30),
+                            // Контент
+                            if (isPromotions)
+                              // Промо секция
+                              SliverToBoxAdapter(
+                                child: _isLoadingPromotions
+                                    ? const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(24.0),
+                                          child: CircularProgressIndicator(),
                                         ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          // Динамический контент в зависимости от категории
-                                          if (isPromotions)
-                                            // Промо секция (если выбрана категория "для тебя" или акции)
-                                            _isLoadingPromotions
-                                                ? const Center(
-                                                    child: Padding(
-                                                      padding: EdgeInsets.all(24.0),
-                                                      child: CircularProgressIndicator(),
-                                                    ),
-                                                  )
-                                                : Builder(
-                                                    builder: (context) {
-                                                      // Получаем первые два товара из первой категории
-                                                      List<Product> firstTwoProducts = [];
-                                                      if (menuProvider.categories.isNotEmpty) {
-                                                        final firstCategory = menuProvider.categories.first;
-                                                        final categoryProducts = _getProductsForCategory(
-                                                          firstCategory.id,
-                                                          menuProvider,
-                                                        );
-                                                        firstTwoProducts = categoryProducts.take(2).toList();
-                                                      }
-                                                      return PromoSection(
-                                                        promotions: _promotions,
-                                                        products: firstTwoProducts,
-                                                      );
-                                                    },
-                                                  )
-                                          else
-                                            // Товары в GridView (не Sliver, так как уже внутри SliverToBoxAdapter)
-                                            _buildProductsGrid(
-                                              context,
+                                      )
+                                    : Builder(
+                                        builder: (context) {
+                                          List<Product> firstTwoProducts = [];
+                                          if (menuProvider.categories.isNotEmpty) {
+                                            final firstCategory = menuProvider.categories.first;
+                                            final categoryProducts = _getProductsForCategory(
+                                              firstCategory.id,
                                               menuProvider,
-                                            ),
-                                        ],
+                                            );
+                                            firstTwoProducts = categoryProducts.take(2).toList();
+                                          }
+                                          return PromoSection(
+                                            promotions: _promotions,
+                                            products: firstTwoProducts,
+                                          );
+                                        },
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
+                              )
+                            else
+                              // Товары в SliverPadding + SliverGrid
+                              _buildProductsSliverGrid(context, menuProvider),
                           ],
                         ),
                       ),
@@ -384,11 +357,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
-  /// GridView товаров (не Sliver, для использования внутри SliverToBoxAdapter)
-  Widget _buildProductsGrid(BuildContext context, MenuProvider menuProvider) {
-    // Адаптивное количество колонок
-    final crossAxisCount = Responsive.responsiveCrossAxisCount(context);
-
+  /// Горизонтальный список товаров с синхронизацией скролла категорий
+  Widget _buildProductsSliverGrid(BuildContext context, MenuProvider menuProvider) {
     // Адаптивные отступы
     final padding = Responsive.responsiveSize(
       context,
@@ -397,25 +367,62 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       desktop: 32.0,
     );
 
-    return Container(
-      padding: EdgeInsets.all(padding),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 0.75,
-        ),
-        itemCount: menuProvider.products.length,
-        itemBuilder: (context, index) {
-          final product = menuProvider.products[index];
-          return ProductCard(product: product)
-              .animate(delay: Duration(milliseconds: 50 * index))
-              .fadeIn()
-              .scale(begin: const Offset(0.9, 0.9));
+    // Ширина карточки товара (адаптивная)
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardWidth = Responsive.responsiveSize(
+      context,
+      mobile: screenWidth * 0.45, // 45% ширины экрана на мобильных
+      tablet: 200.0,
+      desktop: 250.0,
+    );
+
+    // Высота карточки (aspectRatio 0.75 = ширина/высота)
+    final cardHeight = cardWidth / 0.75;
+
+    return SliverToBoxAdapter(
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          // При скролле товаров - НЕ блокируем события категорий
+          // Позволяем им скроллиться вместе
+          if (notification is ScrollUpdateNotification) {
+            // Синхронизируем скролл категорий с товарами
+            if (_categoryScrollController.hasClients) {
+              final scrollDelta = notification.scrollDelta ?? 0.0;
+              final newOffset = _categoryScrollController.offset + scrollDelta;
+              final maxScroll = _categoryScrollController.position.maxScrollExtent;
+              final clampedOffset = newOffset.clamp(0.0, maxScroll);
+
+              _categoryScrollController.jumpTo(clampedOffset);
+              print('🔗 [ProductScroll] Synced categories scroll to: $clampedOffset');
+            }
+          }
+
+          // БЛОКИРУЕМ только вертикальный скролл
+          return true;
         },
+        child: SizedBox(
+          height: cardHeight + padding * 2,
+          child: ListView.builder(
+            controller: _productsScrollController,
+            scrollDirection: Axis.horizontal,
+            padding: EdgeInsets.symmetric(horizontal: padding),
+            physics: const AlwaysScrollableScrollPhysics(),
+            primary: false,
+            itemCount: menuProvider.products.length,
+            itemBuilder: (context, index) {
+              final product = menuProvider.products[index];
+              return Container(
+                width: cardWidth,
+                height: cardHeight,
+                margin: EdgeInsets.only(right: padding),
+                child: ProductCard(product: product)
+                    .animate(delay: Duration(milliseconds: 50 * index))
+                    .fadeIn()
+                    .scale(begin: const Offset(0.9, 0.9)),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

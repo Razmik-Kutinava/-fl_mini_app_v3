@@ -37,8 +37,10 @@ class MenuProvider with ChangeNotifier {
   }
 
   void selectCategory(String? categoryId) {
+    print('🎯 [MenuProvider] selectCategory called with: $categoryId');
     _selectedCategoryId = categoryId;
     notifyListeners();
+    print('🎯 [MenuProvider] Notified listeners, selectedCategoryId: $_selectedCategoryId');
   }
 
   void setLoading(bool loading) {
