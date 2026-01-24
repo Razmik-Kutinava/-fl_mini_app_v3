@@ -176,6 +176,7 @@ class _CategoryNavigationScrollableState
                   fontSize: fontSize,
                   spacing: categorySpacing,
                   onTap: () => widget.onCategorySelected(null),
+                  onSwipeUp: () => widget.onCategoryExpand?.call(null),
                 ),
               ...widget.categories.map((category) {
                 final isSelected = widget.selectedCategoryId == category.id;
@@ -186,6 +187,7 @@ class _CategoryNavigationScrollableState
                   fontSize: fontSize,
                   spacing: categorySpacing,
                   onTap: () => widget.onCategorySelected(category.id),
+                  onSwipeUp: () => widget.onCategoryExpand?.call(category.id),
                 );
               }),
             ],
@@ -203,6 +205,7 @@ class _CategoryTextItem extends StatelessWidget {
   final double fontSize;
   final double spacing;
   final VoidCallback onTap;
+  final Function()? onSwipeUp;
 
   const _CategoryTextItem({
     super.key,
@@ -211,25 +214,32 @@ class _CategoryTextItem extends StatelessWidget {
     required this.fontSize,
     required this.spacing,
     required this.onTap,
+    this.onSwipeUp,
   });
 
   @override
   Widget build(BuildContext context) {
     // Используем InkWell вместо GestureDetector для лучшей обработки тапов
-    // НЕ обрабатываем горизонтальные жесты здесь!
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        margin: EdgeInsets.only(right: spacing),
-        alignment: Alignment.center,
-        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-        child: Text(
-          label,
-          style: GoogleFonts.montserrat(
-            fontSize: fontSize,
-            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
-            letterSpacing: 0.5,
+    return GestureDetector(
+      onVerticalDragUpdate: (details) {
+        if (details.delta.dy < -5) {
+          onSwipeUp?.call();
+        }
+      },
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          margin: EdgeInsets.only(right: spacing),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+          child: Text(
+            label,
+            style: GoogleFonts.montserrat(
+              fontSize: fontSize,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+              letterSpacing: 0.5,
+            ),
           ),
         ),
       ),

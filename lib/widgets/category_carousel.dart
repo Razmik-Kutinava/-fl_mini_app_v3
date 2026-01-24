@@ -37,8 +37,6 @@ class CategoryCarousel extends StatefulWidget {
 class _CategoryCarouselState extends State<CategoryCarousel> {
   late PageController _pageController;
   int _currentPage = 0;
-  final Map<int, ScrollController> _productScrollControllers = {}; // Контроллеры для каждой страницы товаров
-  bool _isSyncingScroll = false;
   
   PageController get pageController => widget.pageController ?? _pageController;
 
@@ -93,29 +91,27 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
   }
 
   void _onHorizontalScroll() {
-    if (_isSyncingScroll) return; // Предотвращаем цикл синхронизации
+    // Синхронизация горизонтального скролла навигации с переключением страниц
+    // Обрабатывается через переключение страниц в PageView
+  }
+
+  /// Синхронизирует скролл навигации с текущей страницей
+  void _syncNavigationScroll(int pageIndex, List<CategoryPageItem> pages) {
+    // Пропорционально скроллим навигацию в зависимости от текущей страницы
+    if (pages.isEmpty) return;
     
-    // Синхронизируем скролл товаров с навигацией только для текущей страницы
-    final currentProductsController = _productScrollControllers[_currentPage];
-    if (currentProductsController != null && 
-        widget.horizontalScrollController != null &&
-        widget.horizontalScrollController!.hasClients &&
-        currentProductsController.hasClients) {
-      final navOffset = widget.horizontalScrollController!.offset;
-      final navMax = widget.horizontalScrollController!.position.maxScrollExtent;
-      
-      if (navMax > 0) {
-        final productsMax = currentProductsController.position.maxScrollExtent;
-        if (productsMax > 0) {
-          // Пропорционально синхронизируем скролл
-          final ratio = navOffset / navMax;
-          final targetOffset = ratio * productsMax;
-          
-          _isSyncingScroll = true;
-          currentProductsController.jumpTo(targetOffset.clamp(0.0, productsMax));
-          _isSyncingScroll = false;
-        }
-      }
+    final maxPages = pages.length - 1;
+    if (maxPages <= 0) return;
+    
+    final ratio = pageIndex / maxPages;
+    final navMax = widget.horizontalScrollController!.position.maxScrollExtent;
+    if (navMax > 0) {
+      final targetOffset = ratio * navMax;
+      widget.horizontalScrollController!.animateTo(
+        targetOffset.clamp(0.0, navMax),
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
@@ -163,12 +159,6 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       widget.horizontalScrollController!.removeListener(_onHorizontalScroll);
     }
     
-    // Удаляем контроллеры товаров
-    for (var controller in _productScrollControllers.values) {
-      controller.dispose();
-    }
-    _productScrollControllers.clear();
-    
     // Удаляем только если мы создали контроллер сами
     if (widget.pageController == null) {
       _pageController.dispose();
@@ -203,6 +193,12 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
             // Уведомляем о смене категории
             final page = pages[index];
             widget.onCategoryChanged(page.id);
+            
+            // Синхронизируем горизонтальный скролл навигации с текущей страницей
+            if (widget.horizontalScrollController != null && 
+                widget.horizontalScrollController!.hasClients) {
+              _syncNavigationScroll(index, pages);
+            }
           },
           itemCount: pages.length,
           itemBuilder: (context, index) {
@@ -219,22 +215,22 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
     final products = _getProductsForCategory(page.id);
     
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.4),
-      ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(30),
-            topRight: Radius.circular(30),
-          ),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.4),
         ),
-        child: page.isPromo
-            ? _buildPromoContent(products, page)
-            : _buildProductsContent(products, pageIndex, page),
-      ),
-    );
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(30),
+              topRight: Radius.circular(30),
+            ),
+          ),
+          child: page.isPromo
+              ? _buildPromoContent(products, page)
+              : _buildProductsContent(products, pageIndex, page),
+        ),
+      );
   }
 
   /// Контент с промо (для страницы "для тебя")
@@ -247,20 +243,27 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       firstTwoProducts = categoryProducts.take(2).toList();
     }
 
-    return MouseRegion(
-      onEnter: (_) {
-        widget.onProductsHoverExpand?.call(page.id, firstTwoProducts, page.name);
+    return GestureDetector(
+      onVerticalDragUpdate: (details) {
+        if (details.delta.dy < -5) {
+          widget.onCategoryExpand?.call(page.id);
+        }
       },
-      child: SingleChildScrollView(
-        child: PromoSection(
-          promotions: widget.promotions,
-          products: firstTwoProducts,
+      child: MouseRegion(
+        onEnter: (_) {
+          widget.onProductsHoverExpand?.call(page.id, firstTwoProducts, page.name);
+        },
+        child: SingleChildScrollView(
+          child: PromoSection(
+            promotions: widget.promotions,
+            products: firstTwoProducts,
+          ),
         ),
       ),
     );
   }
 
-  /// Контент с товарами
+  /// Контент с товарами - показывает только первые два товара
   Widget _buildProductsContent(List<Product> products, int pageIndex, CategoryPageItem page) {
     final padding = Responsive.responsiveSize(
       context,
@@ -269,85 +272,70 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       desktop: 32.0,
     );
 
-    final screenWidth = MediaQuery.of(context).size.width;
-    final cardWidth = Responsive.responsiveSize(
+    final spacing = Responsive.responsiveSize(
       context,
-      mobile: screenWidth * 0.45,
-      tablet: 200.0,
-      desktop: 250.0,
+      mobile: 16.0,
+      tablet: 20.0,
+      desktop: 24.0,
     );
-
-    final cardHeight = cardWidth / 0.75;
 
     if (products.isEmpty) {
       return Center(
-        child: Text(
-          'Нет товаров в этой категории',
-          style: GoogleFonts.montserrat(
-            fontSize: 16,
-            color: Colors.grey[600],
+        child: Padding(
+          padding: EdgeInsets.all(padding),
+          child: Text(
+            'Нет товаров в этой категории',
+            style: GoogleFonts.montserrat(
+              fontSize: 16,
+              color: Colors.grey[600],
+            ),
           ),
         ),
       );
     }
 
-    // Создаем или получаем контроллер для этой страницы
-    if (!_productScrollControllers.containsKey(pageIndex)) {
-      _productScrollControllers[pageIndex] = ScrollController();
-      // Добавляем listener для синхронизации обратно с навигацией
-      _productScrollControllers[pageIndex]!.addListener(() {
-        if (_isSyncingScroll) return;
-        // Синхронизируем только если это текущая активная страница
-        if (pageIndex != _currentPage) return;
-        
-        final productsController = _productScrollControllers[pageIndex];
-        if (productsController != null && 
-            widget.horizontalScrollController != null &&
-            widget.horizontalScrollController!.hasClients &&
-            productsController.hasClients) {
-          final productsOffset = productsController.offset;
-          final productsMax = productsController.position.maxScrollExtent;
-          
-          if (productsMax > 0) {
-            final navMax = widget.horizontalScrollController!.position.maxScrollExtent;
-            if (navMax > 0) {
-              // Пропорционально синхронизируем скролл навигации
-              final ratio = productsOffset / productsMax;
-              final targetOffset = ratio * navMax;
-              
-              _isSyncingScroll = true;
-              widget.horizontalScrollController!.jumpTo(targetOffset.clamp(0.0, navMax));
-              _isSyncingScroll = false;
-            }
-          }
-        }
-      });
-    }
+    // Берем только первые два товара
+    final displayProducts = products.take(2).toList();
 
-    return MouseRegion(
-      onEnter: (_) {
-        widget.onProductsHoverExpand?.call(page.id, products, page.name);
+    return GestureDetector(
+      onVerticalDragUpdate: (details) {
+        // Если свайп вверх достаточно сильный
+        if (details.delta.dy < -5) {
+          widget.onCategoryExpand?.call(page.id);
+        }
       },
-      child: SizedBox(
-        height: cardHeight + padding * 2,
-        child: ListView.builder(
-          controller: _productScrollControllers[pageIndex],
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: padding),
-          physics: const BouncingScrollPhysics(),
-          itemCount: products.length,
-          itemBuilder: (context, index) {
-            final product = products[index];
-            return Container(
-              width: cardWidth,
-              height: cardHeight,
-              margin: EdgeInsets.only(right: padding),
-              child: ProductCard(product: product)
-                  .animate(delay: Duration(milliseconds: 50 * index))
-                  .fadeIn()
-                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
-            );
-          },
+      child: MouseRegion(
+        onEnter: (_) {
+          widget.onProductsHoverExpand?.call(page.id, products, page.name);
+        },
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: padding, vertical: padding),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: AspectRatio(
+                  aspectRatio: 0.75,
+                  child: ProductCard(product: displayProducts[0])
+                      .animate(delay: 50.ms)
+                      .fadeIn()
+                      .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
+                ),
+              ),
+              SizedBox(width: spacing),
+              Expanded(
+                child: displayProducts.length > 1
+                    ? AspectRatio(
+                        aspectRatio: 0.75,
+                        child: ProductCard(product: displayProducts[1])
+                            .animate(delay: 100.ms)
+                            .fadeIn()
+                            .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
+                      )
+                    : const SizedBox(),
+              ),
+            ],
+          ),
         ),
       ),
     );

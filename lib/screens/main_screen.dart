@@ -22,7 +22,6 @@ import '../widgets/product_card.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
 import 'location_map_screen.dart';
-import 'category_screen.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -43,7 +42,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   String? _expandedCategoryId;
   late AnimationController _expansionController;
   late Animation<double> _expansionAnimation;
-  int _currentCategoryPageIndex = 0;
+  ScrollController? _expandedCategoryScrollController; // Контроллер для отслеживания скролла в раскрытой категории
   
   // Состояние промо-акций
   List<PromoItem> _promotions = [];
@@ -79,6 +78,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     _expandedCategoryPageController.dispose();
     _horizontalScrollController.dispose();
     _productsHoverPageController?.dispose();
+    _expandedCategoryScrollController?.dispose();
     _expansionController.dispose();
     super.dispose();
   }
@@ -251,9 +251,35 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     ? const Center(child: CircularProgressIndicator())
                     : RefreshIndicator(
                         onRefresh: _loadMenu,
-                        child: CustomScrollView(
-                          controller: _scrollController,
-                          slivers: [
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (notification) {
+                            // Отслеживаем вертикальный скролл для раскрытия категории
+                            if (notification is ScrollUpdateNotification && !_isCategoryExpanded) {
+                              final scrollDelta = notification.scrollDelta;
+                              if (scrollDelta != null && scrollDelta > 0) {
+                                // Скролл вниз - проверяем, нужно ли раскрыть категорию
+                                final scrollPosition = notification.metrics.pixels;
+                                
+                                // Если скроллим вниз и достигли области категорий (примерно после Hero контента)
+                                // Порог: после 200px скролла начинаем проверять раскрытие
+                                if (scrollPosition > 200) {
+                                  final menuProvider = context.read<MenuProvider>();
+                                  final selectedCategoryId = menuProvider.selectedCategoryId;
+                                  if (selectedCategoryId != null) {
+                                    final products = _getProductsForCategory(selectedCategoryId, menuProvider);
+                                    if (products.isNotEmpty) {
+                                      // Раскрываем категорию при скролле вниз
+                                      _expandCategory(selectedCategoryId);
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                            return false; // Позволяем скроллу продолжаться
+                          },
+                          child: CustomScrollView(
+                            controller: _scrollController,
+                            slivers: [
                             // Hero промо-контент (текст поверх фона)
                             SliverToBoxAdapter(
                               child: const HeroPromoContent()
@@ -315,6 +341,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                     },
                                     onProductsHoverExpand: (categoryId, products, categoryName) {
                                       if (products.isEmpty && categoryId != null) return;
+                                      print('🖱️ [HoverExpand] Triggered for: $categoryName');
                                       
                                       // Предотвращаем резкое повторное открытие сразу после закрытия
                                       if (_lastOverlayCloseTime != null && 
@@ -340,6 +367,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                     },
                                   ),
                           ],
+                          ),
                         ),
                       ),
               ),
@@ -426,23 +454,17 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     return 0;
   }
 
-  /// Расширенный вид категории (full-screen overlay) с PageView
+  /// Расширенный вид категории (full-screen overlay) с отслеживанием скролла
   Widget _buildExpandedCategoryView(MenuProvider menuProvider) {
     if (_expandedCategoryId == null) return const SizedBox.shrink();
 
-    final categoriesWithProducts = _getCategoriesWithProducts(menuProvider);
-    if (categoriesWithProducts.isEmpty) return const SizedBox.shrink();
+    final products = _getProductsForCategory(_expandedCategoryId, menuProvider);
+    if (products.isEmpty) return const SizedBox.shrink();
 
-    // Убедимся, что PageController установлен на правильную страницу
-    final initialIndex = _findCategoryIndex(
-      _expandedCategoryId,
-      categoriesWithProducts,
+    final category = menuProvider.categories.firstWhere(
+      (cat) => cat.id == _expandedCategoryId,
+      orElse: () => menuProvider.categories.first,
     );
-    if (_expandedCategoryPageController.hasClients &&
-        _currentCategoryPageIndex != initialIndex) {
-      _expandedCategoryPageController.jumpToPage(initialIndex);
-      _currentCategoryPageIndex = initialIndex;
-    }
 
     return AnimatedBuilder(
       animation: _expansionAnimation,
@@ -451,60 +473,105 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           scale: 0.8 + (_expansionAnimation.value * 0.2), // От 0.8 до 1.0
           child: Opacity(
             opacity: _expansionAnimation.value,
-            child: Stack(
-              children: [
-                // PageView для навигации между категориями (встроенные свайпы работают автоматически)
-                PageView.builder(
-                  controller: _expandedCategoryPageController,
-                  itemCount: categoriesWithProducts.length,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentCategoryPageIndex = index;
-                      _expandedCategoryId = categoriesWithProducts[index].key;
-                    });
-                    // Обновить выбранную категорию в provider
-                    menuProvider.selectCategory(
-                      categoriesWithProducts[index].key,
-                    );
-                  },
-                  itemBuilder: (context, index) {
-                    final entry = categoriesWithProducts[index];
-                    final category = menuProvider.categories.firstWhere(
-                      (cat) => cat.id == entry.key,
-                      orElse: () => menuProvider.categories.first,
-                    );
-
-                    return CategoryScreen(
-                      category: category,
-                      products: entry.value,
-                      onBack: _collapseCategory,
-                    );
-                  },
-                ),
-                // Прозрачный слой для закрытия свайпом вверх (НЕ перехватывает горизонтальные свайпы PageView)
-                Positioned.fill(
-                  child: GestureDetector(
-                    onVerticalDragEnd: (details) {
-                      // Свайп вверх - закрыть расширение
-                      if (details.primaryVelocity != null &&
-                          details.primaryVelocity! < -300) {
-                        print(
-                          '⬆️ Vertical swipe up detected - closing expanded view',
-                        );
-                        _collapseCategory();
-                      }
-                    },
-                    // НЕ обрабатываем горизонтальные свайпы здесь - PageView делает это сам!
-                    behavior: HitTestBehavior.translucent,
-                    child: Container(color: Colors.transparent),
-                  ),
-                ),
-              ],
-            ),
+            child: _buildExpandableCategoryOverlay(category, products),
           ),
         );
       },
     );
+  }
+
+  /// Оверлей с раскрытой категорией - показывает все товары с отслеживанием скролла
+  Widget _buildExpandableCategoryOverlay(dynamic category, List<Product> products) {
+    // Создаем ScrollController если его еще нет
+    if (_expandedCategoryScrollController == null) {
+      _expandedCategoryScrollController = ScrollController();
+      _expandedCategoryScrollController!.addListener(_onExpandedCategoryScroll);
+    }
+
+    return Positioned.fill(
+      child: Material(
+        color: Colors.white,
+        child: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Заголовок с названием категории
+              Container(
+                height: 72,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        category.name,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _collapseCategory,
+                      icon: const Icon(Icons.close),
+                      tooltip: 'Закрыть',
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Список всех товаров
+              Expanded(
+                child: GridView.builder(
+                  controller: _expandedCategoryScrollController,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.82,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return ProductCard(product: product)
+                        .animate(delay: Duration(milliseconds: 30 * index))
+                        .fadeIn()
+                        .slideY(begin: 0.1, end: 0);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Обработчик скролла в раскрытой категории - автоматическое сворачивание при достижении конца
+  void _onExpandedCategoryScroll() {
+    if (_expandedCategoryScrollController == null || !_expandedCategoryScrollController!.hasClients) {
+      return;
+    }
+
+    final position = _expandedCategoryScrollController!.position;
+    final threshold = 50.0; // Порог в 50px до конца
+
+    // Если достигли конца списка (с учетом порога), сворачиваем категорию
+    if (position.pixels >= position.maxScrollExtent - threshold && position.maxScrollExtent > 0) {
+      print('📜 Reached end of category list - collapsing');
+      _collapseCategory();
+    }
   }
 
   /// Оверлей при наведении на товары: полноэкран, вертикальный скролл + горизонтальный (смена категорий). Первая страница — «для тебя»: большая акция + 2 товара в два столбца.
@@ -711,23 +778,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
   /// Запуск расширения категории
   void _expandCategory(String? categoryId) {
-    final menuProvider = context.read<MenuProvider>();
-    final categoriesWithProducts = _getCategoriesWithProducts(menuProvider);
-    final initialIndex = _findCategoryIndex(categoryId, categoriesWithProducts);
+    print('🚀 [ExpandCategory] Opening full screen for: $categoryId');
+    
+    // Создаем ScrollController для отслеживания скролла
+    _expandedCategoryScrollController?.dispose();
+    _expandedCategoryScrollController = ScrollController();
+    _expandedCategoryScrollController!.addListener(_onExpandedCategoryScroll);
 
     setState(() {
       _expandedCategoryId = categoryId;
       _isCategoryExpanded = true;
-      _currentCategoryPageIndex = initialIndex;
-    });
-
-    // Установить правильную страницу в PageController после первого кадра
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_expandedCategoryPageController.hasClients &&
-          (_expandedCategoryPageController.page == null ||
-              _expandedCategoryPageController.page != initialIndex.toDouble())) {
-        _expandedCategoryPageController.jumpToPage(initialIndex);
-      }
     });
 
     _expansionController.forward();
@@ -737,6 +797,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void _collapseCategory() {
     _expansionController.reverse().then((_) {
       if (mounted) {
+        _expandedCategoryScrollController?.removeListener(_onExpandedCategoryScroll);
+        _expandedCategoryScrollController?.dispose();
+        _expandedCategoryScrollController = null;
         setState(() {
           _isCategoryExpanded = false;
           _expandedCategoryId = null;
