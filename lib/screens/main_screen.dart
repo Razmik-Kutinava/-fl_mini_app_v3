@@ -15,8 +15,10 @@ import '../widgets/background_hero_banner.dart';
 import '../widgets/location_app_bar.dart';
 import '../widgets/hero_promo_content.dart';
 import '../widgets/promo_section.dart';
+import '../widgets/promo_card.dart';
 import '../widgets/category_carousel.dart';
 import '../widgets/category_navigation_scrollable.dart';
+import '../widgets/product_card.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
 import 'location_map_screen.dart';
@@ -33,6 +35,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final ApiService _apiService = ApiService();
   final ScrollController _scrollController = ScrollController();
   final PageController _categoryPageController = PageController(initialPage: 0);
+  final PageController _expandedCategoryPageController = PageController(initialPage: 0); // Отдельный для overlay
   final ScrollController _horizontalScrollController = ScrollController(); // Общий контроллер для синхронизации
 
   // Состояние расширения категории
@@ -46,6 +49,11 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   List<PromoItem> _promotions = [];
   bool _isLoadingPromotions = false;
 
+  // Развёртка при наведении на товары: полноэкран, вертикальный + горизонтальный скролл
+  bool _isProductsHoverExpanded = false;
+  PageController? _productsHoverPageController;
+  DateTime? _lastOverlayCloseTime; // Время последнего закрытия оверлея
+
   @override
   void initState() {
     super.initState();
@@ -54,7 +62,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     // Инициализация анимации расширения
     _expansionController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 400), // Чуть медленнее
     );
     _expansionAnimation = CurvedAnimation(
       parent: _expansionController,
@@ -68,9 +76,20 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   void dispose() {
     _scrollController.dispose();
     _categoryPageController.dispose();
+    _expandedCategoryPageController.dispose();
     _horizontalScrollController.dispose();
+    _productsHoverPageController?.dispose();
     _expansionController.dispose();
     super.dispose();
+  }
+
+  void _closeProductsHoverOverlay() {
+    _productsHoverPageController?.dispose();
+    _productsHoverPageController = null;
+    _lastOverlayCloseTime = DateTime.now(); // Запоминаем время закрытия
+    setState(() {
+      _isProductsHoverExpanded = false;
+    });
   }
 
   Future<void> _loadMenu() async {
@@ -164,8 +183,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     if (_categoryPageController.hasClients) {
       _categoryPageController.animateToPage(
         targetIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 500), // Еще плавнее
+        curve: Curves.easeOutCubic, // Плавнее чем easeInOut
       );
     }
   }
@@ -286,24 +305,38 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                     pageController: _categoryPageController,
                                     horizontalScrollController: _horizontalScrollController,
                                     onCategoryChanged: (categoryId) {
-                                      // Обновляем выбранную категорию при свайпе
                                       menuProvider.selectCategory(categoryId);
                                     },
                                     onCategoryExpand: (categoryId) {
-                                      // При свайпе вправо на категории - расширяем на полный экран
-                                      if (categoryId != null &&
-                                          !_isCategoryExpanded) {
-                                        print(
-                                          '🔥 Expanding category from swipe: $categoryId',
-                                        );
-                                        final products = _getProductsForCategory(
-                                          categoryId,
-                                          menuProvider,
-                                        );
-                                        if (products.isNotEmpty) {
-                                          _expandCategory(categoryId);
-                                        }
+                                      if (categoryId != null && !_isCategoryExpanded) {
+                                        final products = _getProductsForCategory(categoryId, menuProvider);
+                                        if (products.isNotEmpty) _expandCategory(categoryId);
                                       }
+                                    },
+                                    onProductsHoverExpand: (categoryId, products, categoryName) {
+                                      if (products.isEmpty && categoryId != null) return;
+                                      
+                                      // Предотвращаем резкое повторное открытие сразу после закрытия
+                                      if (_lastOverlayCloseTime != null && 
+                                          DateTime.now().difference(_lastOverlayCloseTime!) < const Duration(milliseconds: 600)) {
+                                        return;
+                                      }
+
+                                      final menuProvider = context.read<MenuProvider>();
+                                      final cats = _getCategoriesWithProducts(menuProvider);
+                                      
+                                      // Вычисляем индекс: 0 для «для тебя», либо 1 + индекс категории
+                                      int idx = 0;
+                                      if (categoryId != null) {
+                                        if (cats.isEmpty) return;
+                                        idx = 1 + _findCategoryIndex(categoryId, cats);
+                                      }
+
+                                      _productsHoverPageController?.dispose();
+                                      _productsHoverPageController = PageController(initialPage: idx);
+                                      setState(() {
+                                        _isProductsHoverExpanded = true;
+                                      });
                                     },
                                   ),
                           ],
@@ -315,6 +348,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
           // Расширенный вид категории (overlay при свайпе)
           if (_isCategoryExpanded) _buildExpandedCategoryView(menuProvider),
+          // Развёртка при наведении на товары: полноэкранный вертикальный список
+          if (_isProductsHoverExpanded) _buildProductsHoverExpandedOverlay(),
         ],
       ),
       floatingActionButton: Consumer<CartProvider>(
@@ -403,9 +438,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
       _expandedCategoryId,
       categoriesWithProducts,
     );
-    if (_categoryPageController.hasClients &&
+    if (_expandedCategoryPageController.hasClients &&
         _currentCategoryPageIndex != initialIndex) {
-      _categoryPageController.jumpToPage(initialIndex);
+      _expandedCategoryPageController.jumpToPage(initialIndex);
       _currentCategoryPageIndex = initialIndex;
     }
 
@@ -420,7 +455,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               children: [
                 // PageView для навигации между категориями (встроенные свайпы работают автоматически)
                 PageView.builder(
-                  controller: _categoryPageController,
+                  controller: _expandedCategoryPageController,
                   itemCount: categoriesWithProducts.length,
                   onPageChanged: (index) {
                     setState(() {
@@ -472,6 +507,208 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     );
   }
 
+  /// Оверлей при наведении на товары: полноэкран, вертикальный скролл + горизонтальный (смена категорий). Первая страница — «для тебя»: большая акция + 2 товара в два столбца.
+  Widget _buildProductsHoverExpandedOverlay() {
+    final menuProvider = context.watch<MenuProvider>();
+    final categoriesWithProducts = _getCategoriesWithProducts(menuProvider);
+    if (_productsHoverPageController == null) {
+      return const SizedBox.shrink();
+    }
+
+    const headerHeight = 72.0;
+
+    return Positioned.fill(
+      child: Material(
+        color: Colors.white,
+        child: SafeArea(
+          child: PageView.builder(
+            controller: _productsHoverPageController,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()), // Более мягкий скролл
+            itemCount: 1 + categoriesWithProducts.length,
+            itemBuilder: (context, pageIndex) {
+              if (pageIndex == 0) {
+                return _buildDlyaTebyaOverlayPage(headerHeight, menuProvider, categoriesWithProducts);
+              }
+              final entry = categoriesWithProducts[pageIndex - 1];
+              final category = menuProvider.categories.firstWhere((c) => c.id == entry.key);
+              final name = category.name;
+              final products = entry.value;
+              final displayProducts = products.take(2).toList(); // Только первые два товара
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildOverlayHeader(headerHeight, name),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (displayProducts.isNotEmpty)
+                                  Expanded(
+                                    child: AspectRatio(
+                                      aspectRatio: 0.75,
+                                      child: ProductCard(product: displayProducts[0]),
+                                    ),
+                                  ),
+                                if (displayProducts.isNotEmpty)
+                                  const SizedBox(width: 24),
+                                if (displayProducts.length > 1)
+                                  Expanded(
+                                    child: AspectRatio(
+                                      aspectRatio: 0.75,
+                                      child: ProductCard(product: displayProducts[1]),
+                                    ),
+                                  )
+                                else if (displayProducts.isNotEmpty)
+                                  const Expanded(child: SizedBox()),
+                              ],
+                            ),
+                            if (products.length > 2)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 24),
+                                child: Text(
+                                  'И еще ${products.length - 2} товаров в этой категории',
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 14,
+                                    color: Colors.grey[500],
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOverlayHeader(double headerHeight, String title) {
+    return SizedBox(
+      height: headerHeight,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            IconButton(
+              onPressed: _closeProductsHoverOverlay,
+              icon: const Icon(Icons.close),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Страница «для тебя» в оверлее: главная большая акция + два товара в два столбца
+  Widget _buildDlyaTebyaOverlayPage(
+    double headerHeight,
+    MenuProvider menuProvider,
+    List<MapEntry<String, List<Product>>> categoriesWithProducts,
+  ) {
+    final firstPromo = _promotions.isNotEmpty ? _promotions[0] : null;
+    final firstTwoProducts = categoriesWithProducts.isNotEmpty
+        ? categoriesWithProducts[0].value.take(2).toList()
+        : <Product>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildOverlayHeader(headerHeight, 'для тебя'),
+        const Divider(height: 1),
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'акции',
+                  style: GoogleFonts.montserrat(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 24,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                if (firstPromo != null)
+                  Builder(
+                    builder: (context) {
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      const padding = 24.0 * 2;
+                      final cardWidth = screenWidth - padding;
+                      return SizedBox(
+                        width: double.infinity,
+                        height: cardWidth,
+                        child: PromoCard(
+                          title: firstPromo.title,
+                          imageUrl: firstPromo.imageUrl,
+                          emoji: firstPromo.emoji,
+                          gradient: firstPromo.gradient,
+                          onTap: firstPromo.onTap,
+                        ),
+                      );
+                    },
+                  ),
+                if (firstTwoProducts.isNotEmpty) ...[
+                  const SizedBox(height: 32),
+                  Container(height: 1, color: Colors.grey[300]),
+                  const SizedBox(height: 32),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: AspectRatio(
+                          aspectRatio: 0.75,
+                          child: ProductCard(product: firstTwoProducts[0]),
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        child: firstTwoProducts.length > 1
+                            ? AspectRatio(
+                                aspectRatio: 0.75,
+                                child: ProductCard(product: firstTwoProducts[1]),
+                              )
+                            : const SizedBox(),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Запуск расширения категории
   void _expandCategory(String? categoryId) {
     final menuProvider = context.read<MenuProvider>();
@@ -486,9 +723,10 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     // Установить правильную страницу в PageController после первого кадра
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_categoryPageController.hasClients &&
-          _categoryPageController.page != initialIndex.toDouble()) {
-        _categoryPageController.jumpToPage(initialIndex);
+      if (_expandedCategoryPageController.hasClients &&
+          (_expandedCategoryPageController.page == null ||
+              _expandedCategoryPageController.page != initialIndex.toDouble())) {
+        _expandedCategoryPageController.jumpToPage(initialIndex);
       }
     });
 

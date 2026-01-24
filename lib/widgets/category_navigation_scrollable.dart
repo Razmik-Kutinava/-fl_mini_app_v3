@@ -108,8 +108,8 @@ class _CategoryNavigationScrollableState
         _isProgrammaticScroll = true;
         _scrollController.animateTo(
           scrollOffset.clamp(0.0, _scrollController.position.maxScrollExtent),
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
+          duration: const Duration(milliseconds: 500), // Плавнее
+          curve: Curves.easeOutCubic,
         ).then((_) {
           _isProgrammaticScroll = false;
         });

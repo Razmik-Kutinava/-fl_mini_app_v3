@@ -15,8 +15,9 @@ class CategoryCarousel extends StatefulWidget {
   final List<PromoItem> promotions;
   final Function(String?) onCategoryChanged;
   final Function(String?)? onCategoryExpand;
-  final PageController? pageController; // Внешний контроллер для синхронизации
-  final ScrollController? horizontalScrollController; // Общий контроллер для синхронизации скролла
+  final void Function(String? categoryId, List<Product> products, String categoryName)? onProductsHoverExpand;
+  final PageController? pageController;
+  final ScrollController? horizontalScrollController;
 
   const CategoryCarousel({
     super.key,
@@ -24,6 +25,7 @@ class CategoryCarousel extends StatefulWidget {
     required this.promotions,
     required this.onCategoryChanged,
     this.onCategoryExpand,
+    this.onProductsHoverExpand,
     this.pageController,
     this.horizontalScrollController,
   });
@@ -184,25 +186,30 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       );
     }
 
-    return SliverFillRemaining(
-      hasScrollBody: false,
-      child: PageView.builder(
-        controller: pageController,
-        scrollDirection: Axis.horizontal,
-        onPageChanged: (index) {
-          setState(() {
-            _currentPage = index;
-          });
-          
-          // Уведомляем о смене категории
-          final page = pages[index];
-          widget.onCategoryChanged(page.id);
-        },
-        itemCount: pages.length,
-        itemBuilder: (context, index) {
-          final page = pages[index];
-          return _buildCategoryPage(page, index);
-        },
+    final height = MediaQuery.of(context).size.height - 280;
+
+    return SliverToBoxAdapter(
+      child: SizedBox(
+        height: height > 0 ? height : 400,
+        child: PageView.builder(
+          controller: pageController,
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()), // Более плавный свайп
+          onPageChanged: (index) {
+            setState(() {
+              _currentPage = index;
+            });
+
+            // Уведомляем о смене категории
+            final page = pages[index];
+            widget.onCategoryChanged(page.id);
+          },
+          itemCount: pages.length,
+          itemBuilder: (context, index) {
+            final page = pages[index];
+            return _buildCategoryPage(page, index);
+          },
+        ),
       ),
     );
   }
@@ -224,14 +231,14 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
           ),
         ),
         child: page.isPromo
-            ? _buildPromoContent(products)
-            : _buildProductsContent(products, pageIndex),
+            ? _buildPromoContent(products, page)
+            : _buildProductsContent(products, pageIndex, page),
       ),
     );
   }
 
   /// Контент с промо (для страницы "для тебя")
-  Widget _buildPromoContent(List<Product> products) {
+  Widget _buildPromoContent(List<Product> products, CategoryPageItem page) {
     // Получаем первые два товара из первой категории
     List<Product> firstTwoProducts = [];
     if (widget.menuProvider.categories.isNotEmpty) {
@@ -240,16 +247,21 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       firstTwoProducts = categoryProducts.take(2).toList();
     }
 
-    return SingleChildScrollView(
-      child: PromoSection(
-        promotions: widget.promotions,
-        products: firstTwoProducts,
+    return MouseRegion(
+      onEnter: (_) {
+        widget.onProductsHoverExpand?.call(page.id, firstTwoProducts, page.name);
+      },
+      child: SingleChildScrollView(
+        child: PromoSection(
+          promotions: widget.promotions,
+          products: firstTwoProducts,
+        ),
       ),
     );
   }
 
   /// Контент с товарами
-  Widget _buildProductsContent(List<Product> products, int pageIndex) {
+  Widget _buildProductsContent(List<Product> products, int pageIndex, CategoryPageItem page) {
     final padding = Responsive.responsiveSize(
       context,
       mobile: 16.0,
@@ -312,26 +324,31 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
       });
     }
 
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: padding),
-      child: ListView.builder(
-        controller: _productScrollControllers[pageIndex],
-        scrollDirection: Axis.horizontal,
-        padding: EdgeInsets.symmetric(horizontal: padding),
-        physics: const BouncingScrollPhysics(),
-        itemCount: products.length,
-        itemBuilder: (context, index) {
-          final product = products[index];
-          return Container(
-            width: cardWidth,
-            height: cardHeight,
-            margin: EdgeInsets.only(right: padding),
-            child: ProductCard(product: product)
-                .animate(delay: Duration(milliseconds: 50 * index))
-                .fadeIn()
-                .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
-          );
-        },
+    return MouseRegion(
+      onEnter: (_) {
+        widget.onProductsHoverExpand?.call(page.id, products, page.name);
+      },
+      child: SizedBox(
+        height: cardHeight + padding * 2,
+        child: ListView.builder(
+          controller: _productScrollControllers[pageIndex],
+          scrollDirection: Axis.horizontal,
+          padding: EdgeInsets.symmetric(horizontal: padding),
+          physics: const BouncingScrollPhysics(),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            final product = products[index];
+            return Container(
+              width: cardWidth,
+              height: cardHeight,
+              margin: EdgeInsets.only(right: padding),
+              child: ProductCard(product: product)
+                  .animate(delay: Duration(milliseconds: 50 * index))
+                  .fadeIn()
+                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
+            );
+          },
+        ),
       ),
     );
   }
