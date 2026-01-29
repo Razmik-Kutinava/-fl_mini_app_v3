@@ -161,7 +161,10 @@ class _CategoryNavigationScrollableState
     return SliverToBoxAdapter(
       child: Container(
         height: height,
-        decoration: BoxDecoration(color: Colors.black.withOpacity(0.4)),
+        // Прозрачный фон
+        decoration: const BoxDecoration(
+          color: Colors.transparent,
+        ),
         child: SingleChildScrollView(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
@@ -234,11 +237,10 @@ class _CategoryTextItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
           child: Text(
             label,
-            style: GoogleFonts.montserrat(
+            style: GoogleFonts.pacifico(  // Изящный наклонный шрифт
               fontSize: fontSize,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
-              letterSpacing: 0.5,
+              fontWeight: FontWeight.w400,
+              color: isSelected ? Colors.black : Colors.black.withOpacity(0.4),
             ),
           ),
         ),

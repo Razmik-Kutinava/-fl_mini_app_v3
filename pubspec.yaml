@@ -64,6 +64,7 @@ dependencies:
   confetti: ^0.7.0
   flip_card: ^0.6.0
   flutter_card_swiper: ^1.0.0
+  card_swiper: ^3.0.1  # 3D карусель
   gradient_widgets: ^0.6.0
   fluttertoast: ^8.2.4
   font_awesome_flutter: ^10.7.0

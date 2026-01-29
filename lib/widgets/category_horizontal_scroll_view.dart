@@ -349,31 +349,39 @@ class _CategoryHorizontalScrollViewState extends State<CategoryHorizontalScrollV
             // Два товара в Row
             Padding(
               padding: EdgeInsets.symmetric(horizontal: padding),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: AspectRatio(
-                      aspectRatio: 0.75,
-                      child: ProductCard(product: displayProducts[0])
-                          .animate(delay: 50.ms)
-                          .fadeIn()
-                          .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
-                    ),
-                  ),
-                  SizedBox(width: spacing),
-                  Expanded(
-                    child: displayProducts.length > 1
-                        ? AspectRatio(
-                            aspectRatio: 0.75,
-                            child: ProductCard(product: displayProducts[1])
-                                .animate(delay: 100.ms)
-                                .fadeIn()
-                                .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
-                          )
-                        : const SizedBox(),
-                  ),
-                ],
+              child: Builder(
+                builder: (context) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final totalPadding = padding * 2;
+                  final totalSpacing = spacing;
+                  final cardWidth = (screenWidth - totalPadding - totalSpacing) / 2;
+                  final cardHeight = cardWidth / 0.75;
+                  
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: cardWidth,
+                        height: cardHeight,
+                        child: ProductCard(product: displayProducts[0])
+                            .animate(delay: 50.ms)
+                            .fadeIn()
+                            .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
+                      ),
+                      SizedBox(width: spacing),
+                      displayProducts.length > 1
+                          ? SizedBox(
+                              width: cardWidth,
+                              height: cardHeight,
+                              child: ProductCard(product: displayProducts[1])
+                                  .animate(delay: 100.ms)
+                                  .fadeIn()
+                                  .scale(begin: const Offset(0.9, 0.9), end: const Offset(1.0, 1.0)),
+                            )
+                          : SizedBox(width: cardWidth),
+                    ],
+                  );
+                },
               ),
             ),
           ],

@@ -17,6 +17,7 @@ import '../widgets/hero_promo_content.dart';
 import '../widgets/promo_section.dart';
 import '../widgets/promo_card.dart';
 import '../widgets/category_horizontal_scroll_view.dart';
+import '../widgets/category_3d_carousel_view.dart';
 import '../widgets/category_navigation_scrollable.dart';
 import '../widgets/product_card.dart';
 import 'cart_screen.dart';
@@ -35,6 +36,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   final PageController _expandedCategoryPageController = PageController(initialPage: 0); // Для overlay с раскрытыми категориями
   final ScrollController _horizontalScrollController = ScrollController(); // Общий контроллер для синхронизации
+
+  // Флаг для переключения между старой и новой реализацией категорий
+  final bool _useNewCategoryView = true; // Изменить на false для возврата к старому виджету
 
   // Состояние расширения категории
   bool _isCategoryExpanded = false;
@@ -233,7 +237,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         child: NotificationListener<ScrollNotification>(
                           onNotification: (notification) {
                             // Отслеживаем вертикальный скролл для раскрытия категории
-                            if (notification is ScrollUpdateNotification && !_isCategoryExpanded) {
+                            // Автораскрытие только для старого виджета
+                            if (!_useNewCategoryView && notification is ScrollUpdateNotification && !_isCategoryExpanded) {
                               final scrollDelta = notification.scrollDelta;
                               if (scrollDelta != null && scrollDelta > 0) {
                                 // Скролл вниз - проверяем, нужно ли раскрыть категорию
@@ -277,21 +282,24 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                 menuProvider.selectCategory(categoryId);
                                 _switchToCategory(categoryId, menuProvider);
                               },
-                              onCategoryExpand: (categoryId) {
-                                // При свайпе вправо на категории - расширяем на полный экран
-                                if (categoryId != null && !_isCategoryExpanded) {
-                                  print(
-                                    '🔥 Expanding category from swipe: $categoryId',
-                                  );
-                                  final products = _getProductsForCategory(
-                                    categoryId,
-                                    menuProvider,
-                                  );
-                                  if (products.isNotEmpty) {
-                                    _expandCategory(categoryId);
-                                  }
-                                }
-                              },
+                              // onCategoryExpand только для старого виджета
+                              onCategoryExpand: _useNewCategoryView 
+                                ? null // Новый виджет имеет встроенное раскрытие
+                                : (categoryId) {
+                                    // При свайпе вправо на категории - расширяем на полный экран
+                                    if (categoryId != null && !_isCategoryExpanded) {
+                                      print(
+                                        '🔥 Expanding category from swipe: $categoryId',
+                                      );
+                                      final products = _getProductsForCategory(
+                                        categoryId,
+                                        menuProvider,
+                                      );
+                                      if (products.isNotEmpty) {
+                                        _expandCategory(categoryId);
+                                      }
+                                    }
+                                  },
                             ),
 
                             // Карусель категорий с товарами
@@ -304,46 +312,56 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                       ),
                                     ),
                                   )
-                                : CategoryHorizontalScrollView(
-                                    menuProvider: menuProvider,
-                                    promotions: _promotions,
-                                    horizontalScrollController: _horizontalScrollController,
-                                    onCategoryChanged: (categoryId) {
-                                      menuProvider.selectCategory(categoryId);
-                                    },
-                                    onCategoryExpand: (categoryId) {
-                                      if (categoryId != null && !_isCategoryExpanded) {
-                                        final products = _getProductsForCategory(categoryId, menuProvider);
-                                        if (products.isNotEmpty) _expandCategory(categoryId);
-                                      }
-                                    },
-                                    onProductsHoverExpand: (categoryId, products, categoryName) {
-                                      if (products.isEmpty && categoryId != null) return;
-                                      print('🖱️ [HoverExpand] Triggered for: $categoryName');
-                                      
-                                      // Предотвращаем резкое повторное открытие сразу после закрытия
-                                      if (_lastOverlayCloseTime != null && 
-                                          DateTime.now().difference(_lastOverlayCloseTime!) < const Duration(milliseconds: 600)) {
-                                        return;
-                                      }
+                                : _useNewCategoryView
+                                    ? Category3DCarouselView(
+                                        // 3D КАРУСЕЛЬ с раскрытием при свайпе вверх
+                                        menuProvider: menuProvider,
+                                        promotions: _promotions,
+                                        onCategoryChanged: (categoryId) {
+                                          menuProvider.selectCategory(categoryId);
+                                        },
+                                      )
+                                    : CategoryHorizontalScrollView(
+                                        // СТАРЫЙ ВИДЖЕТ (fallback)
+                                        menuProvider: menuProvider,
+                                        promotions: _promotions,
+                                        horizontalScrollController: _horizontalScrollController,
+                                        onCategoryChanged: (categoryId) {
+                                          menuProvider.selectCategory(categoryId);
+                                        },
+                                        onCategoryExpand: (categoryId) {
+                                          if (categoryId != null && !_isCategoryExpanded) {
+                                            final products = _getProductsForCategory(categoryId, menuProvider);
+                                            if (products.isNotEmpty) _expandCategory(categoryId);
+                                          }
+                                        },
+                                        onProductsHoverExpand: (categoryId, products, categoryName) {
+                                          if (products.isEmpty && categoryId != null) return;
+                                          print('🖱️ [HoverExpand] Triggered for: $categoryName');
+                                          
+                                          // Предотвращаем резкое повторное открытие сразу после закрытия
+                                          if (_lastOverlayCloseTime != null && 
+                                              DateTime.now().difference(_lastOverlayCloseTime!) < const Duration(milliseconds: 600)) {
+                                            return;
+                                          }
 
-                                      final menuProvider = context.read<MenuProvider>();
-                                      final cats = _getCategoriesWithProducts(menuProvider);
-                                      
-                                      // Вычисляем индекс: 0 для «для тебя», либо 1 + индекс категории
-                                      int idx = 0;
-                                      if (categoryId != null) {
-                                        if (cats.isEmpty) return;
-                                        idx = 1 + _findCategoryIndex(categoryId, cats);
-                                      }
+                                          final menuProvider = context.read<MenuProvider>();
+                                          final cats = _getCategoriesWithProducts(menuProvider);
+                                          
+                                          // Вычисляем индекс: 0 для «для тебя», либо 1 + индекс категории
+                                          int idx = 0;
+                                          if (categoryId != null) {
+                                            if (cats.isEmpty) return;
+                                            idx = 1 + _findCategoryIndex(categoryId, cats);
+                                          }
 
-                                      _productsHoverPageController?.dispose();
-                                      _productsHoverPageController = PageController(initialPage: idx);
-                                      setState(() {
-                                        _isProductsHoverExpanded = true;
-                                      });
-                                    },
-                                  ),
+                                          _productsHoverPageController?.dispose();
+                                          _productsHoverPageController = PageController(initialPage: idx);
+                                          setState(() {
+                                            _isProductsHoverExpanded = true;
+                                          });
+                                        },
+                                      ),
                           ],
                           ),
                         ),
