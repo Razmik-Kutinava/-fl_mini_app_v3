@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -157,45 +156,26 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
               ? screenHeight - 180
               : availableHeight > 0 ? availableHeight : 400,
           child: Container(
-            // Градиентный фон для 3D эффекта
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.black.withOpacity(0.3),
-                  Colors.black.withOpacity(0.1),
-                ],
+            // Белый фон без серых полос
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(32),
+                topRight: Radius.circular(32),
               ),
             ),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(32),
-                  topRight: Radius.circular(32),
+            child: Column(
+              children: [
+                // Заголовок текущей категории
+                _buildHeader(categories),
+                
+                // 3D Карусель или развернутый список
+                Expanded(
+                  child: _isExpanded
+                      ? _buildExpandedList(categories[_currentIndex])
+                      : _build3DCarousel(categories),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  // Заголовок текущей категории
-                  _buildHeader(categories),
-                  
-                  // 3D Карусель или развернутый список
-                  Expanded(
-                    child: _isExpanded
-                        ? _buildExpandedList(categories[_currentIndex])
-                        : _build3DCarousel(categories),
-                  ),
-                ],
-              ),
+              ],
             ),
           ),
         ),
