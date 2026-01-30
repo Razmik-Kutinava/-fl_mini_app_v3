@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -163,10 +164,19 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
     return Container(
       height: 45,
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: categories.length,
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+          },
+        ),
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          itemCount: categories.length,
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = index == _currentIndex;
@@ -214,6 +224,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
             ),
           );
         },
+        ),
       ),
     );
   }
@@ -265,21 +276,30 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
           // Заголовок
           _buildHeader(categories[_currentIndex]),
           
-          // PageView карусель - ЧИСТЫЙ без GestureDetector
+          // PageView карусель с поддержкой touch/mouse
           Expanded(
-            child: PageView.builder(
-              controller: _pageController,
-              physics: const PageScrollPhysics(),
-              onPageChanged: (index) {
-                setState(() => _currentIndex = index);
-                widget.onCategoryChanged(categories[index].id);
-                HapticFeedback.selectionClick();
-                print('📱 Swiped to: ${categories[index].name}');
-              },
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
-                return _buildCard(categories[index], index);
-              },
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: PageView.builder(
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                onPageChanged: (index) {
+                  setState(() => _currentIndex = index);
+                  widget.onCategoryChanged(categories[index].id);
+                  HapticFeedback.selectionClick();
+                  print('📱 Swiped to: ${categories[index].name}');
+                },
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  return _buildCard(categories[index], index);
+                },
+              ),
             ),
           ),
         ],
@@ -551,11 +571,20 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
           // Горизонтальная навигация
           SizedBox(
             height: 40,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: categories.length,
-              itemBuilder: (context, index) {
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
                 final cat = categories[index];
                 final isSelected = index == _currentIndex;
                 return GestureDetector(
@@ -587,6 +616,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
                   ),
                 );
               },
+              ),
             ),
           ),
           
@@ -608,22 +638,32 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
                       ],
                     ),
                   )
-                : GridView.builder(
-                    controller: _expandedScrollController,
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 0.75,
+                : ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      dragDevices: {
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.mouse,
+                        PointerDeviceKind.trackpad,
+                      },
                     ),
-                    itemCount: products.length,
-                    itemBuilder: (context, index) {
-                      return ProductCard(product: products[index])
-                          .animate(delay: Duration(milliseconds: 40 * index))
-                          .fadeIn(duration: 200.ms)
-                          .slideY(begin: 0.05, end: 0);
-                    },
+                    child: GridView.builder(
+                      controller: _expandedScrollController,
+                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.75,
+                      ),
+                      itemCount: products.length,
+                      itemBuilder: (context, index) {
+                        return ProductCard(product: products[index])
+                            .animate(delay: Duration(milliseconds: 40 * index))
+                            .fadeIn(duration: 200.ms)
+                            .slideY(begin: 0.05, end: 0);
+                      },
+                    ),
                   ),
           ),
         ],
