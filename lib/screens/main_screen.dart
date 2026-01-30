@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -170,6 +171,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
         .where((p) => p.categoryId == categoryId)
         .toList();
   }
+
   /// Переключает горизонтальный скролл на указанную категорию
   void _switchToCategory(String? categoryId, MenuProvider menuProvider) {
     // Синхронизация происходит автоматически через CategoryHorizontalScrollView
@@ -237,28 +239,47 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 child: menuProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _useNewCategoryView
-                    // НОВАЯ АРХИТЕКТУРА: Простая Column
-                    ? Column(
-                        children: [
+                    // НОВАЯ АРХИТЕКТУРА: CustomScrollView для вертикального скролла
+                    ? ScrollConfiguration(
+                        behavior: ScrollConfiguration.of(context).copyWith(
+                          dragDevices: {
+                            PointerDeviceKind.touch,
+                            PointerDeviceKind.mouse,
+                            PointerDeviceKind.trackpad,
+                          },
+                        ),
+                        child: CustomScrollView(
+                          physics: const BouncingScrollPhysics(
+                            parent: AlwaysScrollableScrollPhysics(),
+                          ),
+                          slivers: [
                           // Hero промо-контент
-                          const HeroPromoContent()
-                              .animate()
-                              .fadeIn(delay: 200.ms)
-                              .slideY(begin: 0.2, end: 0),
+                          SliverToBoxAdapter(
+                            child: const HeroPromoContent()
+                                .animate()
+                                .fadeIn(delay: 200.ms)
+                                .slideY(begin: 0.2, end: 0),
+                          ),
 
                           // Карусель с категориями и товарами
-                          Expanded(
-                            child: _isLoadingPromotions
-                                ? const Center(child: CircularProgressIndicator())
-                                : CategoryDraggableSheet(
+                          _isLoadingPromotions
+                              ? const SliverFillRemaining(
+                                  child: Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                )
+                              : SliverFillRemaining(
+                                  hasScrollBody: false,
+                                  child: CategoryDraggableSheet(
                                     menuProvider: menuProvider,
                                     promotions: _promotions,
                                     onCategoryChanged: (categoryId) {
                                       menuProvider.selectCategory(categoryId);
                                     },
                                   ),
-                          ),
+                                ),
                         ],
+                        ),
                       )
                     // СТАРАЯ АРХИТЕКТУРА: CustomScrollView
                     : RefreshIndicator(
