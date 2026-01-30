@@ -239,47 +239,28 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 child: menuProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _useNewCategoryView
-                    // НОВАЯ АРХИТЕКТУРА: CustomScrollView для вертикального скролла
-                    ? ScrollConfiguration(
-                        behavior: ScrollConfiguration.of(context).copyWith(
-                          dragDevices: {
-                            PointerDeviceKind.touch,
-                            PointerDeviceKind.mouse,
-                            PointerDeviceKind.trackpad,
-                          },
-                        ),
-                        child: CustomScrollView(
-                          physics: const BouncingScrollPhysics(
-                            parent: AlwaysScrollableScrollPhysics(),
-                          ),
-                          slivers: [
+                    // НОВАЯ АРХИТЕКТУРА: Простая Column без Sliver конфликтов
+                    ? Column(
+                        children: [
                           // Hero промо-контент
-                          SliverToBoxAdapter(
-                            child: const HeroPromoContent()
-                                .animate()
-                                .fadeIn(delay: 200.ms)
-                                .slideY(begin: 0.2, end: 0),
-                          ),
+                          const HeroPromoContent()
+                              .animate()
+                              .fadeIn(delay: 200.ms)
+                              .slideY(begin: 0.2, end: 0),
 
                           // Карусель с категориями и товарами
-                          _isLoadingPromotions
-                              ? const SliverFillRemaining(
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                )
-                              : SliverFillRemaining(
-                                  hasScrollBody: false,
-                                  child: CategoryDraggableSheet(
+                          Expanded(
+                            child: _isLoadingPromotions
+                                ? const Center(child: CircularProgressIndicator())
+                                : CategoryDraggableSheet(
                                     menuProvider: menuProvider,
                                     promotions: _promotions,
                                     onCategoryChanged: (categoryId) {
                                       menuProvider.selectCategory(categoryId);
                                     },
                                   ),
-                                ),
+                          ),
                         ],
-                        ),
                       )
                     // СТАРАЯ АРХИТЕКТУРА: CustomScrollView
                     : RefreshIndicator(
