@@ -52846,8 +52846,8 @@ $S:130}
 A.BD.prototype={}
 A.Rc.prototype={
 K(a){var s,r,q,p=null,o=t.w,n=A.bI(a,p,o).w.a.b
-if(A.bI(a,p,o).w.a.a<600)s=n*0.65
-else s=A.aUy(a)?n*0.6:n*0.55
+if(A.bI(a,p,o).w.a.a<600)s=n*0.4
+else s=A.aUy(a)?n*0.38:n*0.35
 A.tX(a,20,16,18)
 r=A.tX(a,48,24,32)
 o=A.tX(a,32,20,24)

@@ -16,12 +16,12 @@ class HeroPromoContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    // Адаптивная высота баннера
+    // Адаптивная высота баннера - уменьшена для карусели
     final bannerHeight = Responsive.isMobile(context)
-        ? screenHeight * 0.65
+        ? screenHeight * 0.40
         : Responsive.isTablet(context)
-            ? screenHeight * 0.60
-            : screenHeight * 0.55;
+            ? screenHeight * 0.38
+            : screenHeight * 0.35;
 
     // Адаптивные размеры текста
     final subtitleFontSize = Responsive.responsiveSize(
