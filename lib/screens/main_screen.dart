@@ -210,14 +210,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
           // Фоновый баннер на весь экран
           BackgroundHeroBanner(scrollController: _scrollController),
 
-          // Основной контент поверх фона
+          // Основной контент: Header + Background (всегда видны)
           Column(
             children: [
-              // Location App Bar
+              // Location App Bar (всегда сверху)
               LocationAppBar(
                 location: location,
                 onLocationTap: () {
-                  // Открываем экран карты локации при нажатии на иконку или название
                   if (location != null) {
                     Navigator.push(
                       context,
@@ -234,37 +233,16 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                 },
               ),
 
-              // Hero контент и навигация
+              // Hero промо-контент (фоновый баннер)
               Expanded(
                 child: menuProvider.isLoading
                     ? const Center(child: CircularProgressIndicator())
                     : _useNewCategoryView
-                    // НОВАЯ АРХИТЕКТУРА: Простая Column без Sliver конфликтов
-                    ? Column(
-                        children: [
-                          // Hero промо-контент
-                          const HeroPromoContent()
-                              .animate()
-                              .fadeIn(delay: 200.ms)
-                              .slideY(begin: 0.2, end: 0),
-
-                          // Карусель с категориями и товарами
-                          Expanded(
-                            child: _isLoadingPromotions
-                                ? const Center(
-                                    child: CircularProgressIndicator(),
-                                  )
-                                : CategoryDraggableSheet(
-                                    menuProvider: menuProvider,
-                                    promotions: _promotions,
-                                    onCategoryChanged: (categoryId) {
-                                      menuProvider.selectCategory(categoryId);
-                                    },
-                                  ),
-                          ),
-                        ],
-                      )
-                    // СТАРАЯ АРХИТЕКТУРА: CustomScrollView
+                    ? const HeroPromoContent()
+                        .animate()
+                        .fadeIn(delay: 200.ms)
+                        .slideY(begin: 0.2, end: 0)
+                    // СТАРАЯ АРХИТЕКТУРА: CustomScrollView (не используется)
                     : RefreshIndicator(
                         onRefresh: _loadMenu,
                         child: NotificationListener<ScrollNotification>(
@@ -402,6 +380,24 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               ),
             ],
           ),
+
+          // Трёхуровневая карусель (overlaid at bottom)
+          if (_useNewCategoryView && !menuProvider.isLoading)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              top: 0, // Позволяет карусели занимать весь доступный экран
+              child: _isLoadingPromotions
+                  ? const SizedBox.shrink()
+                  : CategoryDraggableSheet(
+                      menuProvider: menuProvider,
+                      promotions: _promotions,
+                      onCategoryChanged: (categoryId) {
+                        menuProvider.selectCategory(categoryId);
+                      },
+                    ),
+            ),
 
           // Overlay для старой версии
           if (!_useNewCategoryView && _isCategoryExpanded)

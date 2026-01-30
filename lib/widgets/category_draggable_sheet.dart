@@ -8,11 +8,15 @@ import '../providers/menu_provider.dart';
 import 'product_card.dart';
 import 'promo_section.dart';
 
-/// 🎡 Карусель категорий с раскрытием
-/// 
-/// - Горизонтальный свайп = смена категории (работает везде)
-/// - Тап на ручку или кнопку "Ещё" = раскрытие
-/// - Кнопка закрытия = возврат к карусели
+/// 🎡 Трёхуровневая карусель категорий с вертикальным драгом
+///
+/// Три вертикальных состояния:
+/// - MIN (10%) = только ручка видна
+/// - MID (50%) = начальное состояние, категории + 1 ряд товаров
+/// - MAX (95%) = полноэкранный режим, все товары
+///
+/// - Вертикальный свайп = смена уровня (MIN/MID/MAX)
+/// - Горизонтальный свайп = смена категории
 class CategoryDraggableSheet extends StatefulWidget {
   final MenuProvider menuProvider;
   final List<PromoItem> promotions;
@@ -29,13 +33,26 @@ class CategoryDraggableSheet extends StatefulWidget {
   State<CategoryDraggableSheet> createState() => _CategoryDraggableSheetState();
 }
 
-class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
+/// Состояния вертикальной карусели
+enum SheetState { min, mid, max }
+
+class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with SingleTickerProviderStateMixin {
   late PageController _pageController;
-  
+  late AnimationController _heightAnimationController;
+
   int _currentIndex = 0;
   double _pageOffset = 0.0;
-  bool _isExpanded = false;
   final ScrollController _expandedScrollController = ScrollController();
+
+  // Вертикальное состояние
+  SheetState _sheetState = SheetState.mid;
+  double _sheetHeight = 0.50; // Текущая высота (0.10 - 0.95)
+  double _dragStartHeight = 0.50;
+
+  // Константы высот
+  static const double minHeight = 0.10;  // 10% экрана
+  static const double midHeight = 0.50;  // 50% экрана (по умолчанию)
+  static const double maxHeight = 0.95;  // 95% экрана
 
   @override
   void initState() {
@@ -45,7 +62,14 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
       initialPage: 0,
     );
     _pageController.addListener(_onPageScroll);
-    print('🚀 CategoryDraggableSheet initialized');
+
+    // Контроллер анимации для плавных переходов между состояниями
+    _heightAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+
+    print('🚀 CategoryDraggableSheet initialized with 3 states (MIN/MID/MAX)');
   }
 
   @override
@@ -53,6 +77,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
     _pageController.removeListener(_onPageScroll);
     _pageController.dispose();
     _expandedScrollController.dispose();
+    _heightAnimationController.dispose();
     super.dispose();
   }
   
@@ -92,17 +117,98 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
       });
     }
   }
-  
-  void _expand() {
-    HapticFeedback.mediumImpact();
-    setState(() => _isExpanded = true);
-    print('📖 Expanded');
+
+  /// Обработка начала вертикального драга
+  void _handleVerticalDragStart(DragStartDetails details) {
+    _dragStartHeight = _sheetHeight;
   }
-  
-  void _collapse() {
-    HapticFeedback.lightImpact();
-    setState(() => _isExpanded = false);
-    print('📕 Collapsed');
+
+  /// Обработка вертикального драга
+  void _handleVerticalDragUpdate(DragUpdateDetails details) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final delta = -details.delta.dy / screenHeight; // Инвертируем (свайп вверх = увеличение)
+
+    setState(() {
+      _sheetHeight = (_dragStartHeight + delta).clamp(minHeight, maxHeight);
+    });
+  }
+
+  /// Обработка окончания вертикального драга с snap-эффектом
+  void _handleVerticalDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+
+    SheetState targetState;
+
+    // Быстрый свайп с высокой скоростью
+    if (velocity > 500) {
+      // Быстрый свайп вниз
+      if (_sheetState == SheetState.max) {
+        targetState = SheetState.mid;
+      } else if (_sheetState == SheetState.mid) {
+        targetState = SheetState.min;
+      } else {
+        targetState = SheetState.min;
+      }
+    } else if (velocity < -500) {
+      // Быстрый свайп вверх
+      if (_sheetState == SheetState.min) {
+        targetState = SheetState.mid;
+      } else if (_sheetState == SheetState.mid) {
+        targetState = SheetState.max;
+      } else {
+        targetState = SheetState.max;
+      }
+    } else {
+      // Медленный драг - привязываемся к ближайшей точке
+      if (_sheetHeight < 0.30) {
+        targetState = SheetState.min;
+      } else if (_sheetHeight < 0.72) {
+        targetState = SheetState.mid;
+      } else {
+        targetState = SheetState.max;
+      }
+    }
+
+    _animateToState(targetState);
+  }
+
+  /// Анимация перехода к указанному состоянию
+  void _animateToState(SheetState state) {
+    final targetHeight = switch (state) {
+      SheetState.min => minHeight,
+      SheetState.mid => midHeight,
+      SheetState.max => maxHeight,
+    };
+
+    // Haptic feedback при смене состояния
+    if (_sheetState != state) {
+      HapticFeedback.mediumImpact();
+    }
+
+    _sheetState = state;
+
+    final animation = Tween<double>(
+      begin: _sheetHeight,
+      end: targetHeight,
+    ).animate(CurvedAnimation(
+      parent: _heightAnimationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    animation.addListener(() {
+      setState(() {
+        _sheetHeight = animation.value;
+      });
+    });
+
+    _heightAnimationController.forward(from: 0.0);
+
+    print('🎯 Sheet animated to: $state (${(targetHeight * 100).toInt()}%)');
+  }
+
+  /// Быстрый переход к состоянию (для тапов на ручку/кнопки)
+  void _switchToState(SheetState state) {
+    _animateToState(state);
   }
 
   List<CategoryItem> _getAllCategories() {
@@ -137,26 +243,347 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
   @override
   Widget build(BuildContext context) {
     final categories = _getAllCategories();
-    
+    final screenHeight = MediaQuery.of(context).size.height;
+
     if (categories.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Column(
+    return Stack(
       children: [
-        // Навигация категорий (всегда видна)
-        _buildCategoryNavigation(categories),
-        
-        // Карусель или развёрнутый список
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            child: _isExpanded
-                ? _buildExpandedView(categories)
-                : _buildCarousel(categories),
+        // Навигация категорий (видна только в MID состоянии, сверху)
+        if (_sheetState == SheetState.mid)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildCategoryNavigation(categories),
+          ),
+
+        // Карусель (позиционируется снизу, высота контролируется _sheetHeight)
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 50),
+            curve: Curves.easeOut,
+            height: _sheetHeight * screenHeight,
+            child: _buildSheetContent(categories),
           ),
         ),
       ],
+    );
+  }
+
+  /// Построение контента в зависимости от состояния
+  Widget _buildSheetContent(List<CategoryItem> categories) {
+    switch (_sheetState) {
+      case SheetState.min:
+        return _buildMinState(categories);
+      case SheetState.mid:
+        return _buildMidState(categories);
+      case SheetState.max:
+        return _buildMaxState(categories);
+    }
+  }
+
+  /// MIN состояние (10%) - только ручка
+  Widget _buildMinState(List<CategoryItem> categories) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Ручка (тап или драг для раскрытия)
+          GestureDetector(
+            onTap: () => _switchToState(SheetState.mid),
+            onVerticalDragStart: _handleVerticalDragStart,
+            onVerticalDragUpdate: _handleVerticalDragUpdate,
+            onVerticalDragEnd: _handleVerticalDragEnd,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Center(
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// MID состояние (50%) - категории + карусель с товарами
+  Widget _buildMidState(List<CategoryItem> categories) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Ручка (тап или драг для управления)
+          GestureDetector(
+            onTap: () => _switchToState(SheetState.min),
+            onVerticalDragStart: _handleVerticalDragStart,
+            onVerticalDragUpdate: _handleVerticalDragUpdate,
+            onVerticalDragEnd: _handleVerticalDragEnd,
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Center(
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Заголовок (также поддерживает вертикальный драг)
+          GestureDetector(
+            onVerticalDragStart: _handleVerticalDragStart,
+            onVerticalDragUpdate: _handleVerticalDragUpdate,
+            onVerticalDragEnd: _handleVerticalDragEnd,
+            child: _buildHeader(categories[_currentIndex]),
+          ),
+
+          // PageView карусель с поддержкой touch/mouse
+          Expanded(
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: PageView.builder(
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                onPageChanged: (index) {
+                  setState(() => _currentIndex = index);
+                  widget.onCategoryChanged(categories[index].id);
+                  HapticFeedback.selectionClick();
+                  print('📱 Swiped to: ${categories[index].name}');
+                },
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  return _buildCard(categories[index], index);
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// MAX состояние (95%) - полноэкранный режим с категориями внутри
+  Widget _buildMaxState(List<CategoryItem> categories) {
+    final category = categories[_currentIndex];
+    final products = _getProductsForCategory(category.id);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Заголовок с кнопкой закрытия (поддерживает драг вниз)
+          GestureDetector(
+            onVerticalDragStart: _handleVerticalDragStart,
+            onVerticalDragUpdate: _handleVerticalDragUpdate,
+            onVerticalDragEnd: _handleVerticalDragEnd,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 28,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.pink.shade400, Colors.orange.shade400],
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      category.name,
+                      style: GoogleFonts.pacifico(
+                        fontSize: 24,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.close, size: 20, color: Colors.black54),
+                    ),
+                    onPressed: () => _switchToState(SheetState.mid),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Горизонтальная навигация категорий
+          SizedBox(
+            height: 40,
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.trackpad,
+                },
+              ),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: categories.length,
+                itemBuilder: (context, index) {
+                  final cat = categories[index];
+                  final isSelected = index == _currentIndex;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() => _currentIndex = index);
+                      widget.onCategoryChanged(cat.id);
+                      HapticFeedback.selectionClick();
+                    },
+                    child: Container(
+                      margin: const EdgeInsets.only(right: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? Colors.pink.shade50 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected ? Colors.pink.shade300 : Colors.grey.shade300,
+                        ),
+                      ),
+                      child: Center(
+                        child: Text(
+                          cat.name,
+                          style: GoogleFonts.montserrat(
+                            fontSize: 13,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                            color: isSelected ? Colors.pink.shade600 : Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Сетка товаров
+          Expanded(
+            child: products.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Нет товаров',
+                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ),
+                  )
+                : ScrollConfiguration(
+                    behavior: ScrollConfiguration.of(context).copyWith(
+                      dragDevices: {
+                        PointerDeviceKind.touch,
+                        PointerDeviceKind.mouse,
+                        PointerDeviceKind.trackpad,
+                      },
+                    ),
+                    child: GridView.builder(
+                      controller: _expandedScrollController,
+                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.75,
+                      ),
+                      itemCount: products.length,
+                      itemBuilder: (context, index) {
+                        return ProductCard(product: products[index])
+                            .animate(delay: Duration(milliseconds: 40 * index))
+                            .fadeIn(duration: 200.ms)
+                            .slideY(begin: 0.05, end: 0);
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -180,7 +607,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
         itemBuilder: (context, index) {
           final category = categories[index];
           final isSelected = index == _currentIndex;
-          
+
           return GestureDetector(
             onTap: () {
               setState(() => _currentIndex = index);
@@ -229,83 +656,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
     );
   }
 
-  Widget _buildCarousel(List<CategoryItem> categories) {
-    return Container(
-      key: const ValueKey('carousel'),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Ручка (тап для раскрытия)
-          GestureDetector(
-            onTap: _expand,
-            onVerticalDragEnd: (details) {
-              if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
-                _expand();
-              }
-            },
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Center(
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          
-          // Заголовок
-          _buildHeader(categories[_currentIndex]),
-          
-          // PageView карусель с поддержкой touch/mouse
-          Expanded(
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(
-                dragDevices: {
-                  PointerDeviceKind.touch,
-                  PointerDeviceKind.mouse,
-                  PointerDeviceKind.trackpad,
-                },
-              ),
-              child: PageView.builder(
-                controller: _pageController,
-                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                onPageChanged: (index) {
-                  setState(() => _currentIndex = index);
-                  widget.onCategoryChanged(categories[index].id);
-                  HapticFeedback.selectionClick();
-                  print('📱 Swiped to: ${categories[index].name}');
-                },
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  return _buildCard(categories[index], index);
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildHeader(CategoryItem category) {
     return Container(
@@ -554,10 +904,10 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
               ),
             ),
             
-            // Кнопка "ещё" (тап для раскрытия)
+            // Кнопка "ещё" (тап для раскрытия до MAX)
             if (products.length > 2)
               GestureDetector(
-                onTap: _expand,
+                onTap: () => _switchToState(SheetState.max),
                 behavior: HitTestBehavior.opaque,
                 child: Container(
                   width: double.infinity,
@@ -589,172 +939,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
     );
   }
 
-  Widget _buildExpandedView(List<CategoryItem> categories) {
-    final category = categories[_currentIndex];
-    final products = _getProductsForCategory(category.id);
-    
-    return Container(
-      key: const ValueKey('expanded'),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Заголовок с кнопкой закрытия
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
-            child: Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 28,
-                  margin: const EdgeInsets.only(right: 12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.pink.shade400, Colors.orange.shade400],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    category.name,
-                    style: GoogleFonts.pacifico(
-                      fontSize: 24,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ),
-                IconButton(
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.close, size: 20, color: Colors.black54),
-                  ),
-                  onPressed: _collapse,
-                ),
-              ],
-            ),
-          ),
-          
-          // Горизонтальная навигация
-          SizedBox(
-            height: 40,
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(
-                dragDevices: {
-                  PointerDeviceKind.touch,
-                  PointerDeviceKind.mouse,
-                  PointerDeviceKind.trackpad,
-                },
-              ),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                final cat = categories[index];
-                final isSelected = index == _currentIndex;
-                return GestureDetector(
-                  onTap: () {
-                    setState(() => _currentIndex = index);
-                    widget.onCategoryChanged(cat.id);
-                    HapticFeedback.selectionClick();
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.pink.shade50 : Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isSelected ? Colors.pink.shade300 : Colors.grey.shade300,
-                      ),
-                    ),
-                    child: Center(
-                      child: Text(
-                        cat.name,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                          color: isSelected ? Colors.pink.shade600 : Colors.grey.shade600,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-              ),
-            ),
-          ),
-          
-          const SizedBox(height: 8),
-          
-          // Сетка товаров
-          Expanded(
-            child: products.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Нет товаров',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  )
-                : ScrollConfiguration(
-                    behavior: ScrollConfiguration.of(context).copyWith(
-                      dragDevices: {
-                        PointerDeviceKind.touch,
-                        PointerDeviceKind.mouse,
-                        PointerDeviceKind.trackpad,
-                      },
-                    ),
-                    child: GridView.builder(
-                      controller: _expandedScrollController,
-                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 0.75,
-                      ),
-                      itemCount: products.length,
-                      itemBuilder: (context, index) {
-                        return ProductCard(product: products[index])
-                            .animate(delay: Duration(milliseconds: 40 * index))
-                            .fadeIn(duration: 200.ms)
-                            .slideY(begin: 0.05, end: 0);
-                      },
-                    ),
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Модель категории
