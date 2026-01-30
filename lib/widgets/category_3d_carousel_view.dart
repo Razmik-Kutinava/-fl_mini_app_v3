@@ -4,28 +4,13 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/product.dart';
 import '../providers/menu_provider.dart';
-import '../utils/responsive.dart';
 import 'product_card.dart';
 import 'promo_section.dart';
 
-/// 🎡 3D Expandable Carousel with DraggableScrollableSheet
-///
-/// GESTURE LOGIC:
-/// - Horizontal swipe → category switch (blocks vertical)
-/// - Vertical swipe → expand/collapse (blocks horizontal)
-/// - Tap (< 20px) → open product detail
-///
-/// ARCHITECTURE:
-/// - Stack with proper Positioned children
-/// - DraggableScrollableSheet with Positioned constraints
-/// - PageView for horizontal category navigation
-/// - GridView for vertical product scrolling
-///
-/// DESIGN:
-/// - Playful Pacifico typography for Russian text
-/// - Pink/Orange gradient accents
-/// - Smooth 400ms animations with easeOutCubic
-/// - Beautiful shadows and depth effects
+/// 🎡 3D Карусель категорий с товарами
+/// - Горизонтальный свайп = смена категории с 3D эффектом
+/// - Вертикальный свайп ↑ = раскрытие списка товаров
+/// - Крестик / свайп ↓ = сворачивание
 class Category3DCarouselView extends StatefulWidget {
   final MenuProvider menuProvider;
   final List<PromoItem> promotions;
@@ -42,144 +27,102 @@ class Category3DCarouselView extends StatefulWidget {
   State<Category3DCarouselView> createState() => _Category3DCarouselViewState();
 }
 
-class _Category3DCarouselViewState extends State<Category3DCarouselView>
-    with TickerProviderStateMixin {
-
-  // === CONTROLLERS ===
-  late DraggableScrollableController _sheetController;
+class _Category3DCarouselViewState extends State<Category3DCarouselView> {
   late PageController _pageController;
-  late AnimationController _headerAnimController;
-  late Animation<double> _headerAnimation;
-
-  // === STATE ===
+  
   bool _isExpanded = false;
   int _currentIndex = 0;
   double _pageOffset = 0.0;
-
-  // === GESTURE DETECTION ===
-  double _dragStartX = 0;
+  
+  // Для вертикального свайпа
   double _dragStartY = 0;
   bool _isDragging = false;
-  bool _isHorizontalGesture = false;
-  bool _isVerticalGesture = false;
+  final ScrollController _expandedScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
-
-    // Initialize controllers
-    _sheetController = DraggableScrollableController();
     _pageController = PageController(
-      viewportFraction: 0.75,
+      viewportFraction: 0.85,
       initialPage: 0,
     );
-
-    // Header animation controller for smooth fade/slide
-    _headerAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _headerAnimation = CurvedAnimation(
-      parent: _headerAnimController,
-      curve: Curves.easeInOutCubic,
-    );
-
-    // Add listeners
-    _sheetController.addListener(_onSheetChanged);
-    _pageController.addListener(_onPageChanged);
-
-    // Proper initialization after widget tree is built
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _sheetController.isAttached) {
-        // Start header visible
-        _headerAnimController.value = 1.0;
-
-        print('🚀 Category3DCarouselView initialized: ${_getAllCategories().length} categories');
-      }
-    });
+    _pageController.addListener(_onPageScroll);
+    
+    print('🚀 Category3DCarouselView initialized');
   }
 
   @override
   void dispose() {
-    _sheetController.removeListener(_onSheetChanged);
-    _pageController.removeListener(_onPageChanged);
-    _sheetController.dispose();
+    _pageController.removeListener(_onPageScroll);
     _pageController.dispose();
-    _headerAnimController.dispose();
+    _expandedScrollController.dispose();
     super.dispose();
   }
-
-  // === LISTENERS ===
-
-  void _onSheetChanged() {
-    if (!_sheetController.isAttached) return;
-
-    final size = _sheetController.size;
-    final wasExpanded = _isExpanded;
-    final nowExpanded = size > 0.6;
-
-    if (wasExpanded != nowExpanded) {
-      setState(() {
-        _isExpanded = nowExpanded;
-      });
-
-      // Animate header based on expansion state
-      if (nowExpanded) {
-        _headerAnimController.animateBack(0.0);
-        HapticFeedback.lightImpact();
-        print('📖 Sheet expanded (size: ${size.toStringAsFixed(2)})');
-      } else {
-        _headerAnimController.animateTo(1.0);
-        print('📕 Sheet collapsed (size: ${size.toStringAsFixed(2)})');
+  
+  @override
+  void didUpdateWidget(Category3DCarouselView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Синхронизация карусели с выбранной категорией в menuProvider
+    final selectedId = widget.menuProvider.selectedCategoryId;
+    final categories = _getAllCategories();
+    
+    int targetIndex = 0; // По умолчанию "для тебя"
+    if (selectedId != null) {
+      for (int i = 0; i < categories.length; i++) {
+        if (categories[i].id == selectedId) {
+          targetIndex = i;
+          break;
+        }
       }
     }
+    
+    // Если индекс отличается - анимируем переход
+    if (targetIndex != _currentIndex && _pageController.hasClients) {
+      print('🔄 Syncing carousel to category: $selectedId (index $targetIndex)');
+      _pageController.animateToPage(
+        targetIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOutCubic,
+      );
+    }
   }
-
-  void _onPageChanged() {
-    if (!_pageController.hasClients) return;
-
+  
+  void _onPageScroll() {
+    if (_pageController.hasClients) {
+      setState(() {
+        _pageOffset = _pageController.page ?? 0;
+      });
+    }
+  }
+  
+  void _expandCategory() {
+    print('📖 Expanding category');
+    HapticFeedback.lightImpact();
     setState(() {
-      _pageOffset = _pageController.page ?? 0;
+      _isExpanded = true;
+    });
+  }
+  
+  void _collapseCategory() {
+    print('📕 Collapsing category');
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isExpanded = false;
     });
   }
 
-  // === EXPAND/COLLAPSE METHODS ===
-
-  void _expandSheet() {
-    if (!_sheetController.isAttached) return;
-
-    print('⬆️ Expanding sheet');
-    _sheetController.animateTo(
-      1.0,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutCubic,
-    );
-  }
-
-  void _collapseSheet() {
-    if (!_sheetController.isAttached) return;
-
-    print('⬇️ Collapsing sheet');
-    _sheetController.animateTo(
-      0.35,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeOutCubic,
-    );
-  }
-
-  // === CATEGORY HELPERS ===
-
   List<CategoryItem> _getAllCategories() {
     final categories = <CategoryItem>[];
-
-    // First category - "для тебя"
+    
+    // Первая категория - "для тебя"
     categories.add(CategoryItem(
       id: null,
       name: 'для тебя',
       isPromo: true,
     ));
-
-    // Rest of categories
+    
+    // Остальные категории
     for (var category in widget.menuProvider.categories) {
       categories.add(CategoryItem(
         id: category.id,
@@ -187,10 +130,10 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
         isPromo: false,
       ));
     }
-
+    
     return categories;
   }
-
+  
   List<Product> _getProductsForCategory(String? categoryId) {
     if (categoryId == null) {
       return widget.menuProvider.allProducts.take(6).toList();
@@ -203,7 +146,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
   @override
   Widget build(BuildContext context) {
     final categories = _getAllCategories();
-
+    
     if (categories.isEmpty) {
       return const SliverToBoxAdapter(
         child: Center(child: CircularProgressIndicator()),
@@ -211,36 +154,41 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
     }
 
     final screenHeight = MediaQuery.of(context).size.height;
+    final collapsedHeight = screenHeight * 0.45; // 45% экрана в свернутом
+    final expandedHeight = screenHeight - 180; // Почти весь экран в развернутом
 
     return SliverToBoxAdapter(
-      child: SizedBox(
-        height: screenHeight - 180,
-        child: Stack(
-          children: [
-            // === HEADER (POSITIONED WITH INTERNAL ANIMATED OPACITY) ===
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: FadeTransition(
-                opacity: _headerAnimation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, -0.3),
-                    end: Offset.zero,
-                  ).animate(_headerAnimation),
-                  child: _buildHeaderContent(categories),
-                ),
-              ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+        height: _isExpanded ? expandedHeight : collapsedHeight,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
             ),
-
-            // === DRAGGABLE HANDLE INDICATOR ===
-            Positioned(
-              top: 60,
-              left: 0,
-              right: 0,
-              child: FadeTransition(
-                opacity: Tween<double>(begin: 1.0, end: 0.0).animate(_headerAnimation),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Ручка для перетаскивания
+            GestureDetector(
+              onTap: () {
+                if (_isExpanded) {
+                  _collapseCategory();
+                } else {
+                  _expandCategory();
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Center(
                   child: Container(
                     width: 40,
@@ -253,36 +201,15 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
                 ),
               ),
             ),
-
-            // === DRAGGABLE SCROLLABLE SHEET (POSITIONED) ===
-            Positioned.fill(
-              child: DraggableScrollableSheet(
-                controller: _sheetController,
-                initialChildSize: 0.35,
-                minChildSize: 0.35,
-                maxChildSize: 1.0,
-                snap: true,
-                snapSizes: const [0.35, 1.0],
-                builder: (context, scrollController) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(32),
-                        topRight: Radius.circular(32),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.08),
-                          blurRadius: 20,
-                          offset: const Offset(0, -4),
-                        ),
-                      ],
-                    ),
-                    child: _buildProductCarousel(categories, scrollController),
-                  );
-                },
-              ),
+            
+            // Заголовок
+            _buildHeader(categories),
+            
+            // Контент
+            Expanded(
+              child: _isExpanded
+                  ? _buildExpandedList(categories[_currentIndex])
+                  : _build3DCarousel(categories),
             ),
           ],
         ),
@@ -290,14 +217,14 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
     );
   }
 
-  Widget _buildHeaderContent(List<CategoryItem> categories) {
+  Widget _buildHeader(List<CategoryItem> categories) {
     final currentCategory = categories[_currentIndex];
-
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
         children: [
-          // Position indicator with gradient
+          // Градиентная полоска
           Container(
             width: 4,
             height: 28,
@@ -312,136 +239,128 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
                 ],
               ),
               borderRadius: BorderRadius.circular(2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.pink.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
             ),
           ),
           Expanded(
             child: Text(
               currentCategory.name,
               style: GoogleFonts.pacifico(
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.w400,
                 color: Colors.black87,
-                height: 1.2,
-                letterSpacing: 0.5,
               ),
             ),
           ),
+          // Кнопка закрытия (только в раскрытом виде)
+          if (_isExpanded)
+            IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.close, color: Colors.black54, size: 18),
+              ),
+              onPressed: _collapseCategory,
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildProductCarousel(List<CategoryItem> categories, ScrollController scrollController) {
-    if (_isExpanded) {
-      // EXPANDED: Full grid view with vertical scroll
-      return _buildExpandedView(categories, scrollController);
-    } else {
-      // COLLAPSED: 3D carousel with horizontal PageView
-      return _build3DCarousel(categories);
-    }
-  }
-
   Widget _build3DCarousel(List<CategoryItem> categories) {
-    return PageView.builder(
-      controller: _pageController,
-      physics: const BouncingScrollPhysics(),
-      onPageChanged: (index) {
-        print('🔄 Swiped to index $index (${categories[index].name})');
-        setState(() {
-          _currentIndex = index;
-        });
-        widget.onCategoryChanged(categories[index].id);
-        HapticFeedback.selectionClick();
+    return GestureDetector(
+      onVerticalDragStart: (details) {
+        _dragStartY = details.globalPosition.dy;
+        _isDragging = true;
       },
-      itemCount: categories.length,
-      itemBuilder: (context, index) {
-        return _build3DCard(categories[index], index);
+      onVerticalDragUpdate: (details) {
+        if (!_isDragging) return;
+        final delta = details.globalPosition.dy - _dragStartY;
+        // Свайп вверх - раскрываем
+        if (delta < -60 && !_isExpanded) {
+          _expandCategory();
+          _isDragging = false;
+        }
       },
+      onVerticalDragEnd: (_) {
+        _isDragging = false;
+      },
+      child: PageView.builder(
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        onPageChanged: (index) {
+          print('🔄 Swiped to: ${categories[index].name}');
+          setState(() {
+            _currentIndex = index;
+          });
+          widget.onCategoryChanged(categories[index].id);
+          HapticFeedback.selectionClick();
+        },
+        itemCount: categories.length,
+        itemBuilder: (context, index) {
+          return _build3DCard(categories[index], index);
+        },
+      ),
     );
   }
 
   Widget _build3DCard(CategoryItem category, int index) {
-    // Calculate offset for 3D transform
+    // 3D трансформация
     double diff = (index - _pageOffset);
-
-    // Rotation angle (limited)
-    double rotationY = diff.clamp(-1.0, 1.0) * 0.3; // Up to ~17°
-
-    // Scale based on distance from center
-    double scale = 1 - (diff.abs() * 0.15).clamp(0.0, 0.3);
-
-    // Opacity for side cards
+    double rotationY = diff.clamp(-1.0, 1.0) * 0.15; // До ~8°
+    double scale = 1 - (diff.abs() * 0.1).clamp(0.0, 0.2);
     double opacity = 1 - (diff.abs() * 0.3).clamp(0.0, 0.5);
-
-    // Translate for depth
-    double translateX = diff * 20;
-
-    return AnimatedBuilder(
-      animation: _pageController,
-      builder: (context, child) {
-        return Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.identity()
-            ..setEntry(3, 2, 0.001) // Perspective
-            ..rotateY(rotationY)
-            ..scale(scale)
-            ..translate(translateX),
-          child: Opacity(
-            opacity: opacity,
-            child: _buildCarouselCard(category, index == _currentIndex),
-          ),
-        );
-      },
+    
+    return Transform(
+      alignment: Alignment.center,
+      transform: Matrix4.identity()
+        ..setEntry(3, 2, 0.001)
+        ..rotateY(rotationY)
+        ..scale(scale),
+      child: Opacity(
+        opacity: opacity,
+        child: _buildCarouselCard(category, index == _currentIndex),
+      ),
     );
   }
 
   Widget _buildCarouselCard(CategoryItem category, bool isActive) {
     final products = _getProductsForCategory(category.id);
-
+    
     if (category.isPromo) {
-      return _buildPromoCard(products, isActive);
+      return _buildPromoCard(isActive);
     }
-
+    
     return _buildProductsCard(products, isActive, category);
   }
 
-  Widget _buildPromoCard(List<Product> products, bool isActive) {
+  Widget _buildPromoCard(bool isActive) {
     List<Product> firstTwoProducts = [];
     if (widget.menuProvider.categories.isNotEmpty) {
       final firstCategory = widget.menuProvider.categories.first;
       final categoryProducts = _getProductsForCategory(firstCategory.id);
       firstTwoProducts = categoryProducts.take(2).toList();
     }
-
+    
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: isActive
-                ? Colors.pink.withOpacity(0.3)
-                : Colors.black.withOpacity(0.1),
-            blurRadius: isActive ? 30 : 15,
-            offset: const Offset(0, 10),
-            spreadRadius: isActive ? 2 : 0,
+            color: isActive 
+                ? Colors.pink.withOpacity(0.2) 
+                : Colors.black.withOpacity(0.08),
+            blurRadius: isActive ? 25 : 12,
+            offset: const Offset(0, 8),
           ),
         ],
-        border: isActive ? Border.all(
-          color: Colors.pink.withOpacity(0.2),
-          width: 2,
-        ) : null,
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         child: SingleChildScrollView(
           physics: const NeverScrollableScrollPhysics(),
           child: PromoSection(
@@ -454,189 +373,99 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
   }
 
   Widget _buildProductsCard(List<Product> products, bool isActive, CategoryItem category) {
-    final padding = Responsive.responsiveSize(
-      context,
-      mobile: 14.0,
-      tablet: 22.0,
-      desktop: 30.0,
-    );
-
     final displayProducts = products.take(2).toList();
-
+    
     if (displayProducts.isEmpty) {
       return _buildEmptyCard();
     }
 
-    return GestureDetector(
-      // === GESTURE DETECTION FOR EXPAND/COLLAPSE ===
-      onVerticalDragStart: (details) {
-        _dragStartY = details.globalPosition.dy;
-        _dragStartX = details.globalPosition.dx;
-        _isDragging = true;
-        _isVerticalGesture = false;
-        _isHorizontalGesture = false;
-      },
-      onVerticalDragUpdate: (details) {
-        if (!_isDragging) return;
-
-        final deltaY = details.globalPosition.dy - _dragStartY;
-        final deltaX = details.globalPosition.dx - _dragStartX;
-        final distance = (deltaX * deltaX + deltaY * deltaY);
-
-        // Determine gesture direction
-        if (!_isVerticalGesture && !_isHorizontalGesture) {
-          // Determine direction based on distance threshold
-          if (distance > 400) { // 20px * 20px threshold
-            // Determine direction based on ratio
-            if (deltaY.abs() > deltaX.abs() * 1.3) {
-              _isVerticalGesture = true;
-            } else if (deltaX.abs() > deltaY.abs() * 1.3) {
-              _isHorizontalGesture = true;
-            }
-          }
-        }
-
-        // Execute gesture
-        if (_isVerticalGesture) {
-          // Vertical gesture: expand/collapse
-          if (!_isExpanded && deltaY < -80) {
-            _expandSheet();
-          }
-        }
-        // Horizontal gestures handled by PageView automatically
-      },
-      onVerticalDragEnd: (details) {
-        _isDragging = false;
-        _isVerticalGesture = false;
-        _isHorizontalGesture = false;
-      },
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.white,
-              Colors.grey.shade50,
-            ],
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: isActive 
+                ? Colors.pink.withOpacity(0.2) 
+                : Colors.black.withOpacity(0.08),
+            blurRadius: isActive ? 25 : 12,
+            offset: const Offset(0, 8),
           ),
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            // Main shadow
-            BoxShadow(
-              color: isActive
-                  ? Colors.pink.withOpacity(0.25)
-                  : Colors.black.withOpacity(0.12),
-              blurRadius: isActive ? 35 : 20,
-              offset: const Offset(0, 12),
-              spreadRadius: isActive ? 3 : 0,
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Column(
+          children: [
+            // Декоративная полоска
+            Container(
+              height: 3,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.pink.shade300,
+                    Colors.orange.shade300,
+                  ],
+                ),
+              ),
             ),
-            // Inner light
-            BoxShadow(
-              color: Colors.white.withOpacity(0.8),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
+            
+            // Товары
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: displayProducts.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final product = entry.value;
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: idx == 0 ? 0 : 6,
+                          right: idx == displayProducts.length - 1 ? 0 : 6,
+                        ),
+                        child: ProductCard(product: product)
+                            .animate(delay: Duration(milliseconds: 100 * idx))
+                            .fadeIn(duration: 300.ms)
+                            .scale(
+                              begin: const Offset(0.95, 0.95),
+                              end: const Offset(1.0, 1.0),
+                            ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
-          ],
-          border: isActive ? Border.all(
-            color: Colors.pink.withOpacity(0.15),
-            width: 2,
-          ) : null,
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(28),
-          child: Column(
-            children: [
-              // Decorative top stripe
+            
+            // Индикатор "еще товары"
+            if (products.length > 2)
               Container(
-                height: 4,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.pink.shade300,
-                      Colors.orange.shade300,
-                      Colors.pink.shade300,
-                    ],
-                  ),
-                ),
-              ),
-
-              // Product grid (2 products)
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.all(padding),
-                  child: Row(
-                    children: displayProducts.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final product = entry.value;
-                      return Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            left: idx == 0 ? 0 : padding / 2,
-                            right: idx == displayProducts.length - 1 ? 0 : padding / 2,
-                          ),
-                          child: ProductCard(product: product)
-                              .animate(delay: Duration(milliseconds: 150 * idx))
-                              .fadeIn(duration: 400.ms)
-                              .slideY(begin: 0.1, end: 0)
-                              .scale(
-                                begin: const Offset(0.92, 0.92),
-                                end: const Offset(1.0, 1.0),
-                              ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-
-              // "Swipe up" indicator
-              if (products.length > 2)
-                Container(
-                  padding: const EdgeInsets.only(bottom: 20, top: 8),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.grey.shade50,
-                      ],
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Icon(
-                          Icons.keyboard_arrow_up_rounded,
-                          color: Colors.grey[500],
-                          size: 24,
+                padding: const EdgeInsets.only(bottom: 16, top: 4),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.keyboard_arrow_up_rounded,
+                      color: Colors.grey[400],
+                      size: 24,
+                    )
+                        .animate(
+                          onPlay: (c) => c.repeat(reverse: true),
                         )
-                            .animate(
-                              onPlay: (controller) => controller.repeat(reverse: true),
-                            )
-                            .moveY(begin: 0, end: -4, duration: 700.ms),
+                        .moveY(begin: 0, end: -3, duration: 600.ms),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Ещё ${products.length - 2}',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 12,
+                        color: Colors.grey[500],
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Ещё ${products.length - 2} товаров',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
@@ -644,36 +473,22 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
 
   Widget _buildEmptyCard() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.grey.shade100,
-            Colors.grey.shade200,
-          ],
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(24),
       ),
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.inventory_2_outlined, size: 48, color: Colors.grey.shade400),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               'Нет товаров',
               style: GoogleFonts.montserrat(
-                fontSize: 16,
-                color: Colors.grey[600],
+                fontSize: 14,
+                color: Colors.grey[500],
               ),
             ),
           ],
@@ -682,128 +497,9 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
     );
   }
 
-  Widget _buildExpandedView(List<CategoryItem> categories, ScrollController scrollController) {
-    final currentCategory = categories[_currentIndex];
-    final products = _getProductsForCategory(currentCategory.id);
-    final padding = Responsive.responsiveSize(
-      context,
-      mobile: 16.0,
-      tablet: 24.0,
-      desktop: 32.0,
-    );
-
-    return Column(
-      children: [
-        // Expanded header with close button
-        Container(
-          padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(32),
-              topRight: Radius.circular(32),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 4,
-                height: 28,
-                margin: const EdgeInsets.only(right: 12),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.pink.shade400,
-                      Colors.orange.shade400,
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.pink.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  currentCategory.name,
-                  style: GoogleFonts.pacifico(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w400,
-                    color: Colors.black87,
-                    height: 1.2,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.close, color: Colors.black54, size: 20),
-                ),
-                onPressed: () {
-                  HapticFeedback.lightImpact();
-                  _collapseSheet();
-                },
-              )
-                  .animate()
-                  .fadeIn(duration: 200.ms, delay: 100.ms)
-                  .scale(
-                    begin: const Offset(0.8, 0.8),
-                    end: const Offset(1.0, 1.0),
-                    curve: Curves.easeOutBack,
-                  ),
-            ],
-          ),
-        ),
-
-        // Product grid with vertical scroll
-        Expanded(
-          child: GestureDetector(
-            onVerticalDragStart: (details) {
-              _dragStartY = details.globalPosition.dy;
-              _isDragging = true;
-            },
-            onVerticalDragUpdate: (details) {
-              if (!_isDragging) return;
-
-              final delta = details.globalPosition.dy - _dragStartY;
-
-              // Collapse only if at top of scroll and swiping down
-              if (_isExpanded &&
-                  scrollController.hasClients &&
-                  scrollController.offset <= 0 &&
-                  delta > 80) {
-                _collapseSheet();
-              }
-            },
-            onVerticalDragEnd: (details) {
-              _isDragging = false;
-            },
-            child: _buildProductGrid(products, scrollController, padding),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildProductGrid(List<Product> products, ScrollController scrollController, double padding) {
+  Widget _buildExpandedList(CategoryItem category) {
+    final products = _getProductsForCategory(category.id);
+    
     if (products.isEmpty) {
       return Center(
         child: Column(
@@ -812,7 +508,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
             Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             Text(
-              'Нет товаров в этой категории',
+              'Нет товаров в категории',
               style: GoogleFonts.montserrat(
                 fontSize: 16,
                 color: Colors.grey[600],
@@ -823,43 +519,48 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView>
       );
     }
 
-    return CustomScrollView(
-      controller: scrollController,
-      physics: _isExpanded
-          ? const AlwaysScrollableScrollPhysics()
-          : const NeverScrollableScrollPhysics(),
-      slivers: [
-        SliverPadding(
-          padding: EdgeInsets.all(padding),
-          sliver: SliverGrid(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: padding,
-              crossAxisSpacing: padding,
-              childAspectRatio: 0.75,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                return ProductCard(product: products[index])
-                    .animate(delay: Duration(milliseconds: 50 * index))
-                    .fadeIn(duration: 300.ms)
-                    .slideY(begin: 0.05, end: 0)
-                    .scale(
-                      begin: const Offset(0.95, 0.95),
-                      end: const Offset(1.0, 1.0),
-                      curve: Curves.easeOutCubic,
-                    );
-              },
-              childCount: products.length,
-            ),
-          ),
+    return GestureDetector(
+      onVerticalDragStart: (details) {
+        _dragStartY = details.globalPosition.dy;
+        _isDragging = true;
+      },
+      onVerticalDragUpdate: (details) {
+        if (!_isDragging) return;
+        final delta = details.globalPosition.dy - _dragStartY;
+        // Свайп вниз - сворачиваем (если в начале скролла)
+        if (delta > 60 && _isExpanded) {
+          if (!_expandedScrollController.hasClients || 
+              _expandedScrollController.offset <= 0) {
+            _collapseCategory();
+            _isDragging = false;
+          }
+        }
+      },
+      onVerticalDragEnd: (_) {
+        _isDragging = false;
+      },
+      child: GridView.builder(
+        controller: _expandedScrollController,
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+          childAspectRatio: 0.75,
         ),
-      ],
+        itemCount: products.length,
+        itemBuilder: (context, index) {
+          return ProductCard(product: products[index])
+              .animate(delay: Duration(milliseconds: 50 * index))
+              .fadeIn(duration: 250.ms)
+              .slideY(begin: 0.05, end: 0);
+        },
+      ),
     );
   }
 }
 
-/// Category item model
+/// Модель категории
 class CategoryItem {
   final String? id;
   final String name;
@@ -871,3 +572,6 @@ class CategoryItem {
     required this.isPromo,
   });
 }
+
+
+
