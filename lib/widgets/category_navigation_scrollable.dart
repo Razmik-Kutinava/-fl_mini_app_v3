@@ -235,13 +235,31 @@ class _CategoryTextItem extends StatelessWidget {
           margin: EdgeInsets.only(right: spacing),
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: Text(
-            label,
-            style: GoogleFonts.pacifico(  // Изящный наклонный шрифт
-              fontSize: fontSize,
-              fontWeight: FontWeight.w400,
-              color: isSelected ? Colors.black : Colors.black.withOpacity(0.4),
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.pacifico(
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w400,
+                  color: isSelected ? Colors.black : Colors.black.withOpacity(0.4),
+                ),
+              ),
+              const SizedBox(height: 4),
+              // Индикатор выделения
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                height: 3,
+                width: isSelected ? 30 : 0,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.pink.shade400, Colors.orange.shade400],
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ],
           ),
         ),
       ),
