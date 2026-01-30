@@ -251,7 +251,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                           // Карусель с категориями и товарами
                           Expanded(
                             child: _isLoadingPromotions
-                                ? const Center(child: CircularProgressIndicator())
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
                                 : CategoryDraggableSheet(
                                     menuProvider: menuProvider,
                                     promotions: _promotions,

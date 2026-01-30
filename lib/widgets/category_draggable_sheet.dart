@@ -359,12 +359,39 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
   }
 
   Widget _buildPromoCard(List<Product> products) {
+    // Для "для тебя" показываем первые 2 товара из первой категории
     List<Product> displayProducts = [];
     if (widget.menuProvider.categories.isNotEmpty) {
       final firstCat = widget.menuProvider.categories.first;
       displayProducts = _getProductsForCategory(firstCat.id).take(2).toList();
     }
     
+    if (displayProducts.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.local_cafe_outlined, size: 48, color: Colors.pink.shade300),
+              const SizedBox(height: 12),
+              Text(
+                'Загрузка...',
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
@@ -380,12 +407,70 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: SingleChildScrollView(
-          physics: const NeverScrollableScrollPhysics(),
-          child: PromoSection(
-            promotions: widget.promotions,
-            products: displayProducts,
-          ),
+        child: Column(
+          children: [
+            // Градиент сверху
+            Container(
+              height: 3,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.pink.shade300, Colors.orange.shade300],
+                ),
+              ),
+            ),
+            
+            // Товары
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: displayProducts.asMap().entries.map((entry) {
+                    final idx = entry.key;
+                    final product = entry.value;
+                    return Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          left: idx == 0 ? 0 : 6,
+                          right: idx == displayProducts.length - 1 ? 0 : 6,
+                        ),
+                        child: ProductCard(product: product)
+                            .animate(delay: Duration(milliseconds: 100 * idx))
+                            .fadeIn(duration: 300.ms)
+                            .scale(
+                              begin: const Offset(0.95, 0.95),
+                              end: const Offset(1.0, 1.0),
+                            ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+            
+            // Индикатор
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    color: Colors.pink.shade400,
+                    size: 28,
+                  )
+                      .animate(onPlay: (c) => c.repeat(reverse: true))
+                      .moveY(begin: 0, end: -4, duration: 600.ms),
+                  Text(
+                    'Рекомендации',
+                    style: GoogleFonts.montserrat(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.pink.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
