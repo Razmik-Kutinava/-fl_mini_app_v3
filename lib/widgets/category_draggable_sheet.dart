@@ -9,9 +9,8 @@ import 'promo_section.dart';
 
 /// 🎡 Карусель категорий с раскрытием
 /// 
-/// Простая и надёжная версия без DraggableScrollableSheet
-/// - Горизонтальный свайп = смена категории
-/// - Вертикальный свайп вверх = раскрытие на весь экран
+/// - Горизонтальный свайп = смена категории (работает везде)
+/// - Тап на ручку или кнопку "Ещё" = раскрытие
 /// - Кнопка закрытия = возврат к карусели
 class CategoryDraggableSheet extends StatefulWidget {
   final MenuProvider menuProvider;
@@ -35,10 +34,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
   int _currentIndex = 0;
   double _pageOffset = 0.0;
   bool _isExpanded = false;
-  
-  // Для отслеживания свайпа
-  double _dragStartY = 0;
-  bool _isDragging = false;
   final ScrollController _expandedScrollController = ScrollController();
 
   @override
@@ -98,7 +93,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
   }
   
   void _expand() {
-    HapticFeedback.lightImpact();
+    HapticFeedback.mediumImpact();
     setState(() => _isExpanded = true);
     print('📖 Expanded');
   }
@@ -224,71 +219,70 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
   }
 
   Widget _buildCarousel(List<CategoryItem> categories) {
-    return GestureDetector(
-      onVerticalDragStart: (details) {
-        _dragStartY = details.globalPosition.dy;
-        _isDragging = true;
-      },
-      onVerticalDragUpdate: (details) {
-        if (!_isDragging) return;
-        final delta = details.globalPosition.dy - _dragStartY;
-        if (delta < -50) {
-          _expand();
-          _isDragging = false;
-        }
-      },
-      onVerticalDragEnd: (_) => _isDragging = false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 15,
-              offset: const Offset(0, -3),
-            ),
-          ],
+    return Container(
+      key: const ValueKey('carousel'),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(28),
+          topRight: Radius.circular(28),
         ),
-        child: Column(
-          children: [
-            // Ручка
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 15,
+            offset: const Offset(0, -3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Ручка (тап для раскрытия)
+          GestureDetector(
+            onTap: _expand,
+            onVerticalDragEnd: (details) {
+              if (details.primaryVelocity != null && details.primaryVelocity! < -200) {
+                _expand();
+              }
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              child: Center(
+                child: Container(
+                  width: 50,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade400,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
               ),
             ),
-            
-            // Заголовок
-            _buildHeader(categories[_currentIndex]),
-            
-            // PageView карусель
-            Expanded(
-              child: PageView.builder(
-                controller: _pageController,
-                physics: const BouncingScrollPhysics(),
-                onPageChanged: (index) {
-                  setState(() => _currentIndex = index);
-                  widget.onCategoryChanged(categories[index].id);
-                  HapticFeedback.selectionClick();
-                },
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  return _buildCard(categories[index], index);
-                },
-              ),
+          ),
+          
+          // Заголовок
+          _buildHeader(categories[_currentIndex]),
+          
+          // PageView карусель - ЧИСТЫЙ без GestureDetector
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              physics: const PageScrollPhysics(),
+              onPageChanged: (index) {
+                setState(() => _currentIndex = index);
+                widget.onCategoryChanged(categories[index].id);
+                HapticFeedback.selectionClick();
+                print('📱 Swiped to: ${categories[index].name}');
+              },
+              itemCount: categories.length,
+              itemBuilder: (context, index) {
+                return _buildCard(categories[index], index);
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -320,18 +314,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
               ),
             ),
           ),
-          if (_isExpanded)
-            IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.close, size: 18, color: Colors.black54),
-              ),
-              onPressed: _collapse,
-            ),
         ],
       ),
     );
@@ -467,27 +449,33 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
               ),
             ),
             
-            // Индикатор "ещё"
+            // Кнопка "ещё" (тап для раскрытия)
             if (products.length > 2)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.keyboard_arrow_up_rounded,
-                      color: Colors.grey[400],
-                      size: 24,
-                    )
-                        .animate(onPlay: (c) => c.repeat(reverse: true))
-                        .moveY(begin: 0, end: -3, duration: 600.ms),
-                    Text(
-                      'Ещё ${products.length - 2}',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 12,
-                        color: Colors.grey[500],
+              GestureDetector(
+                onTap: _expand,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.only(bottom: 16, top: 4),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.keyboard_arrow_up_rounded,
+                        color: Colors.pink.shade400,
+                        size: 28,
+                      )
+                          .animate(onPlay: (c) => c.repeat(reverse: true))
+                          .moveY(begin: 0, end: -4, duration: 600.ms),
+                      Text(
+                        'Ещё ${products.length - 2} →',
+                        style: GoogleFonts.montserrat(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.pink.shade500,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -501,6 +489,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> {
     final products = _getProductsForCategory(category.id);
     
     return Container(
+      key: const ValueKey('expanded'),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: const BorderRadius.only(
