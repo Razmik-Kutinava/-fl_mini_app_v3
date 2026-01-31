@@ -388,15 +388,13 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               left: 0,
               right: 0,
               top: 0, // Позволяет карусели занимать весь доступный экран
-              child: _isLoadingPromotions
-                  ? const SizedBox.shrink()
-                  : CategoryDraggableSheet(
-                      menuProvider: menuProvider,
-                      promotions: _promotions,
-                      onCategoryChanged: (categoryId) {
-                        menuProvider.selectCategory(categoryId);
-                      },
-                    ),
+              child: CategoryDraggableSheet(
+                menuProvider: menuProvider,
+                promotions: _promotions,
+                onCategoryChanged: (categoryId) {
+                  menuProvider.selectCategory(categoryId);
+                },
+              ),
             ),
 
           // Overlay для старой версии

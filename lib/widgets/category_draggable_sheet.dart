@@ -13,7 +13,7 @@ import 'promo_section.dart';
 /// Три вертикальных состояния:
 /// - MIN (10%) = только ручка видна
 /// - MID (50%) = начальное состояние, категории + 1 ряд товаров
-/// - MAX (95%) = полноэкранный режим, все товары
+/// - MAX (90%) = полноэкранный режим, все товары
 ///
 /// - Вертикальный свайп = смена уровня (MIN/MID/MAX)
 /// - Горизонтальный свайп = смена категории
@@ -46,13 +46,12 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
 
   // Вертикальное состояние
   SheetState _sheetState = SheetState.mid;
-  double _sheetHeight = 0.50; // Текущая высота (0.10 - 0.95)
-  double _dragStartHeight = 0.50;
+  double _sheetHeight = 0.50; // Текущая высота (0.10 - 0.90)
 
   // Константы высот
   static const double minHeight = 0.10;  // 10% экрана
   static const double midHeight = 0.50;  // 50% экрана (по умолчанию)
-  static const double maxHeight = 0.95;  // 95% экрана
+  static const double maxHeight = 0.90;  // 90% экрана
 
   @override
   void initState() {
@@ -66,7 +65,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     // Контроллер анимации для плавных переходов между состояниями
     _heightAnimationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 300),
     );
 
     print('🚀 CategoryDraggableSheet initialized with 3 states (MIN/MID/MAX)');
@@ -118,51 +117,69 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     }
   }
 
-  /// Обработка начала вертикального драга
-  void _handleVerticalDragStart(DragStartDetails details) {
+  // Состояние для raw pointer tracking
+  Offset? _pointerStart;
+  double _dragStartHeight = 0;
+  bool _isVerticalDrag = false;
+  bool _isDragDecided = false;
+
+  /// Listener handlers для низкоуровневой обработки pointer events
+  void _onPointerDown(PointerDownEvent event) {
+    _pointerStart = event.position;
     _dragStartHeight = _sheetHeight;
+    _isVerticalDrag = false;
+    _isDragDecided = false;
+    print('👆 Pointer DOWN at ${event.position}');
   }
 
-  /// Обработка вертикального драга
-  void _handleVerticalDragUpdate(DragUpdateDetails details) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final delta = -details.delta.dy / screenHeight; // Инвертируем (свайп вверх = увеличение)
-
-    setState(() {
-      _sheetHeight = (_dragStartHeight + delta).clamp(minHeight, maxHeight);
-    });
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_pointerStart == null) return;
+    
+    final delta = event.position - _pointerStart!;
+    
+    // Определяем направление только один раз
+    if (!_isDragDecided && (delta.dx.abs() > 10 || delta.dy.abs() > 10)) {
+      _isVerticalDrag = delta.dy.abs() > delta.dx.abs();
+      _isDragDecided = true;
+      print('🧭 Direction decided: ${_isVerticalDrag ? "VERTICAL" : "HORIZONTAL"}');
+    }
+    
+    // Обрабатываем только вертикальный драг
+    if (_isDragDecided && _isVerticalDrag) {
+      final screenHeight = MediaQuery.of(context).size.height;
+      final heightDelta = -delta.dy / screenHeight;
+      final newHeight = (_dragStartHeight + heightDelta).clamp(minHeight, maxHeight);
+      
+      setState(() {
+        _sheetHeight = newHeight;
+      });
+    }
   }
 
-  /// Обработка окончания вертикального драга с snap-эффектом
-  void _handleVerticalDragEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-
+  void _onPointerUp(PointerUpEvent event) {
+    if (_pointerStart == null || !_isDragDecided || !_isVerticalDrag) {
+      _pointerStart = null;
+      return;
+    }
+    
+    final delta = event.position - _pointerStart!;
+    final velocity = delta.dy; // Приблизительная скорость
+    
+    print('👆 Pointer UP: velocity=$velocity, height=${(_sheetHeight * 100).toInt()}%');
+    
     SheetState targetState;
 
-    // Быстрый свайп с высокой скоростью
-    if (velocity > 500) {
-      // Быстрый свайп вниз
-      if (_sheetState == SheetState.max) {
-        targetState = SheetState.mid;
-      } else if (_sheetState == SheetState.mid) {
-        targetState = SheetState.min;
-      } else {
-        targetState = SheetState.min;
-      }
-    } else if (velocity < -500) {
-      // Быстрый свайп вверх
-      if (_sheetState == SheetState.min) {
-        targetState = SheetState.mid;
-      } else if (_sheetState == SheetState.mid) {
-        targetState = SheetState.max;
-      } else {
-        targetState = SheetState.max;
-      }
+    if (velocity > 100) {
+      // Свайп вниз
+      targetState = _sheetState == SheetState.max ? SheetState.mid : SheetState.min;
+    } else if (velocity < -100) {
+      // Свайп вверх
+      targetState = _sheetState == SheetState.min ? SheetState.mid : SheetState.max;
     } else {
-      // Медленный драг - привязываемся к ближайшей точке
+      // Медленный - snap к ближайшей точке
       if (_sheetHeight < 0.30) {
         targetState = SheetState.min;
-      } else if (_sheetHeight < 0.72) {
+      } else if (_sheetHeight < 0.70) {
         targetState = SheetState.mid;
       } else {
         targetState = SheetState.max;
@@ -170,6 +187,12 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     }
 
     _animateToState(targetState);
+    _pointerStart = null;
+  }
+  
+  void _onPointerCancel(PointerCancelEvent event) {
+    _pointerStart = null;
+    _isDragDecided = false;
   }
 
   /// Анимация перехода к указанному состоянию
@@ -192,7 +215,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       end: targetHeight,
     ).animate(CurvedAnimation(
       parent: _heightAnimationController,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeInOut,
     ));
 
     animation.addListener(() {
@@ -245,34 +268,25 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     final categories = _getAllCategories();
     final screenHeight = MediaQuery.of(context).size.height;
 
+    print('🚀 CategoryDraggableSheet BUILD: categories=${categories.length}, screenH=$screenHeight');
+
     if (categories.isEmpty) {
+      print('⚠️ CategoryDraggableSheet: No categories, showing loading');
       return const Center(child: CircularProgressIndicator());
     }
 
-    return Stack(
-      children: [
-        // Навигация категорий (видна только в MID состоянии, сверху)
-        if (_sheetState == SheetState.mid)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _buildCategoryNavigation(categories),
-          ),
+    final sheetHeight = _sheetHeight * screenHeight;
 
-        // Карусель (позиционируется снизу, высота контролируется _sheetHeight)
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 50),
-            curve: Curves.easeOut,
-            height: _sheetHeight * screenHeight,
-            child: _buildSheetContent(categories),
-          ),
-        ),
-      ],
+    print('🎨 Sheet: state=$_sheetState, height=${(_sheetHeight * 100).toInt()}%, px=$sheetHeight');
+
+    // Align снизу (оригинальный подход)
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: SizedBox(
+        width: double.infinity,
+        height: sheetHeight,
+        child: _buildSheetContent(categories),
+      ),
     );
   }
 
@@ -290,160 +304,210 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
 
   /// MIN состояние (10%) - только ручка
   Widget _buildMinState(List<CategoryItem> categories) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, -3),
+    return GestureDetector(
+      onTap: () => _switchToState(SheetState.mid),
+      behavior: HitTestBehavior.opaque,
+      child: Listener(
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUp,
+        onPointerCancel: _onPointerCancel,
+        behavior: HitTestBehavior.translucent,
+        child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Ручка (тап или драг для раскрытия)
-          GestureDetector(
-            onTap: () => _switchToState(SheetState.mid),
-            onVerticalDragStart: _handleVerticalDragStart,
-            onVerticalDragUpdate: _handleVerticalDragUpdate,
-            onVerticalDragEnd: _handleVerticalDragEnd,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Center(
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, -3),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Container(
+            width: 50,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade400,
+              borderRadius: BorderRadius.circular(3),
             ),
           ),
-        ],
+        ),
       ),
+      ), // Закрываем Listener
     );
   }
 
   /// MID состояние (50%) - категории + карусель с товарами
   Widget _buildMidState(List<CategoryItem> categories) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, -3),
+    return Listener(
+      // Низкоуровневая обработка pointer events для вертикального свайпа
+      onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: _onPointerCancel,
+      behavior: HitTestBehavior.translucent, // Пропускаем горизонтальные события к PageView
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Ручка (тап или драг для управления)
-          GestureDetector(
-            onTap: () => _switchToState(SheetState.min),
-            onVerticalDragStart: _handleVerticalDragStart,
-            onVerticalDragUpdate: _handleVerticalDragUpdate,
-            onVerticalDragEnd: _handleVerticalDragEnd,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Center(
-                child: Container(
-                  width: 50,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade400,
-                    borderRadius: BorderRadius.circular(3),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, -3),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Ручка - тап для раскрытия
+            GestureDetector(
+              onTap: () => _switchToState(SheetState.max),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                child: Center(
+                  child: Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // Заголовок (также поддерживает вертикальный драг)
-          GestureDetector(
-            onVerticalDragStart: _handleVerticalDragStart,
-            onVerticalDragUpdate: _handleVerticalDragUpdate,
-            onVerticalDragEnd: _handleVerticalDragEnd,
-            child: _buildHeader(categories[_currentIndex]),
-          ),
+            // Заголовок категории
+            _buildHeader(categories[_currentIndex]),
 
-          // PageView карусель с поддержкой touch/mouse
-          Expanded(
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(
-                dragDevices: {
-                  PointerDeviceKind.touch,
-                  PointerDeviceKind.mouse,
-                  PointerDeviceKind.trackpad,
+            // Горизонтальная навигация категорий
+            _buildCategoryNavigation(categories),
+
+            // PageView карусель
+            // Используем NotificationListener чтобы отслеживать горизонтальный скролл
+            Expanded(
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  // Логируем scroll notifications для отладки
+                  if (notification is ScrollStartNotification) {
+                    print('📜 PageView scroll started');
+                  }
+                  return false; // Не блокируем нотификации
                 },
-              ),
-              child: PageView.builder(
-                controller: _pageController,
-                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                onPageChanged: (index) {
-                  setState(() => _currentIndex = index);
-                  widget.onCategoryChanged(categories[index].id);
-                  HapticFeedback.selectionClick();
-                  print('📱 Swiped to: ${categories[index].name}');
-                },
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  return _buildCard(categories[index], index);
-                },
+                child: ScrollConfiguration(
+                  behavior: ScrollConfiguration.of(context).copyWith(
+                    dragDevices: {
+                      PointerDeviceKind.touch,
+                      PointerDeviceKind.mouse,
+                      PointerDeviceKind.trackpad,
+                    },
+                  ),
+                  child: PageView.builder(
+                    controller: _pageController,
+                    physics: const PageScrollPhysics(),
+                    onPageChanged: (index) {
+                      setState(() => _currentIndex = index);
+                      widget.onCategoryChanged(categories[index].id);
+                      HapticFeedback.selectionClick();
+                      print('📱 Swiped to: ${categories[index].name}');
+                    },
+                    itemCount: categories.length,
+                    itemBuilder: (context, index) {
+                      return _buildVerticalDraggableCard(categories[index], index);
+                    },
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  /// MAX состояние (95%) - полноэкранный режим с категориями внутри
+  /// Карточка с вертикальным драгом (для MID state)
+  Widget _buildVerticalDraggableCard(CategoryItem category, int index) {
+    final products = _getProductsForCategory(category.id);
+    
+    // 3D эффект
+    double diff = (index - _pageOffset);
+    double scale = 1 - (diff.abs() * 0.08).clamp(0.0, 0.15);
+    double opacity = 1 - (diff.abs() * 0.25).clamp(0.0, 0.4);
+    
+    return Transform.scale(
+      scale: scale,
+      child: Opacity(
+        opacity: opacity,
+        child: category.isPromo
+            ? _buildPromoCard(products)
+            : _buildProductsCard(products),
+      ),
+    );
+  }
+
+  /// MAX состояние (90%) - полноэкранный режим с категориями внутри
   Widget _buildMaxState(List<CategoryItem> categories) {
     final category = categories[_currentIndex];
     final products = _getProductsForCategory(category.id);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(28),
-          topRight: Radius.circular(28),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 15,
-            offset: const Offset(0, -3),
+    return Listener(
+      onPointerDown: _onPointerDown,
+      onPointerMove: _onPointerMove,
+      onPointerUp: _onPointerUp,
+      onPointerCancel: _onPointerCancel,
+      behavior: HitTestBehavior.translucent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(28),
+            topRight: Radius.circular(28),
           ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Заголовок с кнопкой закрытия (поддерживает драг вниз)
-          GestureDetector(
-            onVerticalDragStart: _handleVerticalDragStart,
-            onVerticalDragUpdate: _handleVerticalDragUpdate,
-            onVerticalDragEnd: _handleVerticalDragEnd,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 15,
+              offset: const Offset(0, -3),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Ручка для свайпа вниз
+            GestureDetector(
+              onTap: () => _switchToState(SheetState.mid),
+              behavior: HitTestBehavior.opaque,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.only(top: 12, bottom: 4),
+                child: Center(
+                  child: Container(
+                    width: 50,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade400,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            
+            // Заголовок с кнопкой закрытия
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 8, 8, 8),
               child: Row(
                 children: [
                   Container(
@@ -482,9 +546,8 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                 ],
               ),
             ),
-          ),
 
-          // Горизонтальная навигация категорий
+            // Горизонтальная навигация категорий
           SizedBox(
             height: 40,
             child: ScrollConfiguration(
@@ -583,6 +646,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                   ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -685,25 +749,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildCard(CategoryItem category, int index) {
-    final products = _getProductsForCategory(category.id);
-    
-    // 3D эффект
-    double diff = (index - _pageOffset);
-    double scale = 1 - (diff.abs() * 0.08).clamp(0.0, 0.15);
-    double opacity = 1 - (diff.abs() * 0.25).clamp(0.0, 0.4);
-    
-    return Transform.scale(
-      scale: scale,
-      child: Opacity(
-        opacity: opacity,
-        child: category.isPromo
-            ? _buildPromoCard(products)
-            : _buildProductsCard(products),
       ),
     );
   }
