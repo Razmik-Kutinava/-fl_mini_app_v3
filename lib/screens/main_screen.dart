@@ -239,9 +239,9 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                     ? const Center(child: CircularProgressIndicator())
                     : _useNewCategoryView
                     ? const HeroPromoContent()
-                        .animate()
-                        .fadeIn(delay: 200.ms)
-                        .slideY(begin: 0.2, end: 0)
+                          .animate()
+                          .fadeIn(delay: 200.ms)
+                          .slideY(begin: 0.2, end: 0)
                     // СТАРАЯ АРХИТЕКТУРА: CustomScrollView (не используется)
                     : RefreshIndicator(
                         onRefresh: _loadMenu,
