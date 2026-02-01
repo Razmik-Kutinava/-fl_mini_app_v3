@@ -358,16 +358,110 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     }
 
     final sheetHeight = _sheetHeight * screenHeight;
+    
+    // Показываем внешние табы категорий только в диапазоне 25-70%
+    final showExternalTabs = _sheetHeight >= 0.25 && _sheetHeight <= 0.70;
 
-    print('🎨 Sheet: state=$_sheetState, height=${(_sheetHeight * 100).toInt()}%, px=$sheetHeight');
+    print('🎨 Sheet: state=$_sheetState, height=${(_sheetHeight * 100).toInt()}%, showExternalTabs=$showExternalTabs');
 
-    // Align снизу (оригинальный подход)
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: SizedBox(
-        width: double.infinity,
-        height: sheetHeight,
-        child: _buildSheetContent(categories),
+    return Stack(
+      children: [
+        // Внешние табы категорий (над каруселью, 25-70%)
+        if (showExternalTabs)
+          Positioned(
+            bottom: sheetHeight,
+            left: 0,
+            right: 0,
+            child: _buildExternalCategoryTabs(categories),
+          ),
+        
+        // Карусель снизу
+        Align(
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            width: double.infinity,
+            height: sheetHeight,
+            child: _buildSheetContent(categories),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Внешние табы категорий (показываются над каруселью при 25-70%)
+  Widget _buildExternalCategoryTabs(List<CategoryItem> categories) {
+    return Container(
+      height: 55,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+          },
+        ),
+        child: ListView.builder(
+          controller: _midTabsScrollController,
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: categories.length,
+          itemBuilder: (context, index) {
+            final category = categories[index];
+            final isSelected = index == _currentIndex;
+
+            return GestureDetector(
+              onTap: () {
+                setState(() => _currentIndex = index);
+                widget.onCategoryChanged(category.id);
+                if (pageController.hasClients) {
+                  pageController.animateToPage(
+                    index,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOutCubic,
+                  );
+                }
+                HapticFeedback.selectionClick();
+              },
+              child: Container(
+                margin: const EdgeInsets.only(right: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.pink.shade50 : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                  border: isSelected ? Border.all(
+                    color: Colors.pink.shade300,
+                    width: 2,
+                  ) : null,
+                ),
+                child: Center(
+                  child: Text(
+                    category.name,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      color: isSelected ? Colors.pink.shade600 : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -474,10 +568,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
             // Заголовок категории
             _buildHeader(categories[_currentIndex]),
 
-            // Горизонтальная навигация категорий
-            _buildCategoryNavigation(categories),
-
-            // PageView карусель
+            // PageView карусель (табы теперь снаружи при 25-70%)
             // Используем NotificationListener чтобы отслеживать горизонтальный скролл
             Expanded(
               child: NotificationListener<ScrollNotification>(
@@ -861,77 +952,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       ),
     );
   }
-
-  Widget _buildCategoryNavigation(List<CategoryItem> categories) {
-    return Container(
-      height: 45,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(
-          dragDevices: {
-            PointerDeviceKind.touch,
-            PointerDeviceKind.mouse,
-            PointerDeviceKind.trackpad,
-          },
-        ),
-        child: ListView.builder(
-          controller: _midTabsScrollController, // Для автоскролла табов
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: categories.length,
-        itemBuilder: (context, index) {
-          final category = categories[index];
-          final isSelected = index == _currentIndex;
-
-          return GestureDetector(
-            onTap: () {
-              setState(() => _currentIndex = index);
-              widget.onCategoryChanged(category.id);
-              if (pageController.hasClients) {
-                pageController.animateToPage(
-                  index,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOutCubic,
-                );
-              }
-              HapticFeedback.selectionClick();
-            },
-            child: Container(
-              margin: const EdgeInsets.only(right: 12),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? Colors.white : Colors.white.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(20),
-                border: isSelected ? Border.all(
-                  color: Colors.pink.shade300,
-                  width: 2,
-                ) : null,
-                boxShadow: isSelected ? [
-                  BoxShadow(
-                    color: Colors.pink.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ] : null,
-              ),
-              child: Center(
-                child: Text(
-                  category.name,
-                  style: GoogleFonts.pacifico(
-                    fontSize: 14,
-                    color: isSelected ? Colors.pink.shade600 : Colors.black54,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-        ),
-      ),
-    );
-  }
-
 
   Widget _buildHeader(CategoryItem category) {
     return Container(
