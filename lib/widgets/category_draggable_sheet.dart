@@ -110,15 +110,21 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     final controller = isMax ? _maxTabsScrollController : _midTabsScrollController;
     if (!controller.hasClients) return;
     
-    // Примерная ширина одного таба (padding + text + margin)
-    const double tabWidth = 100.0;
-    final targetOffset = (index * tabWidth) - 50; // Центрируем таб
+    // Средняя ширина таба: padding(28) + text(~80-120) + margin(12) ≈ 130-150
+    // Для MAX табы меньше, для MID больше
+    final double tabWidth = isMax ? 120.0 : 140.0;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Скроллим так, чтобы выбранный таб был ближе к центру экрана
+    final targetOffset = (index * tabWidth) - (screenWidth / 2) + (tabWidth / 2);
     
     controller.animateTo(
       targetOffset.clamp(0.0, controller.position.maxScrollExtent),
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
+    
+    print('📍 Tabs scrolled to index $index, offset: $targetOffset');
   }
   
   @override
