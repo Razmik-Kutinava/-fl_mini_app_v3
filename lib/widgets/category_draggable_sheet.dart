@@ -157,12 +157,42 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   }
 
   void _onPointerUp(PointerUpEvent event) {
-    if (_pointerStart == null || !_isDragDecided || !_isVerticalDrag) {
+    if (_pointerStart == null || !_isDragDecided) {
       _pointerStart = null;
       return;
     }
     
     final delta = event.position - _pointerStart!;
+    
+    // Обработка горизонтального свайпа в MAX состоянии
+    if (!_isVerticalDrag && _sheetState == SheetState.max) {
+      final horizontalVelocity = delta.dx;
+      final categories = _getAllCategories();
+      
+      if (horizontalVelocity < -50 && _currentIndex < categories.length - 1) {
+        // Свайп влево - следующая категория
+        setState(() => _currentIndex++);
+        widget.onCategoryChanged(categories[_currentIndex].id);
+        HapticFeedback.selectionClick();
+        print('👈 Swiped LEFT in MAX: ${categories[_currentIndex].name}');
+      } else if (horizontalVelocity > 50 && _currentIndex > 0) {
+        // Свайп вправо - предыдущая категория
+        setState(() => _currentIndex--);
+        widget.onCategoryChanged(categories[_currentIndex].id);
+        HapticFeedback.selectionClick();
+        print('👉 Swiped RIGHT in MAX: ${categories[_currentIndex].name}');
+      }
+      
+      _pointerStart = null;
+      return;
+    }
+    
+    // Обработка вертикального свайпа
+    if (!_isVerticalDrag) {
+      _pointerStart = null;
+      return;
+    }
+    
     final velocity = delta.dy; // Приблизительная скорость
     
     print('👆 Pointer UP: velocity=$velocity, height=${(_sheetHeight * 100).toInt()}%');
@@ -601,49 +631,71 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
 
           const SizedBox(height: 8),
 
-          // Сетка товаров
+          // Сетка товаров с горизонтальным свайпом для смены категории
           Expanded(
-            child: products.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Нет товаров',
-                          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  )
-                : ScrollConfiguration(
-                    behavior: ScrollConfiguration.of(context).copyWith(
-                      dragDevices: {
-                        PointerDeviceKind.touch,
-                        PointerDeviceKind.mouse,
-                        PointerDeviceKind.trackpad,
-                      },
-                    ),
-                    child: GridView.builder(
-                      controller: _expandedScrollController,
-                      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        mainAxisSpacing: 12,
-                        crossAxisSpacing: 12,
-                        childAspectRatio: 0.75,
+            child: GestureDetector(
+              // Обработка горизонтального свайпа для смены категории в MAX
+              onHorizontalDragEnd: (details) {
+                final velocity = details.primaryVelocity ?? 0;
+                final cats = _getAllCategories();
+                
+                if (velocity < -200 && _currentIndex < cats.length - 1) {
+                  // Свайп влево - следующая категория
+                  setState(() => _currentIndex++);
+                  widget.onCategoryChanged(cats[_currentIndex].id);
+                  HapticFeedback.selectionClick();
+                  print('👈 HorizontalDrag LEFT in MAX: ${cats[_currentIndex].name}');
+                } else if (velocity > 200 && _currentIndex > 0) {
+                  // Свайп вправо - предыдущая категория
+                  setState(() => _currentIndex--);
+                  widget.onCategoryChanged(cats[_currentIndex].id);
+                  HapticFeedback.selectionClick();
+                  print('👉 HorizontalDrag RIGHT in MAX: ${cats[_currentIndex].name}');
+                }
+              },
+              behavior: HitTestBehavior.translucent,
+              child: products.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Нет товаров',
+                            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                          ),
+                        ],
                       ),
-                      itemCount: products.length,
-                      itemBuilder: (context, index) {
-                        return ProductCard(product: products[index])
-                            .animate(delay: Duration(milliseconds: 40 * index))
-                            .fadeIn(duration: 200.ms)
-                            .slideY(begin: 0.05, end: 0);
-                      },
+                    )
+                  : ScrollConfiguration(
+                      behavior: ScrollConfiguration.of(context).copyWith(
+                        dragDevices: {
+                          PointerDeviceKind.touch,
+                          PointerDeviceKind.mouse,
+                          PointerDeviceKind.trackpad,
+                        },
+                      ),
+                      child: GridView.builder(
+                        controller: _expandedScrollController,
+                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.75,
+                        ),
+                        itemCount: products.length,
+                        itemBuilder: (context, index) {
+                          return ProductCard(product: products[index])
+                              .animate(delay: Duration(milliseconds: 40 * index))
+                              .fadeIn(duration: 200.ms)
+                              .slideY(begin: 0.05, end: 0);
+                        },
+                      ),
                     ),
-                  ),
+            ),
           ),
         ],
         ),
