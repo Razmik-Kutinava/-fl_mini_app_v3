@@ -690,6 +690,11 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   
   /// Сетка товаров для MAX состояния (внутри PageView)
   Widget _buildMaxProductsGrid(CategoryItem category) {
+    // Для "для тебя" показываем баннер + товары
+    if (category.isPromo) {
+      return _buildMaxPromoContent();
+    }
+    
     final products = _getProductsForCategory(category.id);
     
     if (products.isEmpty) {
@@ -732,6 +737,91 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
               .fadeIn(duration: 200.ms)
               .slideY(begin: 0.05, end: 0);
         },
+      ),
+    );
+  }
+  
+  /// Контент "для тебя" в MAX состоянии - баннер акции + товары
+  Widget _buildMaxPromoContent() {
+    final promo = widget.promotions.isNotEmpty ? widget.promotions.first : null;
+    
+    // Собираем товары из всех категорий для рекомендаций
+    List<Product> recommendedProducts = [];
+    for (var cat in widget.menuProvider.categories) {
+      final catProducts = _getProductsForCategory(cat.id);
+      if (catProducts.isNotEmpty) {
+        recommendedProducts.addAll(catProducts.take(2));
+      }
+      if (recommendedProducts.length >= 6) break;
+    }
+    
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.trackpad,
+        },
+      ),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Заголовок "акции"
+            Text(
+              'акции',
+              style: GoogleFonts.montserrat(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Большой баннер акции
+            AspectRatio(
+              aspectRatio: 1.2,
+              child: promo != null
+                  ? _buildPromoBanner(promo)
+                  : _buildDefaultPromoBanner(),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // Заголовок "рекомендации"
+            Text(
+              'рекомендации',
+              style: GoogleFonts.montserrat(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Сетка рекомендованных товаров
+            if (recommendedProducts.isNotEmpty)
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.75,
+                ),
+                itemCount: recommendedProducts.length,
+                itemBuilder: (context, index) {
+                  return ProductCard(product: recommendedProducts[index])
+                      .animate(delay: Duration(milliseconds: 50 * index))
+                      .fadeIn(duration: 200.ms)
+                      .slideY(begin: 0.05, end: 0);
+                },
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -839,37 +929,14 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   }
 
   Widget _buildPromoCard(List<Product> products) {
+    // Берём первую акцию для баннера
+    final promo = widget.promotions.isNotEmpty ? widget.promotions.first : null;
+    
     // Для "для тебя" показываем первые 2 товара из первой категории
     List<Product> displayProducts = [];
     if (widget.menuProvider.categories.isNotEmpty) {
       final firstCat = widget.menuProvider.categories.first;
       displayProducts = _getProductsForCategory(firstCat.id).take(2).toList();
-    }
-    
-    if (displayProducts.isEmpty) {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.local_cafe_outlined, size: 48, color: Colors.pink.shade300),
-              const SizedBox(height: 12),
-              Text(
-                'Загрузка...',
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  color: Colors.grey.shade500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
     }
 
     return Container(
@@ -899,55 +966,194 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
               ),
             ),
             
-            // Товары
+            // Баннер акции (занимает основное место)
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: displayProducts.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final product = entry.value;
-                    return Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          left: idx == 0 ? 0 : 6,
-                          right: idx == displayProducts.length - 1 ? 0 : 6,
+              flex: 3,
+              child: promo != null
+                  ? _buildPromoBanner(promo)
+                  : _buildDefaultPromoBanner(),
+            ),
+            
+            // Разделитель
+            Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 12),
+              color: Colors.grey.shade200,
+            ),
+            
+            // Товары снизу (если есть)
+            if (displayProducts.isNotEmpty)
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Row(
+                    children: displayProducts.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final product = entry.value;
+                      return Expanded(
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            left: idx == 0 ? 0 : 4,
+                            right: idx == displayProducts.length - 1 ? 0 : 4,
+                          ),
+                          child: ProductCard(product: product)
+                              .animate(delay: Duration(milliseconds: 100 * idx))
+                              .fadeIn(duration: 300.ms)
+                              .scale(
+                                begin: const Offset(0.95, 0.95),
+                                end: const Offset(1.0, 1.0),
+                              ),
                         ),
-                        child: ProductCard(product: product)
-                            .animate(delay: Duration(milliseconds: 100 * idx))
-                            .fadeIn(duration: 300.ms)
-                            .scale(
-                              begin: const Offset(0.95, 0.95),
-                              end: const Offset(1.0, 1.0),
-                            ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            
+            // Индикатор "свайп вверх"
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8, top: 4),
+              child: Icon(
+                Icons.keyboard_arrow_up_rounded,
+                color: Colors.pink.shade400,
+                size: 24,
+              )
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .moveY(begin: 0, end: -3, duration: 600.ms),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  /// Баннер акции
+  Widget _buildPromoBanner(PromoItem promo) {
+    return GestureDetector(
+      onTap: promo.onTap,
+      child: Container(
+        margin: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: promo.gradient ?? LinearGradient(
+            colors: [Colors.pink.shade300, Colors.orange.shade300],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.pink.withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Фоновое изображение
+            if (promo.imageUrl != null)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Image.network(
+                    promo.imageUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => const SizedBox(),
+                  ),
+                ),
+              ),
+            // Градиентный оверлей
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withOpacity(0.1),
+                      Colors.black.withOpacity(0.5),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
                 ),
               ),
             ),
-            
-            // Индикатор
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+            // Контент
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 16,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.keyboard_arrow_up_rounded,
-                    color: Colors.pink.shade400,
-                    size: 28,
-                  )
-                      .animate(onPlay: (c) => c.repeat(reverse: true))
-                      .moveY(begin: 0, end: -4, duration: 600.ms),
+                  if (promo.emoji != null)
+                    Text(
+                      promo.emoji!,
+                      style: const TextStyle(fontSize: 32),
+                    ),
+                  const SizedBox(height: 4),
                   Text(
-                    'Рекомендации',
+                    promo.title,
                     style: GoogleFonts.montserrat(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.pink.shade500,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Подробнее',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.pink.shade500,
+                      ),
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(duration: 400.ms).scale(
+      begin: const Offset(0.95, 0.95),
+      end: const Offset(1.0, 1.0),
+    );
+  }
+  
+  /// Дефолтный баннер когда нет акций
+  Widget _buildDefaultPromoBanner() {
+    return Container(
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [Colors.pink.shade200, Colors.orange.shade200],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.local_offer_outlined, size: 48, color: Colors.white),
+            const SizedBox(height: 8),
+            Text(
+              'Скоро акции!',
+              style: GoogleFonts.montserrat(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
               ),
             ),
           ],
