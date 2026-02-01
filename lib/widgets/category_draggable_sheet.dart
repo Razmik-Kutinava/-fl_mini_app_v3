@@ -391,18 +391,16 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   /// Внешние табы категорий (показываются над каруселью при 25-70%)
   Widget _buildExternalCategoryTabs(List<CategoryItem> categories) {
     return Container(
-      height: 55,
+      height: 52,
+      margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
-        ),
+        color: Colors.white.withOpacity(0.95),
+        borderRadius: BorderRadius.circular(26),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -418,7 +416,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
           controller: _midTabsScrollController,
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           itemCount: categories.length,
           itemBuilder: (context, index) {
             final category = categories[index];
@@ -438,23 +436,21 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                 HapticFeedback.selectionClick();
               },
               child: Container(
-                margin: const EdgeInsets.only(right: 10),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                margin: const EdgeInsets.only(right: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? Colors.pink.shade50 : Colors.grey.shade100,
+                  color: isSelected 
+                      ? Colors.pink.shade400 
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(20),
-                  border: isSelected ? Border.all(
-                    color: Colors.pink.shade300,
-                    width: 2,
-                  ) : null,
                 ),
                 child: Center(
                   child: Text(
                     category.name,
                     style: GoogleFonts.montserrat(
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                      color: isSelected ? Colors.pink.shade600 : Colors.grey.shade700,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                      color: isSelected ? Colors.white : Colors.grey.shade600,
                     ),
                   ),
                 ),
