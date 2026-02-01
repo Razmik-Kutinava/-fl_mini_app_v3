@@ -38,6 +38,7 @@ enum SheetState { min, mid, max }
 
 class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with SingleTickerProviderStateMixin {
   late PageController _pageController;
+  late PageController _maxPageController; // Отдельный контроллер для MAX состояния
   late AnimationController _heightAnimationController;
 
   int _currentIndex = 0;
@@ -61,6 +62,10 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       initialPage: 0,
     );
     _pageController.addListener(_onPageScroll);
+    
+    // Контроллер для MAX состояния (полный экран)
+    _maxPageController = PageController(initialPage: 0);
+    _maxPageController.addListener(_onMaxPageScroll);
 
     // Контроллер анимации для плавных переходов между состояниями
     _heightAnimationController = AnimationController(
@@ -75,6 +80,8 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   void dispose() {
     _pageController.removeListener(_onPageScroll);
     _pageController.dispose();
+    _maxPageController.removeListener(_onMaxPageScroll);
+    _maxPageController.dispose();
     _expandedScrollController.dispose();
     _heightAnimationController.dispose();
     super.dispose();
@@ -114,6 +121,22 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       setState(() {
         _pageOffset = _pageController.page ?? 0;
       });
+    }
+  }
+  
+  void _onMaxPageScroll() {
+    // Синхронизация MAX PageController с индексом и MID контроллером
+    if (_maxPageController.hasClients && _maxPageController.page != null) {
+      final newIndex = _maxPageController.page!.round();
+      if (newIndex != _currentIndex) {
+        setState(() => _currentIndex = newIndex);
+        widget.onCategoryChanged(_getAllCategories()[newIndex].id);
+        // Синхронизируем MID контроллер
+        if (_pageController.hasClients) {
+          _pageController.jumpToPage(newIndex);
+        }
+        HapticFeedback.selectionClick();
+      }
     }
   }
 
@@ -164,29 +187,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     
     final delta = event.position - _pointerStart!;
     
-    // Обработка горизонтального свайпа в MAX состоянии
-    if (!_isVerticalDrag && _sheetState == SheetState.max) {
-      final horizontalVelocity = delta.dx;
-      final categories = _getAllCategories();
-      
-      if (horizontalVelocity < -50 && _currentIndex < categories.length - 1) {
-        // Свайп влево - следующая категория
-        setState(() => _currentIndex++);
-        widget.onCategoryChanged(categories[_currentIndex].id);
-        HapticFeedback.selectionClick();
-        print('👈 Swiped LEFT in MAX: ${categories[_currentIndex].name}');
-      } else if (horizontalVelocity > 50 && _currentIndex > 0) {
-        // Свайп вправо - предыдущая категория
-        setState(() => _currentIndex--);
-        widget.onCategoryChanged(categories[_currentIndex].id);
-        HapticFeedback.selectionClick();
-        print('👉 Swiped RIGHT in MAX: ${categories[_currentIndex].name}');
-      }
-      
-      _pointerStart = null;
-      return;
-    }
-    
     // Обработка вертикального свайпа
     if (!_isVerticalDrag) {
       _pointerStart = null;
@@ -236,6 +236,13 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     // Haptic feedback при смене состояния
     if (_sheetState != state) {
       HapticFeedback.mediumImpact();
+      
+      // Синхронизация контроллеров при переходе MID <-> MAX
+      if (state == SheetState.max && _maxPageController.hasClients) {
+        _maxPageController.jumpToPage(_currentIndex);
+      } else if (state == SheetState.mid && _pageController.hasClients) {
+        _pageController.jumpToPage(_currentIndex);
+      }
     }
 
     _sheetState = state;
@@ -450,6 +457,10 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                     onPageChanged: (index) {
                       setState(() => _currentIndex = index);
                       widget.onCategoryChanged(categories[index].id);
+                      // Синхронизируем MAX контроллер
+                      if (_maxPageController.hasClients) {
+                        _maxPageController.jumpToPage(index);
+                      }
                       HapticFeedback.selectionClick();
                       print('📱 Swiped to: ${categories[index].name}');
                     },
@@ -487,10 +498,17 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     );
   }
 
-  /// MAX состояние (90%) - полноэкранный режим с категориями внутри
+  /// MAX состояние (90%) - полноэкранный режим с PageView для горизонтального свайпа
   Widget _buildMaxState(List<CategoryItem> categories) {
     final category = categories[_currentIndex];
-    final products = _getProductsForCategory(category.id);
+
+    // Синхронизируем контроллер MAX с текущим индексом
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_maxPageController.hasClients && 
+          _maxPageController.page?.round() != _currentIndex) {
+        _maxPageController.jumpToPage(_currentIndex);
+      }
+    });
 
     return Listener(
       onPointerDown: _onPointerDown,
@@ -577,128 +595,143 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
               ),
             ),
 
-            // Горизонтальная навигация категорий
-          SizedBox(
-            height: 40,
-            child: ScrollConfiguration(
-              behavior: ScrollConfiguration.of(context).copyWith(
-                dragDevices: {
-                  PointerDeviceKind.touch,
-                  PointerDeviceKind.mouse,
-                  PointerDeviceKind.trackpad,
-                },
-              ),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: categories.length,
-                itemBuilder: (context, index) {
-                  final cat = categories[index];
-                  final isSelected = index == _currentIndex;
-                  return GestureDetector(
-                    onTap: () {
-                      setState(() => _currentIndex = index);
-                      widget.onCategoryChanged(cat.id);
-                      HapticFeedback.selectionClick();
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isSelected ? Colors.pink.shade50 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected ? Colors.pink.shade300 : Colors.grey.shade300,
+            // Горизонтальная навигация категорий (табы)
+            SizedBox(
+              height: 40,
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.trackpad,
+                  },
+                ),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    final cat = categories[index];
+                    final isSelected = index == _currentIndex;
+                    return GestureDetector(
+                      onTap: () {
+                        if (_maxPageController.hasClients) {
+                          _maxPageController.animateToPage(
+                            index,
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOutCubic,
+                          );
+                        }
+                        setState(() => _currentIndex = index);
+                        widget.onCategoryChanged(cat.id);
+                        HapticFeedback.selectionClick();
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected ? Colors.pink.shade50 : Colors.transparent,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isSelected ? Colors.pink.shade300 : Colors.grey.shade300,
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          cat.name,
-                          style: GoogleFonts.montserrat(
-                            fontSize: 13,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                            color: isSelected ? Colors.pink.shade600 : Colors.grey.shade600,
+                        child: Center(
+                          child: Text(
+                            cat.name,
+                            style: GoogleFonts.montserrat(
+                              fontSize: 13,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                              color: isSelected ? Colors.pink.shade600 : Colors.grey.shade600,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
-          ),
 
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
 
-          // Сетка товаров с горизонтальным свайпом для смены категории
-          Expanded(
-            child: GestureDetector(
-              // Обработка горизонтального свайпа для смены категории в MAX
-              onHorizontalDragEnd: (details) {
-                final velocity = details.primaryVelocity ?? 0;
-                final cats = _getAllCategories();
-                
-                if (velocity < -200 && _currentIndex < cats.length - 1) {
-                  // Свайп влево - следующая категория
-                  setState(() => _currentIndex++);
-                  widget.onCategoryChanged(cats[_currentIndex].id);
-                  HapticFeedback.selectionClick();
-                  print('👈 HorizontalDrag LEFT in MAX: ${cats[_currentIndex].name}');
-                } else if (velocity > 200 && _currentIndex > 0) {
-                  // Свайп вправо - предыдущая категория
-                  setState(() => _currentIndex--);
-                  widget.onCategoryChanged(cats[_currentIndex].id);
-                  HapticFeedback.selectionClick();
-                  print('👉 HorizontalDrag RIGHT in MAX: ${cats[_currentIndex].name}');
-                }
-              },
-              behavior: HitTestBehavior.translucent,
-              child: products.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Нет товаров',
-                            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ScrollConfiguration(
-                      behavior: ScrollConfiguration.of(context).copyWith(
-                        dragDevices: {
-                          PointerDeviceKind.touch,
-                          PointerDeviceKind.mouse,
-                          PointerDeviceKind.trackpad,
-                        },
-                      ),
-                      child: GridView.builder(
-                        controller: _expandedScrollController,
-                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 0.75,
-                        ),
-                        itemCount: products.length,
-                        itemBuilder: (context, index) {
-                          return ProductCard(product: products[index])
-                              .animate(delay: Duration(milliseconds: 40 * index))
-                              .fadeIn(duration: 200.ms)
-                              .slideY(begin: 0.05, end: 0);
-                        },
-                      ),
-                    ),
+            // PageView для горизонтального свайпа между категориями
+            Expanded(
+              child: ScrollConfiguration(
+                behavior: ScrollConfiguration.of(context).copyWith(
+                  dragDevices: {
+                    PointerDeviceKind.touch,
+                    PointerDeviceKind.mouse,
+                    PointerDeviceKind.trackpad,
+                  },
+                ),
+                child: PageView.builder(
+                  controller: _maxPageController,
+                  physics: const PageScrollPhysics(),
+                  onPageChanged: (index) {
+                    setState(() => _currentIndex = index);
+                    widget.onCategoryChanged(categories[index].id);
+                    HapticFeedback.selectionClick();
+                    print('📱 MAX Swiped to: ${categories[index].name}');
+                  },
+                  itemCount: categories.length,
+                  itemBuilder: (context, index) {
+                    return _buildMaxProductsGrid(categories[index]);
+                  },
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
         ),
+      ),
+    );
+  }
+  
+  /// Сетка товаров для MAX состояния (внутри PageView)
+  Widget _buildMaxProductsGrid(CategoryItem category) {
+    final products = _getProductsForCategory(category.id);
+    
+    if (products.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              'Нет товаров',
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    return ScrollConfiguration(
+      behavior: ScrollConfiguration.of(context).copyWith(
+        dragDevices: {
+          PointerDeviceKind.touch,
+          PointerDeviceKind.mouse,
+          PointerDeviceKind.trackpad,
+        },
+      ),
+      child: GridView.builder(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        padding: const EdgeInsets.all(16),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 0.75,
+        ),
+        itemCount: products.length,
+        itemBuilder: (context, index) {
+          return ProductCard(product: products[index])
+              .animate(delay: Duration(milliseconds: 40 * index))
+              .fadeIn(duration: 200.ms)
+              .slideY(begin: 0.05, end: 0);
+        },
       ),
     );
   }
