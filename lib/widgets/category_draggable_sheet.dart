@@ -41,6 +41,10 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   PageController? _pageController;
   PageController? _maxPageController; // Отдельный контроллер для MAX состояния
   late AnimationController _heightAnimationController;
+  
+  // Контроллеры для автоскролла табов категорий
+  final ScrollController _midTabsScrollController = ScrollController();
+  final ScrollController _maxTabsScrollController = ScrollController();
 
   int _currentIndex = 0;
   double _pageOffset = 0.0;
@@ -95,8 +99,26 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     _maxPageController?.removeListener(_onMaxPageScroll);
     _maxPageController?.dispose();
     _expandedScrollController.dispose();
+    _midTabsScrollController.dispose();
+    _maxTabsScrollController.dispose();
     _heightAnimationController.dispose();
     super.dispose();
+  }
+  
+  /// Автоскролл табов категорий к выбранной категории
+  void _scrollTabsToIndex(int index, {bool isMax = false}) {
+    final controller = isMax ? _maxTabsScrollController : _midTabsScrollController;
+    if (!controller.hasClients) return;
+    
+    // Примерная ширина одного таба (padding + text + margin)
+    const double tabWidth = 100.0;
+    final targetOffset = (index * tabWidth) - 50; // Центрируем таб
+    
+    controller.animateTo(
+      targetOffset.clamp(0.0, controller.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
   
   @override
@@ -474,6 +496,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                     onPageChanged: (index) {
                       setState(() => _currentIndex = index);
                       widget.onCategoryChanged(categories[index].id);
+                      _scrollTabsToIndex(index, isMax: false); // Автоскролл табов
                       HapticFeedback.selectionClick();
                       print('📱 MID Swiped to: ${categories[index].name}');
                     },
@@ -612,6 +635,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                   },
                 ),
                 child: ListView.builder(
+                  controller: _maxTabsScrollController, // Для автоскролла табов
                   scrollDirection: Axis.horizontal,
                   physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -677,6 +701,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                   onPageChanged: (index) {
                     setState(() => _currentIndex = index);
                     widget.onCategoryChanged(categories[index].id);
+                    _scrollTabsToIndex(index, isMax: true); // Автоскролл табов
                     HapticFeedback.selectionClick();
                     print('📱 MAX Swiped to: ${categories[index].name}');
                   },
@@ -844,6 +869,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
           },
         ),
         child: ListView.builder(
+          controller: _midTabsScrollController, // Для автоскролла табов
           scrollDirection: Axis.horizontal,
           physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           padding: const EdgeInsets.symmetric(horizontal: 16),
