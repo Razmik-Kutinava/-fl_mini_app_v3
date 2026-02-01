@@ -37,13 +37,33 @@ class CategoryDraggableSheet extends StatefulWidget {
 enum SheetState { min, mid, max }
 
 class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with SingleTickerProviderStateMixin {
-  late PageController _pageController;
-  late PageController _maxPageController; // Отдельный контроллер для MAX состояния
+  PageController? _pageController;
+  PageController? _maxPageController; // Отдельный контроллер для MAX состояния
   late AnimationController _heightAnimationController;
 
   int _currentIndex = 0;
   double _pageOffset = 0.0;
   final ScrollController _expandedScrollController = ScrollController();
+  
+  // Геттеры для контроллеров с ленивой инициализацией
+  PageController get pageController {
+    if (_pageController == null) {
+      _pageController = PageController(
+        viewportFraction: 0.88,
+        initialPage: _currentIndex,
+      );
+      _pageController!.addListener(_onPageScroll);
+    }
+    return _pageController!;
+  }
+  
+  PageController get maxPageController {
+    if (_maxPageController == null) {
+      _maxPageController = PageController(initialPage: _currentIndex);
+      _maxPageController!.addListener(_onMaxPageScroll);
+    }
+    return _maxPageController!;
+  }
 
   // Вертикальное состояние
   SheetState _sheetState = SheetState.mid;
@@ -57,15 +77,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(
-      viewportFraction: 0.88,
-      initialPage: 0,
-    );
-    _pageController.addListener(_onPageScroll);
-    
-    // Контроллер для MAX состояния (полный экран)
-    _maxPageController = PageController(initialPage: 0);
-    _maxPageController.addListener(_onMaxPageScroll);
 
     // Контроллер анимации для плавных переходов между состояниями
     _heightAnimationController = AnimationController(
@@ -78,10 +89,10 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
 
   @override
   void dispose() {
-    _pageController.removeListener(_onPageScroll);
-    _pageController.dispose();
-    _maxPageController.removeListener(_onMaxPageScroll);
-    _maxPageController.dispose();
+    _pageController?.removeListener(_onPageScroll);
+    _pageController?.dispose();
+    _maxPageController?.removeListener(_onMaxPageScroll);
+    _maxPageController?.dispose();
     _expandedScrollController.dispose();
     _heightAnimationController.dispose();
     super.dispose();
@@ -107,8 +118,8 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       }
     }
     
-    if (targetIndex != _currentIndex && _pageController.hasClients) {
-      _pageController.animateToPage(
+    if (targetIndex != _currentIndex && _pageController?.hasClients == true) {
+      pageController.animateToPage(
         targetIndex,
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOutCubic,
@@ -117,25 +128,22 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   }
 
   void _onPageScroll() {
-    if (_pageController.hasClients) {
+    if (_pageController?.hasClients == true) {
       setState(() {
-        _pageOffset = _pageController.page ?? 0;
+        _pageOffset = _pageController!.page ?? 0;
       });
     }
   }
   
   void _onMaxPageScroll() {
     // Синхронизация MAX PageController с индексом и MID контроллером
-    if (_maxPageController.hasClients && _maxPageController.page != null) {
-      final newIndex = _maxPageController.page!.round();
+    if (_maxPageController?.hasClients == true && _maxPageController!.page != null) {
+      final newIndex = _maxPageController!.page!.round();
       if (newIndex != _currentIndex) {
         setState(() => _currentIndex = newIndex);
         widget.onCategoryChanged(_getAllCategories()[newIndex].id);
-        // Синхронизируем MID контроллер
-        if (_pageController.hasClients) {
-          _pageController.jumpToPage(newIndex);
-        }
         HapticFeedback.selectionClick();
+        print('📱 MAX scroll changed to index: $newIndex');
       }
     }
   }
@@ -237,12 +245,20 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     if (_sheetState != state) {
       HapticFeedback.mediumImpact();
       
-      // Синхронизация контроллеров при переходе MID <-> MAX
-      if (state == SheetState.max && _maxPageController.hasClients) {
-        _maxPageController.jumpToPage(_currentIndex);
-      } else if (state == SheetState.mid && _pageController.hasClients) {
-        _pageController.jumpToPage(_currentIndex);
-      }
+      // Синхронизация контроллеров ПОСЛЕ перестройки виджета
+      final savedIndex = _currentIndex;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (state == SheetState.max && _maxPageController?.hasClients == true) {
+          if (_maxPageController!.page?.round() != savedIndex) {
+            _maxPageController!.jumpToPage(savedIndex);
+          }
+        } else if (state == SheetState.mid && _pageController?.hasClients == true) {
+          if (_pageController!.page?.round() != savedIndex) {
+            _pageController!.jumpToPage(savedIndex);
+          }
+        }
+        print('🔄 Synced to index $savedIndex after state change to $state');
+      });
     }
 
     _sheetState = state;
@@ -452,17 +468,13 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                     },
                   ),
                   child: PageView.builder(
-                    controller: _pageController,
+                    controller: pageController,
                     physics: const PageScrollPhysics(),
                     onPageChanged: (index) {
                       setState(() => _currentIndex = index);
                       widget.onCategoryChanged(categories[index].id);
-                      // Синхронизируем MAX контроллер
-                      if (_maxPageController.hasClients) {
-                        _maxPageController.jumpToPage(index);
-                      }
                       HapticFeedback.selectionClick();
-                      print('📱 Swiped to: ${categories[index].name}');
+                      print('📱 MID Swiped to: ${categories[index].name}');
                     },
                     itemCount: categories.length,
                     itemBuilder: (context, index) {
@@ -501,14 +513,6 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   /// MAX состояние (90%) - полноэкранный режим с PageView для горизонтального свайпа
   Widget _buildMaxState(List<CategoryItem> categories) {
     final category = categories[_currentIndex];
-
-    // Синхронизируем контроллер MAX с текущим индексом
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_maxPageController.hasClients && 
-          _maxPageController.page?.round() != _currentIndex) {
-        _maxPageController.jumpToPage(_currentIndex);
-      }
-    });
 
     return Listener(
       onPointerDown: _onPointerDown,
@@ -616,8 +620,8 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                     final isSelected = index == _currentIndex;
                     return GestureDetector(
                       onTap: () {
-                        if (_maxPageController.hasClients) {
-                          _maxPageController.animateToPage(
+                        if (maxPageController.hasClients) {
+                          maxPageController.animateToPage(
                             index,
                             duration: const Duration(milliseconds: 300),
                             curve: Curves.easeInOutCubic,
@@ -667,7 +671,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                   },
                 ),
                 child: PageView.builder(
-                  controller: _maxPageController,
+                  controller: maxPageController,
                   physics: const PageScrollPhysics(),
                   onPageChanged: (index) {
                     setState(() => _currentIndex = index);
@@ -851,8 +855,8 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
             onTap: () {
               setState(() => _currentIndex = index);
               widget.onCategoryChanged(category.id);
-              if (_pageController.hasClients) {
-                _pageController.animateToPage(
+              if (pageController.hasClients) {
+                pageController.animateToPage(
                   index,
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOutCubic,
