@@ -924,8 +924,8 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
             
             print('📊 Overscroll: ${notification.overscroll}, total: ${_dragDownOffset[categoryIndex]}');
             
-            // Если потянули достаточно сильно (60px) - переключаем категорию
-            if (_dragDownOffset[categoryIndex]! > 60) {
+            // Если потянули достаточно сильно (150px) - переключаем категорию
+            if (_dragDownOffset[categoryIndex]! > 150) {
               _handleDragDownToNextCategory(categoryIndex);
             }
           } else {
@@ -950,7 +950,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
               }
               _dragDownOffset[categoryIndex] = (_dragDownOffset[categoryIndex] ?? 0.0) + notification.scrollDelta!;
               
-              if (_dragDownOffset[categoryIndex]! > 60) {
+              if (_dragDownOffset[categoryIndex]! > 150) {
                 _handleDragDownToNextCategory(categoryIndex);
               }
             }
@@ -1026,8 +1026,8 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
             
             print('📊 Overscroll promo: ${notification.overscroll}, total: ${_dragDownOffset[0]}');
             
-            // Если потянули достаточно сильно (100px) - переключаем категорию
-            if (_dragDownOffset[0]! > 100) {
+            // Если потянули достаточно сильно (150px) - переключаем категорию
+            if (_dragDownOffset[0]! > 150) {
               _handleDragDownToNextCategory(0);
             }
           } else {
@@ -1052,7 +1052,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
               }
               _dragDownOffset[0] = (_dragDownOffset[0] ?? 0.0) + notification.scrollDelta!;
               
-              if (_dragDownOffset[0]! > 100) {
+              if (_dragDownOffset[0]! > 150) {
                 _handleDragDownToNextCategory(0);
               }
             }

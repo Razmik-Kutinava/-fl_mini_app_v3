@@ -53112,7 +53112,7 @@ q.m(0,m,(p==null?0:p)+s)
 A.q("\ud83d\udcca Overscroll: "+A.f(s)+", total: "+A.f(q.h(0,m)))
 s=q.h(0,m)
 s.toString
-if(s>60)r.Ao(m)}else{s=n.a
+if(s>150)r.Ao(m)}else{s=n.a
 s.at.m(0,m,!1)
 s.ax.m(0,m,0)}}if(a instanceof A.io){s=n.c.f
 if(s.length!==0){o=B.b.geq(s)
@@ -53135,7 +53135,7 @@ p.toString
 r.m(0,m,q+p)
 r=r.h(0,m)
 r.toString
-if(r>60)s.Ao(m)}}}if(a instanceof A.j6){s=n.a
+if(r>150)s.Ao(m)}}}if(a instanceof A.j6){s=n.a
 s.at.m(0,m,!1)
 s.ax.m(0,m,0)}return!1},
 $S:34}
@@ -53157,7 +53157,7 @@ q.m(0,0,(p==null?0:p)+s)
 A.q("\ud83d\udcca Overscroll promo: "+A.f(s)+", total: "+A.f(q.h(0,0)))
 s=q.h(0,0)
 s.toString
-if(s>100)r.Ao(0)}else{s=n.a
+if(s>150)r.Ao(0)}else{s=n.a
 s.at.m(0,0,!1)
 s.ax.m(0,0,0)}}if(a instanceof A.io){s=n.b.f
 if(s.length!==0){o=B.b.geq(s)
@@ -53180,7 +53180,7 @@ p.toString
 r.m(0,0,q+p)
 r=r.h(0,0)
 r.toString
-if(r>100)s.Ao(0)}}}if(a instanceof A.j6){s=n.a
+if(r>150)s.Ao(0)}}}if(a instanceof A.j6){s=n.a
 s.at.m(0,0,!1)
 s.ax.m(0,0,0)}return!1},
 $S:34}
