@@ -50,6 +50,12 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   double _pageOffset = 0.0;
   final ScrollController _expandedScrollController = ScrollController();
   
+  // Map для хранения ScrollController'ов для каждой категории (для overscroll detection)
+  final Map<int, ScrollController> _categoryScrollControllers = {};
+  final Map<int, bool> _isSwitchingCategory = {}; // Флаг чтобы не переключать несколько раз подряд
+  final Map<int, bool> _isDraggingDown = {}; // Флаг активного перетаскивания вниз
+  final Map<int, double> _dragDownOffset = {}; // Смещение при перетаскивании вниз
+  
   // Геттеры для контроллеров с ленивой инициализацией
   PageController get pageController {
     if (_pageController == null) {
@@ -102,6 +108,16 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     _midTabsScrollController.dispose();
     _maxTabsScrollController.dispose();
     _heightAnimationController.dispose();
+    
+    // Очистка ScrollController'ов для категорий
+    for (var controller in _categoryScrollControllers.values) {
+      controller.dispose();
+    }
+    _categoryScrollControllers.clear();
+    _isSwitchingCategory.clear();
+    _isDraggingDown.clear();
+    _dragDownOffset.clear();
+    
     super.dispose();
   }
   
@@ -125,6 +141,47 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     );
     
     print('📍 Tabs scrolled to index $index, offset: $targetOffset');
+  }
+  
+  /// Получить или создать ScrollController для категории
+  ScrollController _getScrollControllerForCategory(int categoryIndex) {
+    if (!_categoryScrollControllers.containsKey(categoryIndex)) {
+      final controller = ScrollController();
+      _categoryScrollControllers[categoryIndex] = controller;
+      _isSwitchingCategory[categoryIndex] = false;
+      _isDraggingDown[categoryIndex] = false;
+      _dragDownOffset[categoryIndex] = 0.0;
+    }
+    return _categoryScrollControllers[categoryIndex]!;
+  }
+
+  /// Переключить на следующую категорию при перетаскивании вниз
+  void _handleDragDownToNextCategory(int currentCategoryIndex) {
+    if (_isSwitchingCategory[currentCategoryIndex] == true) return;
+    
+    final categories = _getAllCategories();
+    if (currentCategoryIndex >= categories.length - 1) {
+      // Уже последняя категория
+      print('⚠️ Already at last category, cannot switch');
+      return;
+    }
+    
+    _isSwitchingCategory[currentCategoryIndex] = true;
+    
+    print('🔄 Overscroll/drag down detected at category $currentCategoryIndex (${categories[currentCategoryIndex].name}), switching to next');
+    
+    // Переключаем на следующую категорию
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (maxPageController.hasClients && mounted) {
+        maxPageController.animateToPage(
+          currentCategoryIndex + 1,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+        );
+        HapticFeedback.mediumImpact();
+        print('✅ Switched to category ${currentCategoryIndex + 1}');
+      }
+    });
   }
   
   @override
@@ -792,7 +849,15 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                   controller: maxPageController,
                   physics: const PageScrollPhysics(),
                   onPageChanged: (index) {
-                    setState(() => _currentIndex = index);
+                    setState(() {
+                      _currentIndex = index;
+                      // Сбрасываем флаги переключения и перетаскивания при смене страницы
+                      for (var key in _isSwitchingCategory.keys) {
+                        _isSwitchingCategory[key] = false;
+                        _isDraggingDown[key] = false;
+                        _dragDownOffset[key] = 0.0;
+                      }
+                    });
                     widget.onCategoryChanged(categories[index].id);
                     _scrollTabsToIndex(index, isMax: true); // Автоскролл табов
                     HapticFeedback.selectionClick();
@@ -819,6 +884,8 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     }
     
     final products = _getProductsForCategory(category.id);
+    final categories = _getAllCategories();
+    final categoryIndex = categories.indexWhere((c) => c.id == category.id);
     
     if (products.isEmpty) {
       return Center(
@@ -836,30 +903,94 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       );
     }
     
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(
-        dragDevices: {
-          PointerDeviceKind.touch,
-          PointerDeviceKind.mouse,
-          PointerDeviceKind.trackpad,
-        },
-      ),
-      child: GridView.builder(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 0.75,
+    // Получаем ScrollController для этой категории
+    final scrollController = categoryIndex >= 0 
+        ? _getScrollControllerForCategory(categoryIndex)
+        : ScrollController();
+    
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        if (categoryIndex < 0) return false;
+        
+        // Ловим OverscrollNotification - когда скроллишь за пределы контента
+        if (notification is OverscrollNotification) {
+          // overscroll > 0 означает скролл вниз за пределы контента
+          if (notification.overscroll > 0) {
+            if (!_isDraggingDown[categoryIndex]!) {
+              _isDraggingDown[categoryIndex] = true;
+              _dragDownOffset[categoryIndex] = 0.0;
+            }
+            _dragDownOffset[categoryIndex] = (_dragDownOffset[categoryIndex] ?? 0.0) + notification.overscroll;
+            
+            print('📊 Overscroll: ${notification.overscroll}, total: ${_dragDownOffset[categoryIndex]}');
+            
+            // Если потянули достаточно сильно (60px) - переключаем категорию
+            if (_dragDownOffset[categoryIndex]! > 60) {
+              _handleDragDownToNextCategory(categoryIndex);
+            }
+          } else {
+            // Сбрасываем при скролле вверх
+            _isDraggingDown[categoryIndex] = false;
+            _dragDownOffset[categoryIndex] = 0.0;
+          }
+        }
+        
+        // Также ловим ScrollUpdateNotification для дополнительной проверки
+        if (notification is ScrollUpdateNotification) {
+          if (scrollController.hasClients) {
+            final position = scrollController.position;
+            final maxScroll = position.maxScrollExtent;
+            final currentScroll = position.pixels;
+            
+            // Если достигли конца и продолжаем скроллить вниз
+            if (currentScroll >= maxScroll - 1 && notification.scrollDelta != null && notification.scrollDelta! > 0) {
+              if (!_isDraggingDown[categoryIndex]!) {
+                _isDraggingDown[categoryIndex] = true;
+                _dragDownOffset[categoryIndex] = 0.0;
+              }
+              _dragDownOffset[categoryIndex] = (_dragDownOffset[categoryIndex] ?? 0.0) + notification.scrollDelta!;
+              
+              if (_dragDownOffset[categoryIndex]! > 60) {
+                _handleDragDownToNextCategory(categoryIndex);
+              }
+            }
+          }
+        }
+        
+        // Сбрасываем флаги при окончании скролла
+        if (notification is ScrollEndNotification) {
+          _isDraggingDown[categoryIndex] = false;
+          _dragDownOffset[categoryIndex] = 0.0;
+        }
+        
+        return false; // Позволяем скроллу работать дальше
+      },
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+          },
         ),
-        itemCount: products.length,
-        itemBuilder: (context, index) {
-          return ProductCard(product: products[index])
-              .animate(delay: Duration(milliseconds: 40 * index))
-              .fadeIn(duration: 200.ms)
-              .slideY(begin: 0.05, end: 0);
-        },
+        child: GridView.builder(
+          controller: scrollController,
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            childAspectRatio: 0.75,
+          ),
+          itemCount: products.length,
+          itemBuilder: (context, index) {
+            return ProductCard(product: products[index])
+                .animate(delay: Duration(milliseconds: 40 * index))
+                .fadeIn(duration: 200.ms)
+                .slideY(begin: 0.05, end: 0);
+          },
+        ),
       ),
     );
   }
@@ -878,72 +1009,132 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       if (recommendedProducts.length >= 6) break;
     }
     
-    return ScrollConfiguration(
-      behavior: ScrollConfiguration.of(context).copyWith(
-        dragDevices: {
-          PointerDeviceKind.touch,
-          PointerDeviceKind.mouse,
-          PointerDeviceKind.trackpad,
-        },
-      ),
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Заголовок "акции"
-            Text(
-              'акции',
-              style: GoogleFonts.montserrat(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 12),
+    // Получаем ScrollController для категории "для тебя" (индекс 0)
+    final scrollController = _getScrollControllerForCategory(0);
+    
+    return NotificationListener<ScrollNotification>(
+      onNotification: (notification) {
+        // Ловим OverscrollNotification - когда скроллишь за пределы контента
+        if (notification is OverscrollNotification) {
+          // overscroll > 0 означает скролл вниз за пределы контента
+          if (notification.overscroll > 0) {
+            if (!_isDraggingDown[0]!) {
+              _isDraggingDown[0] = true;
+              _dragDownOffset[0] = 0.0;
+            }
+            _dragDownOffset[0] = (_dragDownOffset[0] ?? 0.0) + notification.overscroll;
             
-            // Большой баннер акции
-            AspectRatio(
-              aspectRatio: 1.2,
-              child: promo != null
-                  ? _buildPromoBanner(promo)
-                  : _buildDefaultPromoBanner(),
-            ),
+            print('📊 Overscroll promo: ${notification.overscroll}, total: ${_dragDownOffset[0]}');
             
-            const SizedBox(height: 24),
+            // Если потянули достаточно сильно (100px) - переключаем категорию
+            if (_dragDownOffset[0]! > 100) {
+              _handleDragDownToNextCategory(0);
+            }
+          } else {
+            // Сбрасываем при скролле вверх
+            _isDraggingDown[0] = false;
+            _dragDownOffset[0] = 0.0;
+          }
+        }
+        
+        // Также ловим ScrollUpdateNotification для дополнительной проверки
+        if (notification is ScrollUpdateNotification) {
+          if (scrollController.hasClients) {
+            final position = scrollController.position;
+            final maxScroll = position.maxScrollExtent;
+            final currentScroll = position.pixels;
             
-            // Заголовок "рекомендации"
-            Text(
-              'рекомендации',
-              style: GoogleFonts.montserrat(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
-            ),
-            const SizedBox(height: 12),
-            
-            // Сетка рекомендованных товаров
-            if (recommendedProducts.isNotEmpty)
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.75,
+            // Если достигли конца и продолжаем скроллить вниз
+            if (currentScroll >= maxScroll - 1 && notification.scrollDelta != null && notification.scrollDelta! > 0) {
+              if (!_isDraggingDown[0]!) {
+                _isDraggingDown[0] = true;
+                _dragDownOffset[0] = 0.0;
+              }
+              _dragDownOffset[0] = (_dragDownOffset[0] ?? 0.0) + notification.scrollDelta!;
+              
+              if (_dragDownOffset[0]! > 100) {
+                _handleDragDownToNextCategory(0);
+              }
+            }
+          }
+        }
+        
+        // Сбрасываем флаги при окончании скролла
+        if (notification is ScrollEndNotification) {
+          _isDraggingDown[0] = false;
+          _dragDownOffset[0] = 0.0;
+        }
+        
+        return false; // Позволяем скроллу работать дальше
+      },
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse,
+            PointerDeviceKind.trackpad,
+          },
+        ),
+        child: SingleChildScrollView(
+          controller: scrollController,
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Заголовок "акции"
+              Text(
+                'акции',
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
                 ),
-                itemCount: recommendedProducts.length,
-                itemBuilder: (context, index) {
-                  return ProductCard(product: recommendedProducts[index])
-                      .animate(delay: Duration(milliseconds: 50 * index))
-                      .fadeIn(duration: 200.ms)
-                      .slideY(begin: 0.05, end: 0);
-                },
               ),
-          ],
+              const SizedBox(height: 12),
+              
+              // Большой баннер акции
+              AspectRatio(
+                aspectRatio: 1.2,
+                child: promo != null
+                    ? _buildPromoBanner(promo)
+                    : _buildDefaultPromoBanner(),
+              ),
+              
+              const SizedBox(height: 24),
+              
+              // Заголовок "рекомендации"
+              Text(
+                'рекомендации',
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              // Сетка рекомендованных товаров
+              if (recommendedProducts.isNotEmpty)
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    childAspectRatio: 0.75,
+                  ),
+                  itemCount: recommendedProducts.length,
+                  itemBuilder: (context, index) {
+                    return ProductCard(product: recommendedProducts[index])
+                        .animate(delay: Duration(milliseconds: 50 * index))
+                        .fadeIn(duration: 200.ms)
+                        .slideY(begin: 0.05, end: 0);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
