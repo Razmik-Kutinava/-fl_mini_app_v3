@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/product.dart';
 import '../providers/menu_provider.dart';
 import 'product_card.dart';
@@ -163,18 +164,13 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
         curve: Curves.easeOutCubic,
         height: _isExpanded ? expandedHeight : collapsedHeight,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(32),
-            topRight: Radius.circular(32),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.zero,
+          border: Border(
+            top: BorderSide(color: AppColors.primary, width: 2),
+            left: BorderSide(color: AppColors.primary, width: 2),
+            right: BorderSide(color: AppColors.primary, width: 2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 20,
-              offset: const Offset(0, -5),
-            ),
-          ],
         ),
         child: Column(
           children: [
@@ -194,8 +190,8 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.zero,
                     ),
                   ),
                 ),
@@ -230,25 +226,14 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
             height: 28,
             margin: const EdgeInsets.only(right: 12),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.pink.shade400,
-                  Colors.orange.shade400,
-                ],
-              ),
-              borderRadius: BorderRadius.circular(2),
+              color: AppColors.primary,
+              borderRadius: BorderRadius.zero,
             ),
           ),
           Expanded(
             child: Text(
-              currentCategory.name,
-              style: GoogleFonts.pacifico(
-                fontSize: 22,
-                fontWeight: FontWeight.w400,
-                color: Colors.black87,
-              ),
+              currentCategory.name.toUpperCase(),
+              style: AppTextStyles.h2(),
             ),
           ),
           // Кнопка закрытия (только в раскрытом виде)
@@ -257,10 +242,11 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
               icon: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.zero,
+                  border: Border.all(color: AppColors.primary, width: 2),
                 ),
-                child: const Icon(Icons.close, color: Colors.black54, size: 18),
+                child: Icon(Icons.close, color: AppColors.textPrimary, size: 18),
               ),
               onPressed: _collapseCategory,
             ),
@@ -348,7 +334,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.zero,
         boxShadow: [
           BoxShadow(
             color: isActive 
@@ -360,7 +346,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.zero,
         child: SingleChildScrollView(
           physics: const NeverScrollableScrollPhysics(),
           child: PromoSection(
@@ -383,7 +369,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.zero,
         boxShadow: [
           BoxShadow(
             color: isActive 
@@ -395,7 +381,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.zero,
         child: Column(
           children: [
             // Декоративная полоска
@@ -457,10 +443,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
                     const SizedBox(height: 4),
                     Text(
                       'Ещё ${products.length - 2}',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 12,
-                        color: Colors.grey[500],
-                      ),
+                      style: AppTextStyles.bodyTiny(AppColors.textSecondary),
                     ),
                   ],
                 ),
@@ -476,7 +459,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.zero,
       ),
       child: Center(
         child: Column(
@@ -486,10 +469,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
             const SizedBox(height: 8),
             Text(
               'Нет товаров',
-              style: GoogleFonts.montserrat(
-                fontSize: 14,
-                color: Colors.grey[500],
-              ),
+              style: AppTextStyles.bodySmall(AppColors.textSecondary),
             ),
           ],
         ),
@@ -509,10 +489,7 @@ class _Category3DCarouselViewState extends State<Category3DCarouselView> {
             const SizedBox(height: 16),
             Text(
               'Нет товаров в категории',
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
+              style: AppTextStyles.body(AppColors.textSecondary),
             ),
           ],
         ),

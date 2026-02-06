@@ -18,9 +18,16 @@ extension TelegramWebAppExt on TelegramWebApp {
   @JS('requestLocation')
   external void requestLocationRaw(JSFunction? callback);
   external TelegramInitDataUnsafe? get initDataUnsafe;
-  external TelegramMainButton get MainButton;
+  external TelegramMainButton? get MainButton;
   external void disableVerticalSwipes();
   external void enableVerticalSwipes();
+  
+  /// Проверка готовности WebApp API
+  @JS('isReady')
+  external bool? get isReady;
+  
+  @JS('version')
+  external String? get version;
 }
 
 @JS()
@@ -72,27 +79,71 @@ class TelegramService {
   bool get isInTelegram {
     if (!kIsWeb) return false;
     try {
-      return telegramWebApp != null;
+      final webApp = telegramWebApp;
+      if (webApp == null) return false;
+      
+      // Дополнительная проверка: пытаемся проверить что объект действительно доступен
+      try {
+        // Просто проверяем что объект существует, не вызывая методы
+        return true;
+      } catch (e) {
+        debugPrint('⚠️ Telegram WebApp object check failed: $e');
+        return false;
+      }
     } catch (e) {
+      debugPrint('⚠️ Telegram WebApp availability check failed: $e');
       return false;
     }
   }
 
   void init() {
-    if (!isInTelegram) return;
+    if (!isInTelegram) {
+      debugPrint('⚠️ Not in Telegram context, skipping init');
+      return;
+    }
+    
     try {
-      telegramWebApp?.ready();
-      telegramWebApp?.expand();
+      final webApp = telegramWebApp;
+      if (webApp == null) {
+        debugPrint('⚠️ Telegram WebApp is null, cannot initialize');
+        return;
+      }
+      
+      // Проверяем версию API если доступна
+      try {
+        final version = webApp.version;
+        debugPrint('📱 Telegram WebApp version: ${version ?? "unknown"}');
+      } catch (e) {
+        // Игнорируем ошибку версии
+      }
+      
+      // Вызываем ready() с защитой от ошибок
+      try {
+        webApp.ready();
+        debugPrint('✅ Telegram WebApp ready() called');
+      } catch (e) {
+        debugPrint('⚠️ Telegram ready() error: $e');
+      }
+      
+      // Вызываем expand() с защитой
+      try {
+        webApp.expand();
+        debugPrint('✅ Telegram WebApp expand() called');
+      } catch (e) {
+        debugPrint('⚠️ Telegram expand() error: $e');
+      }
+      
       // ⭐ КРИТИЧЕСКИ ВАЖНО: Отключаем вертикальные свайпы Telegram
       // чтобы наши свайпы работали корректно
       try {
-        telegramWebApp?.disableVerticalSwipes();
+        webApp.disableVerticalSwipes();
         print('✅ Telegram WebApp: vertical swipes disabled');
       } catch (e) {
         print('⚠️ Could not disable Telegram vertical swipes: $e');
       }
-    } catch (e) {
-      debugPrint('Telegram init error: $e');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Telegram init error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
     }
   }
 
@@ -136,31 +187,84 @@ class TelegramService {
     return null;
   }
 
+  /// Безопасное получение MainButton с проверками
+  TelegramMainButton? _getMainButton() {
+    if (!isInTelegram) return null;
+    try {
+      final webApp = telegramWebApp;
+      if (webApp == null) return null;
+      
+      try {
+        final mainButton = webApp.MainButton;
+        // Дополнительная проверка через JS interop
+        if (mainButton == null) {
+          debugPrint('⚠️ Telegram MainButton is null');
+          return null;
+        }
+        return mainButton;
+      } catch (e) {
+        debugPrint('⚠️ Error accessing Telegram MainButton: $e');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error getting Telegram MainButton: $e');
+      return null;
+    }
+  }
+
   void showMainButton(String text, Function callback) {
     if (!isInTelegram) return;
+    
+    final mainButton = _getMainButton();
+    if (mainButton == null) {
+      debugPrint('⚠️ Cannot show MainButton: MainButton is null');
+      return;
+    }
+    
     try {
-      telegramWebApp?.MainButton.setText(text);
-      telegramWebApp?.MainButton.show();
-    } catch (e) {
-      debugPrint('Telegram showMainButton error: $e');
+      mainButton.setText(text);
+      mainButton.show();
+      debugPrint('✅ Telegram MainButton shown: $text');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Telegram showMainButton error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
     }
   }
 
   void hideMainButton() {
     if (!isInTelegram) return;
+    
+    final mainButton = _getMainButton();
+    if (mainButton == null) {
+      debugPrint('⚠️ Cannot hide MainButton: MainButton is null');
+      return;
+    }
+    
     try {
-      telegramWebApp?.MainButton.hide();
-    } catch (e) {
-      debugPrint('Telegram hideMainButton error: $e');
+      mainButton.hide();
+      debugPrint('✅ Telegram MainButton hidden');
+    } catch (e, stackTrace) {
+      debugPrint('❌ Telegram hideMainButton error: $e');
+      debugPrint('❌ Stack trace: $stackTrace');
     }
   }
 
   void close() {
     if (!isInTelegram) return;
     try {
-      telegramWebApp?.close();
+      final webApp = telegramWebApp;
+      if (webApp == null) {
+        debugPrint('⚠️ Telegram WebApp is null, cannot close');
+        return;
+      }
+      
+      try {
+        webApp.close();
+      } catch (e) {
+        debugPrint('Telegram close error: $e');
+      }
     } catch (e) {
-      debugPrint('Telegram close error: $e');
+      debugPrint('Telegram close outer error: $e');
     }
   }
 
@@ -168,19 +272,36 @@ class TelegramService {
   void sendData(String data) {
     if (!isInTelegram) return;
     try {
-      telegramWebApp?.sendData(data);
-      debugPrint('Telegram sendData: $data');
+      final webApp = telegramWebApp;
+      if (webApp == null) {
+        debugPrint('⚠️ Telegram WebApp is null, cannot send data');
+        return;
+      }
+      
+      try {
+        webApp.sendData(data);
+        debugPrint('Telegram sendData: $data');
+      } catch (e) {
+        debugPrint('Telegram sendData error: $e');
+      }
     } catch (e) {
-      debugPrint('Telegram sendData error: $e');
+      debugPrint('Telegram sendData outer error: $e');
     }
   }
 
   /// Запрос геопозиции через Telegram WebApp
   Future<Map<String, double>?> requestLocation() async {
     if (!isInTelegram) return null;
+    
+    final webApp = telegramWebApp;
+    if (webApp == null) {
+      debugPrint('⚠️ Telegram WebApp is null, cannot request location');
+      return null;
+    }
+    
     final completer = Completer<Map<String, double>?>();
     try {
-      telegramWebApp?.requestLocationRaw(
+      webApp.requestLocationRaw(
         ((JSAny? result) {
           try {
             final res = result as TelegramLocationResult?;
@@ -198,7 +319,7 @@ class TelegramService {
       );
     } catch (e, st) {
       debugPrint('Telegram requestLocation error: $e\n$st');
-      return null;
+      completer.complete(null);
     }
     return completer.future;
   }

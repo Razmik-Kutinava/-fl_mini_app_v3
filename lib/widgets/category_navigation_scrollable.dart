@@ -1,7 +1,19 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import '../models/category.dart' as models;
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import '../utils/responsive.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 
 /// Навигация по категориям внутри скроллируемого контента
 /// Полупрозрачный черный фон, только текст, без кнопок
@@ -239,12 +251,8 @@ class _CategoryTextItem extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                label,
-                style: GoogleFonts.pacifico(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w400,
-                  color: isSelected ? Colors.black : Colors.black.withOpacity(0.4),
-                ),
+                label.toUpperCase(),
+                style: AppTextStyles.body(AppColors.textPrimary),
               ),
               const SizedBox(height: 4),
               // Индикатор выделения
@@ -253,10 +261,8 @@ class _CategoryTextItem extends StatelessWidget {
                 height: 3,
                 width: isSelected ? 30 : 0,
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.pink.shade400, Colors.orange.shade400],
-                  ),
-                  borderRadius: BorderRadius.circular(2),
+                  color: AppColors.borderGlow,
+                  borderRadius: BorderRadius.zero,
                 ),
               ),
             ],

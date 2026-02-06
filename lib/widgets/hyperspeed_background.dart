@@ -1,5 +1,11 @@
 import 'dart:math';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 
 /// Анимированный фон "гиперпространство" в стиле Millennium Falcon Hyperspeed
 /// Эффект полёта через звёздное поле на сверхсветовой скорости

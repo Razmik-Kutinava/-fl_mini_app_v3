@@ -2,7 +2,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/product.dart';
 import '../providers/menu_provider.dart';
 import 'product_card.dart';
@@ -451,13 +452,14 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       height: 52,
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(26),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.zero,
+        border: Border.all(color: AppColors.primary, width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+            color: AppColors.primary.withOpacity(0.3),
+            blurRadius: 0,
+            offset: const Offset(4, 4),
           ),
         ],
       ),
@@ -496,19 +498,18 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                 margin: const EdgeInsets.only(right: 6),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected 
-                      ? Colors.pink.shade400 
+                  color: isSelected
+                      ? AppColors.primary
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.zero,
+                  border: isSelected ? Border.all(color: AppColors.primary, width: 2) : null,
                 ),
                 child: Center(
                   child: Text(
-                    category.name,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                      color: isSelected ? Colors.white : Colors.grey.shade600,
-                    ),
+                    category.name.toUpperCase(),
+                    style: isSelected
+                        ? AppTextStyles.button()
+                        : AppTextStyles.bodySmall().copyWith(color: AppColors.textSecondary),
                   ),
                 ),
               ),
@@ -544,26 +545,21 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
         behavior: HitTestBehavior.translucent,
         child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.zero,
+          border: Border(
+            top: BorderSide(color: AppColors.primary, width: 2),
+            left: BorderSide(color: AppColors.primary, width: 2),
+            right: BorderSide(color: AppColors.primary, width: 2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 15,
-              offset: const Offset(0, -3),
-            ),
-          ],
         ),
         child: Center(
           child: Container(
             width: 50,
             height: 5,
             decoration: BoxDecoration(
-              color: Colors.grey.shade400,
-              borderRadius: BorderRadius.circular(3),
+              color: AppColors.primary,
+              borderRadius: BorderRadius.zero,
             ),
           ),
         ),
@@ -583,18 +579,13 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       behavior: HitTestBehavior.translucent, // Пропускаем горизонтальные события к PageView
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.zero,
+          border: Border(
+            top: BorderSide(color: AppColors.primary, width: 2),
+            left: BorderSide(color: AppColors.primary, width: 2),
+            right: BorderSide(color: AppColors.primary, width: 2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 15,
-              offset: const Offset(0, -3),
-            ),
-          ],
         ),
         child: Column(
           children: [
@@ -611,7 +602,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                     height: 5,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade400,
-                      borderRadius: BorderRadius.circular(3),
+                      borderRadius: BorderRadius.zero,
                     ),
                   ),
                 ),
@@ -696,18 +687,13 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       behavior: HitTestBehavior.translucent,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(28),
-            topRight: Radius.circular(28),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.zero,
+          border: Border(
+            top: BorderSide(color: AppColors.primary, width: 2),
+            left: BorderSide(color: AppColors.primary, width: 2),
+            right: BorderSide(color: AppColors.primary, width: 2),
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 15,
-              offset: const Offset(0, -3),
-            ),
-          ],
         ),
         child: Column(
           children: [
@@ -724,7 +710,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                     height: 5,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade400,
-                      borderRadius: BorderRadius.circular(3),
+                      borderRadius: BorderRadius.zero,
                     ),
                   ),
                 ),
@@ -741,31 +727,25 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                     height: 28,
                     margin: const EdgeInsets.only(right: 12),
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.pink.shade400, Colors.orange.shade400],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      borderRadius: BorderRadius.circular(2),
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.zero,
                     ),
                   ),
                   Expanded(
                     child: Text(
-                      category.name,
-                      style: GoogleFonts.pacifico(
-                        fontSize: 24,
-                        color: Colors.black87,
-                      ),
+                      category.name.toUpperCase(),
+                      style: AppTextStyles.h2(),
                     ),
                   ),
                   IconButton(
                     icon: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(12),
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.zero,
+                        border: Border.all(color: AppColors.primary, width: 2),
                       ),
-                      child: const Icon(Icons.close, size: 20, color: Colors.black54),
+                      child: Icon(Icons.close, size: 20, color: AppColors.textPrimary),
                     ),
                     onPressed: () => _switchToState(SheetState.mid),
                   ),
@@ -811,7 +791,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         decoration: BoxDecoration(
                           color: isSelected ? Colors.pink.shade50 : Colors.transparent,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.zero,
                           border: Border.all(
                             color: isSelected ? Colors.pink.shade300 : Colors.grey.shade300,
                           ),
@@ -819,11 +799,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                         child: Center(
                           child: Text(
                             cat.name,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 13,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                              color: isSelected ? Colors.pink.shade600 : Colors.grey.shade600,
-                            ),
+                            style: AppTextStyles.bodyTiny(AppColors.textSecondary),
                           ),
                         ),
                       ),
@@ -1085,11 +1061,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
               // Заголовок "акции"
               Text(
                 'акции',
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: AppTextStyles.h2(AppColors.textPrimary),
               ),
               const SizedBox(height: 12),
               
@@ -1106,11 +1078,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
               // Заголовок "рекомендации"
               Text(
                 'рекомендации',
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: AppTextStyles.h2(AppColors.textPrimary),
               ),
               const SizedBox(height: 12),
               
@@ -1155,16 +1123,13 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.zero,
             ),
           ),
           Expanded(
             child: Text(
               category.name,
-              style: GoogleFonts.pacifico(
-                fontSize: 22,
-                color: Colors.black87,
-              ),
+              style: AppTextStyles.body(AppColors.textPrimary),
             ),
           ),
         ],
@@ -1187,7 +1152,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.zero,
         boxShadow: [
           BoxShadow(
             color: Colors.pink.withOpacity(0.15),
@@ -1197,7 +1162,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.zero,
         child: Column(
           children: [
             // Градиент сверху
@@ -1279,7 +1244,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       child: Container(
         margin: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.zero,
           gradient: promo.gradient ?? LinearGradient(
             colors: [Colors.pink.shade300, Colors.orange.shade300],
             begin: Alignment.topLeft,
@@ -1299,7 +1264,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
             if (promo.imageUrl != null)
               Positioned.fill(
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.zero,
                   child: Image.network(
                     promo.imageUrl!,
                     fit: BoxFit.cover,
@@ -1311,7 +1276,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.zero,
                   gradient: LinearGradient(
                     colors: [
                       Colors.black.withOpacity(0.1),
@@ -1340,26 +1305,18 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                   const SizedBox(height: 4),
                   Text(
                     promo.title,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+                    style: AppTextStyles.h2(AppColors.accent),
                   ),
                   const SizedBox(height: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.zero,
                     ),
                     child: Text(
                       'Подробнее',
-                      style: GoogleFonts.montserrat(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.pink.shade500,
-                      ),
+                      style: AppTextStyles.bodyTiny(),
                     ),
                   ),
                 ],
@@ -1379,7 +1336,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
     return Container(
       margin: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.zero,
         gradient: LinearGradient(
           colors: [Colors.pink.shade200, Colors.orange.shade200],
           begin: Alignment.topLeft,
@@ -1394,11 +1351,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
             const SizedBox(height: 8),
             Text(
               'Скоро акции!',
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.white,
-              ),
+              style: AppTextStyles.h3(AppColors.accent),
             ),
           ],
         ),
@@ -1414,7 +1367,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
         margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         decoration: BoxDecoration(
           color: Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.zero,
         ),
         child: Center(
           child: Column(
@@ -1433,7 +1386,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.zero,
         boxShadow: [
           BoxShadow(
             color: Colors.pink.withOpacity(0.15),
@@ -1443,7 +1396,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.zero,
         child: Column(
           children: [
             // Градиент сверху
@@ -1503,11 +1456,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
                           .moveY(begin: 0, end: -4, duration: 600.ms),
                       Text(
                         'Ещё ${products.length - 2} →',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.pink.shade500,
-                        ),
+                        style: AppTextStyles.bodyTiny(),
                       ),
                     ],
                   ),

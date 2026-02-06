@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/product.dart';
 import '../providers/menu_provider.dart';
 import '../utils/responsive.dart';
@@ -224,11 +225,7 @@ class _CategoryPageViewState extends State<CategoryPageView> {
           Expanded(
             child: Text(
               category.name,
-              style: GoogleFonts.montserrat(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
-              ),
+              style: AppTextStyles.h2(AppColors.textPrimary),
             ),
           ),
           if (isExpanded)
@@ -289,10 +286,7 @@ class _CategoryPageViewState extends State<CategoryPageView> {
           padding: EdgeInsets.all(padding),
           child: Text(
             'Нет товаров в этой категории',
-            style: GoogleFonts.montserrat(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            style: AppTextStyles.body(AppColors.textSecondary),
           ),
         ),
       );

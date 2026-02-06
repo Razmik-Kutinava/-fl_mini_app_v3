@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/location.dart';
 import '../providers/location_provider.dart';
 import 'about_app_screen.dart';
@@ -154,7 +154,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                           ),
                           decoration: BoxDecoration(
                             color: Colors.black.withOpacity(0.7),
-                            borderRadius: BorderRadius.circular(8),
+                            borderRadius: BorderRadius.zero,
                             border: Border.all(
                               color: Colors.white.withOpacity(0.3),
                               width: 1,
@@ -165,11 +165,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                             children: [
                               Text(
                                 widget.location.name,
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white,
-                                ),
+                                style: AppTextStyles.bodyTiny(Colors.white),
                                 textAlign: TextAlign.center,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -178,11 +174,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                               // Адрес
                               Text(
                                 widget.location.address,
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.white.withOpacity(0.8),
-                                ),
+                                style: AppTextStyles.bodyTiny(Colors.white.withOpacity(0.8)),
                                 textAlign: TextAlign.center,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -212,7 +204,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: _openLocationList,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.zero,
                         child: Container(
                           width: 40,
                           height: 40,
@@ -245,7 +237,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                       color: Colors.transparent,
                       child: InkWell(
                         onTap: _navigateToMainMenu,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.zero,
                         child: Container(
                           width: 40,
                           height: 40,
@@ -305,11 +297,7 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
                           'Включи локацию чтобы быстро найти кофейню',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white.withOpacity(0.9),
-                          ),
+                          style: AppTextStyles.bodySmall(Colors.white.withOpacity(0.9)),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -320,30 +308,24 @@ class _LocationMapScreenState extends State<LocationMapScreen> {
                         onPressed: _handleNearbyButtonTap,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _showLocationRequest
-                              ? Colors.white.withOpacity(0.2)
-                              : AppColors.bottomNavActive,
-                          foregroundColor: Colors.white,
+                              ? AppColors.cardBackground
+                              : AppColors.accentDarker,
+                          foregroundColor: AppColors.accent,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.zero,
                             side: BorderSide(
-                              color: _showLocationRequest
-                                  ? Colors.white.withOpacity(0.3)
-                                  : Colors.transparent,
+                              color: AppColors.borderGlow,
                               width: 1,
                             ),
                           ),
-                          elevation: _showLocationRequest ? 0 : 4,
+                          elevation: 0,
                         ),
                         child: Text(
                           _showLocationRequest
                               ? 'Открыть настройки'
                               : 'Рядом со мной',
-                          style: GoogleFonts.montserrat(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+                          style: AppTextStyles.button(AppColors.accent),
                         ),
                       ),
                     ),

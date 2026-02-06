@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/category.dart';
 import '../models/product.dart';
 import '../widgets/product_card.dart';
@@ -31,9 +31,9 @@ class CategoryScreen extends StatelessWidget {
     );
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
@@ -45,20 +45,7 @@ class CategoryScreen extends StatelessWidget {
             }
           },
         ),
-        title: Text(
-          category.name,
-          style: GoogleFonts.montserrat(
-            fontWeight: FontWeight.bold,
-            fontSize: Responsive.responsiveSize(
-              context,
-              mobile: 20.0,
-              tablet: 22.0,
-              desktop: 24.0,
-            ),
-            color: AppColors.textPrimary,
-          ),
-        ),
-        centerTitle: false,
+        title: Text(category.name, style: AppTextStyles.h3()),
       ),
       body: products.isEmpty
           ? Center(
@@ -73,10 +60,7 @@ class CategoryScreen extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     'В этой категории пока нет товаров',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 16,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: AppTextStyles.body(),
                   ),
                 ],
               ),
@@ -98,16 +82,13 @@ class CategoryScreen extends StatelessWidget {
                         crossAxisSpacing: 16,
                         childAspectRatio: 0.75,
                       ),
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final product = products[index];
-                          return ProductCard(product: product)
-                              .animate(delay: Duration(milliseconds: 50 * index))
-                              .fadeIn()
-                              .scale(begin: const Offset(0.9, 0.9));
-                        },
-                        childCount: products.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final product = products[index];
+                        return ProductCard(product: product)
+                            .animate(delay: Duration(milliseconds: 50 * index))
+                            .fadeIn()
+                            .scale(begin: const Offset(0.9, 0.9));
+                      }, childCount: products.length),
                     ),
                   ),
                 ],
@@ -116,4 +97,3 @@ class CategoryScreen extends StatelessWidget {
     );
   }
 }
-

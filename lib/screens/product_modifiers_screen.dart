@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:confetti/confetti.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../providers/cart_provider.dart';
@@ -101,41 +101,28 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
   double get _totalPrice {
     double total = widget.product.price;
 
-    // Добавляем цену выбранных модификаторов
+    // Добавляем цену всех выбранных модификаторов
     for (var screen in _screens) {
       if (screen.group == null) continue;
 
-      if (screen.key == 'size' && _selectedModifiers['size'] != null) {
-        final sizeValue = _selectedModifiers['size'];
-        if (sizeValue is int && sizeValue >= 0 && sizeValue < screen.group!.options.length) {
-          total += screen.group!.options[sizeValue].price;
-        } else if (sizeValue is List && sizeValue.isNotEmpty) {
-          final idx = (sizeValue[0] is int) ? sizeValue[0] as int : -1;
-          if (idx >= 0 && idx < screen.group!.options.length) {
-            total += screen.group!.options[idx].price;
-          }
-        }
-      } else if (screen.key == 'milk' && _selectedModifiers['milk'] != null) {
-        final milkValue = _selectedModifiers['milk'];
-        if (milkValue is int && milkValue >= 0 && milkValue < screen.group!.options.length) {
-          total += screen.group!.options[milkValue].price;
-        } else if (milkValue is List && milkValue.isNotEmpty) {
-          final idx = (milkValue[0] is int) ? milkValue[0] as int : -1;
-          if (idx >= 0 && idx < screen.group!.options.length) {
-            total += screen.group!.options[idx].price;
-          }
-        }
-      } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
-        final extrasValue = _selectedModifiers['extras'];
-        if (extrasValue is List) {
-          for (var item in extrasValue) {
-            final idx = (item is int) ? item : -1;
-            if (idx >= 0 && idx < screen.group!.options.length) {
-              total += screen.group!.options[idx].price;
-            }
-          }
-        } else if (extrasValue is int && extrasValue >= 0 && extrasValue < screen.group!.options.length) {
-          total += screen.group!.options[extrasValue].price;
+      final value = _selectedModifiers[screen.key];
+      if (value == null) continue;
+
+      // Собираем индексы (всегда как список)
+      List<int> indices;
+      if (value is List<int>) {
+        indices = value;
+      } else if (value is List) {
+        indices = value.whereType<int>().toList();
+      } else if (value is int) {
+        indices = <int>[value];
+      } else {
+        continue;
+      }
+
+      for (var idx in indices) {
+        if (idx >= 0 && idx < screen.group!.options.length) {
+          total += screen.group!.options[idx].price;
         }
       }
     }
@@ -149,58 +136,29 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     for (var screen in _screens) {
       if (screen.group == null) continue;
 
-      if (screen.key == 'size' && _selectedModifiers['size'] != null) {
-        final sizeValue = _selectedModifiers['size'];
-        int? index;
-        if (sizeValue is int) {
-          index = sizeValue;
-        } else if (sizeValue is List && sizeValue.isNotEmpty && sizeValue[0] is int) {
-          index = sizeValue[0] as int;
-        }
-        if (index != null && index >= 0 && index < screen.group!.options.length) {
-          final option = screen.group!.options[index];
+      final value = _selectedModifiers[screen.key];
+      if (value == null) continue;
+
+      // Собираем все выбранные индексы (всегда как список)
+      List<int> indices;
+      if (value is List<int>) {
+        indices = value;
+      } else if (value is List) {
+        indices = value.whereType<int>().toList();
+      } else if (value is int) {
+        indices = <int>[value];
+      } else {
+        continue;
+      }
+
+      for (var idx in indices) {
+        if (idx >= 0 && idx < screen.group!.options.length) {
+          final option = screen.group!.options[idx];
           cubes.add(SelectedCube(
             label: option.label,
             volume: option.volume,
             price: option.price,
             emoji: option.emoji,
-          ));
-        }
-      } else if (screen.key == 'milk' && _selectedModifiers['milk'] != null) {
-        final milkValue = _selectedModifiers['milk'];
-        int? index;
-        if (milkValue is int) {
-          index = milkValue;
-        } else if (milkValue is List && milkValue.isNotEmpty && milkValue[0] is int) {
-          index = milkValue[0] as int;
-        }
-        if (index != null && index >= 0 && index < screen.group!.options.length) {
-          final option = screen.group!.options[index];
-          cubes.add(SelectedCube(
-            label: option.label,
-            price: option.price,
-            emoji: option.emoji,
-          ));
-        }
-      } else if (screen.key == 'extras' && _selectedModifiers['extras'] != null) {
-        final extrasValue = _selectedModifiers['extras'];
-        if (extrasValue is List) {
-          for (var item in extrasValue) {
-            if (item is int && item >= 0 && item < screen.group!.options.length) {
-              final option = screen.group!.options[item];
-              cubes.add(SelectedCube(
-                label: option.label,
-                emoji: option.emoji,
-                price: option.price,
-              ));
-            }
-          }
-        } else if (extrasValue is int && extrasValue >= 0 && extrasValue < screen.group!.options.length) {
-          final option = screen.group!.options[extrasValue];
-          cubes.add(SelectedCube(
-            label: option.label,
-            emoji: option.emoji,
-            price: option.price,
           ));
         }
       }
@@ -211,30 +169,24 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
 
   void _onModifierTap(ModifierScreenData screen, int index) {
     setState(() {
-      // Проверяем тип без учета регистра
-      final isSingle = screen.group!.type.toLowerCase() == 'single';
-      
-      if (isSingle) {
-        // Для single всегда сохраняем как int
-        _selectedModifiers[screen.key] = index;
+      // Всегда сохраняем как List<int> — позволяет выбрать несколько модификаторов
+      final currentValue = _selectedModifiers[screen.key];
+      List<int> current;
+
+      if (currentValue is List<int>) {
+        current = List<int>.from(currentValue);
+      } else if (currentValue is int) {
+        current = <int>[currentValue];
       } else {
-        // Для multiple всегда сохраняем как List<int>
-        final currentValue = _selectedModifiers[screen.key];
-        List<int> current;
-        
-        if (currentValue is List<int>) {
-          current = List<int>.from(currentValue); // Создаем копию
-        } else {
-          current = []; // Если не List, создаем новый список
-        }
-        
-        if (current.contains(index)) {
-          current.remove(index);
-        } else {
-          current.add(index);
-        }
-        _selectedModifiers[screen.key] = current; // Всегда List<int>
+        current = <int>[];
       }
+
+      if (current.contains(index)) {
+        current.remove(index);
+      } else {
+        current.add(index);
+      }
+      _selectedModifiers[screen.key] = current;
     });
     HapticFeedback.selectionClick();
   }
@@ -304,35 +256,72 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    // Оптимальная высота нижней секции - 55% для равномерных отступов
-    final bottomHeight = screenHeight * 0.55;
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Верхняя часть (40% - только картинка и описание)
-          Positioned.fill(
-            bottom: bottomHeight,
-            child: _buildTopSection(bottomHeight),
+          // Единый вертикальный поток: header → image → modifiers
+          Column(
+            children: [
+              // Компактный header с gradient
+              _buildProductHeader(),
+
+              // Scrollable: image + description + все модификаторы
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    bottom: _selectedCubes.isEmpty ? 80 + bottomPadding : 140 + bottomPadding,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Compact image + description row
+                      _buildProductInfoRow(),
+
+                      // Разделитель
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 16),
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.transparent,
+                              AppColors.borderGlow.withValues(alpha: 0.6),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Все группы модификаторов подряд
+                      for (var screen in _screens)
+                        if (!screen.isFinal)
+                          _buildModifierSection(screen),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          
-          // Нижняя часть (60% - модификаторы видны полностью)
+
+          // Sticky HUD-tray внизу: выбранные модификаторы + итого
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
-            height: bottomHeight,
-            child: _buildBottomSection(bottomHeight),
+            child: _buildSelectedModifiersTray(bottomPadding),
           ),
-          
+
           // Confetti
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
               confettiController: _confettiController,
-              blastDirection: 1.57, // Down
+              blastDirection: 1.57,
               maxBlastForce: 5,
               minBlastForce: 2,
               emissionFrequency: 0.05,
@@ -345,373 +334,310 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     );
   }
 
-  Widget _buildTopSection(double bottomPadding) {
+  /// Compact gradient header: [X] PRODUCT_NAME   PRICE
+  Widget _buildProductHeader() {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: AppColors.gradient1,
       ),
       child: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 16, 12),
+          child: Row(
             children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Expanded(
-                    child: Text(
-                      widget.product.name,
-                      style: GoogleFonts.montserrat(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  const SizedBox(width: 48), // Balance for close button
-                ],
+              IconButton(
+                icon: const Icon(Icons.close, color: AppColors.accent, size: 22),
+                onPressed: () => Navigator.pop(context),
               ),
-            ),
-            
-            // Image - уменьшаем размер чтобы освободить место для модификаторов
-            Container(
-              height: 150,
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: widget.product.imageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: widget.product.imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: Colors.white.withOpacity(0.2),
-                          child: const Center(
-                            child: CircularProgressIndicator(color: Colors.white),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: Colors.white.withOpacity(0.2),
-                          child: const Icon(
-                            Icons.coffee,
-                            size: 80,
-                            color: Colors.white70,
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: Colors.white.withOpacity(0.2),
-                        child: const Icon(
-                          Icons.coffee,
-                          size: 80,
-                          color: Colors.white70,
-                        ),
-                      ),
-              ),
-            )
-                .animate()
-                .fadeIn(duration: 300.ms)
-                .scale(begin: const Offset(0.9, 0.9)),
-            
-            const SizedBox(height: 16),
-            
-            // Product description - сворачиваемое
-            if (widget.product.description.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Кнопка "Описание" с иконкой разворачивания
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          _isDescriptionExpanded = !_isDescriptionExpanded;
-                        });
-                        HapticFeedback.selectionClick();
-                      },
-                      borderRadius: BorderRadius.circular(8),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Описание:',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Icon(
-                              _isDescriptionExpanded
-                                  ? Icons.keyboard_arrow_up
-                                  : Icons.keyboard_arrow_down,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Полный текст описания (показывается при разворачивании)
-                    if (_isDescriptionExpanded) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        widget.product.description,
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                          height: 1.4,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ],
+              Expanded(
+                child: Text(
+                  widget.product.name.toUpperCase(),
+                  style: AppTextStyles.h3(AppColors.accent),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            
-            const SizedBox(height: 16),
-            
-            // Selected cubes section - показываем выбранные модификаторы
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Вы добавили:',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white70,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _selectedCubes.isEmpty
-                      ? Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
-                              width: 1,
-                              style: BorderStyle.solid,
-                            ),
-                          ),
-                          child: Text(
-                            'Выберите опции ниже',
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              color: Colors.white60,
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        )
-                      : Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: _selectedCubes.map((cube) {
-                            return Container(
-                              width: 70,
-                              height: 70,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.25),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.5),
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  if (cube.emoji != null)
-                                    Text(
-                                      cube.emoji!,
-                                      style: const TextStyle(fontSize: 20),
-                                    )
-                                        .animate()
-                                        .scale(begin: const Offset(0.5, 0.5), duration: 200.ms),
-                                  if (cube.emoji != null) const SizedBox(height: 4),
-                                  Text(
-                                    cube.label,
-                                    textAlign: TextAlign.center,
-                                    style: GoogleFonts.montserrat(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  if (cube.volume != null) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      cube.volume!,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 8,
-                                        color: Colors.white70,
-                                      ),
-                                    ),
-                                  ],
-                                  if (cube.price > 0) ...[
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      '+${cube.price.toStringAsFixed(0)}₽',
-                                      style: GoogleFonts.inter(
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            )
-                                .animate()
-                                .fadeIn(duration: 200.ms)
-                                .scale(begin: const Offset(0.5, 0.5), duration: 200.ms)
-                                .then()
-                                .shake(duration: 100.ms);
-                          }).toList(),
-                        ),
-                  if (_selectedCubes.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Итого:',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          Text(
-                            '${_totalPrice.toStringAsFixed(0)}₽',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                        .animate()
-                        .fadeIn()
-                        .scale(begin: const Offset(0.9, 0.9)),
-                  ],
-                ],
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.borderGlow, width: 1),
+                  color: AppColors.cardBackground,
+                ),
+                child: Text(
+                  '${widget.product.price.toStringAsFixed(0)}₽',
+                  style: AppTextStyles.price(),
+                ),
               ),
-            ),
-            // Padding снизу чтобы контент не перекрывался модификаторами
-            SizedBox(height: bottomPadding),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
 
-  Widget _buildBottomSection(double height) {
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(30),
-          topRight: Radius.circular(30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Column(
+  /// Compact row: image on left, description toggle on right
+  Widget _buildProductInfoRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Все модификаторы в одном скроллируемом списке
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(top: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Показываем все группы модификаторов подряд
-                  for (var screen in _screens)
-                    if (!screen.isFinal)
-                      _buildModifierSection(screen),
-                  // Отступ снизу перед кнопками
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
-          ),
-          
-          // Button - фиксированы внизу
+          // Product image — compact square
           Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            width: 100,
+            height: 100,
             decoration: BoxDecoration(
-              color: Colors.white,
+              border: Border.all(color: AppColors.borderPrimary, width: 1),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
+                  color: AppColors.accent.withValues(alpha: 0.15),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: _buildActionButton(),
+            child: ClipRRect(
+              borderRadius: BorderRadius.zero,
+              child: widget.product.imageUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: widget.product.imageUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(
+                        color: AppColors.cardBackground,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.accent,
+                            strokeWidth: 1.5,
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => Container(
+                        color: AppColors.cardBackground,
+                        child: const Icon(Icons.coffee, size: 40, color: AppColors.accentDarker),
+                      ),
+                    )
+                  : Container(
+                      color: AppColors.cardBackground,
+                      child: const Icon(Icons.coffee, size: 40, color: AppColors.accentDarker),
+                    ),
+            ),
+          )
+              .animate()
+              .fadeIn(duration: 300.ms)
+              .scale(begin: const Offset(0.9, 0.9)),
+
+          const SizedBox(width: 16),
+
+          // Description toggle + text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.product.description.isNotEmpty) ...[
+                  InkWell(
+                    onTap: () {
+                      setState(() {
+                        _isDescriptionExpanded = !_isDescriptionExpanded;
+                      });
+                      HapticFeedback.selectionClick();
+                    },
+                    borderRadius: BorderRadius.zero,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            '> INFO',
+                            style: AppTextStyles.bodyTiny(AppColors.textSecondary),
+                          ),
+                          const SizedBox(width: 6),
+                          Icon(
+                            _isDescriptionExpanded
+                                ? Icons.keyboard_arrow_up
+                                : Icons.keyboard_arrow_down,
+                            color: AppColors.textSecondary,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_isDescriptionExpanded) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.product.description,
+                      style: AppTextStyles.bodyTiny(AppColors.textSecondary).copyWith(height: 1.5),
+                      maxLines: 5,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ] else
+                  Text(
+                    widget.product.name,
+                    style: AppTextStyles.bodySmall(AppColors.textSecondary),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  /// Sticky HUD tray: shows selected modifier cubes + total price
+  Widget _buildSelectedModifiersTray(double safeAreaBottom) {
+    final cubes = _selectedCubes;
+    final hasCubes = cubes.isNotEmpty;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        border: Border(
+          top: BorderSide(
+            color: hasCubes ? AppColors.borderGlow : AppColors.borderPrimary,
+            width: hasCubes ? 2 : 1,
+          ),
+        ),
+        boxShadow: hasCubes
+            ? [
+                BoxShadow(
+                  color: AppColors.accent.withValues(alpha: 0.15),
+                  blurRadius: 20,
+                  offset: const Offset(0, -8),
+                ),
+              ]
+            : null,
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: safeAreaBottom),
+        child: hasCubes
+            ? _buildFilledTray(cubes)
+            : _buildEmptyTray(),
+      ),
+    );
+  }
+
+  /// Empty tray: blinking terminal prompt
+  Widget _buildEmptyTray() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Text(
+            '> ',
+            style: AppTextStyles.bodySmall(AppColors.textTertiary),
+          ),
+          Text(
+            'ВЫБЕРИТЕ ОПЦИИ',
+            style: AppTextStyles.bodySmall(AppColors.textTertiary),
+          ),
+          // Blinking cursor
+          Text(
+            ' _',
+            style: AppTextStyles.bodySmall(AppColors.textTertiary),
+          )
+              .animate(onPlay: (c) => c.repeat())
+              .fadeIn(duration: 500.ms)
+              .then()
+              .fadeOut(duration: 500.ms),
+        ],
+      ),
+    );
+  }
+
+  /// Filled tray: horizontal cubes + total
+  Widget _buildFilledTray(List<SelectedCube> cubes) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Selected cubes — horizontal scroll
+        SizedBox(
+          height: 68,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            itemCount: cubes.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final cube = cubes[index];
+              return Container(
+                width: 54,
+                height: 54,
+                decoration: BoxDecoration(
+                  color: AppColors.accentDarker.withValues(alpha: 0.5),
+                  border: Border.all(color: AppColors.borderGlow, width: 1),
+                  boxShadow: AppColors.neonGlow,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (cube.emoji != null)
+                      Text(cube.emoji!, style: const TextStyle(fontSize: 16)),
+                    Text(
+                      cube.label.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyTiny(AppColors.accent).copyWith(fontSize: 8),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (cube.price > 0)
+                      Text(
+                        '+${cube.price.toStringAsFixed(0)}₽',
+                        style: AppTextStyles.bodyTiny(AppColors.textSecondary).copyWith(fontSize: 7),
+                      ),
+                  ],
+                ),
+              )
+                  .animate()
+                  .fadeIn(duration: 200.ms)
+                  .scale(begin: const Offset(0.5, 0.5), duration: 200.ms);
+            },
+          ),
+        ),
+
+        // Total price bar
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+          child: Row(
+            children: [
+              Text(
+                '> ИТОГО:',
+                style: AppTextStyles.bodySmall(AppColors.textSecondary),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_totalPrice.toStringAsFixed(0)}₽',
+                style: AppTextStyles.price(),
+              ),
+              const Spacer(),
+              Text(
+                '${cubes.length} МОД.',
+                style: AppTextStyles.bodyTiny(AppColors.textTertiary),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildModifierSection(ModifierScreenData screen) {
     final group = screen.group!;
-    // Проверяем тип без учета регистра
-    final isMultiple = group.type.toLowerCase() == 'multiple';
     final currentSelection = _selectedModifiers[screen.key];
+
+    // Собираем выбранные индексы (всегда как список)
+    List<int> selectedIndices;
+    if (currentSelection is List<int>) {
+      selectedIndices = currentSelection;
+    } else if (currentSelection is List) {
+      selectedIndices = currentSelection.whereType<int>().toList();
+    } else if (currentSelection is int) {
+      selectedIndices = <int>[currentSelection];
+    } else {
+      selectedIndices = <int>[];
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -723,11 +649,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
               screen.title,
-              style: GoogleFonts.montserrat(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+              style: AppTextStyles.h2(),
             ),
           ),
           // GridView со скроллом - все модификаторы видны, можно скроллить
@@ -743,34 +665,7 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
             itemCount: group.options.length,
             itemBuilder: (context, index) {
               final option = group.options[index];
-              bool isSelected = false;
-              
-              // Безопасная проверка типа с явным приведением
-              final selection = currentSelection;
-              
-              if (isMultiple) {
-                // Для multiple типа ожидаем List<int>
-                if (selection != null) {
-                  if (selection is List<int>) {
-                    isSelected = selection.contains(index);
-                  } else {
-                    // Если по ошибке сохранено как int, игнорируем
-                    isSelected = false;
-                  }
-                }
-              } else {
-                // Для single типа ожидаем int
-                if (selection != null) {
-                  if (selection is int) {
-                    isSelected = selection == index;
-                  } else if (selection is List<int> && selection.length == 1) {
-                    // Fallback для старой версии
-                    isSelected = selection[0] == index;
-                  } else {
-                    isSelected = false;
-                  }
-                }
-              }
+              final isSelected = selectedIndices.contains(index);
 
               return ModifierCube(
                 label: option.label,
@@ -792,60 +687,6 @@ class _ProductModifiersScreenState extends State<ProductModifiersScreen> {
     );
   }
 
-  Widget _buildActionButton() {
-    // Теперь все модификаторы в одном окне, проверяем все обязательные
-    final hasRequiredUnselected = _screens.any((screen) {
-      if (screen.isFinal || screen.isOptional) return false;
-      final value = _selectedModifiers[screen.key];
-      if (value == null) return true;
-      final isSingle = screen.group!.type.toLowerCase() == 'single';
-      if (isSingle) {
-        return value is! int && !(value is List<int> && value.isNotEmpty);
-      } else {
-                    return value is! List<int> || value.isEmpty;
-      }
-    });
-    
-    final canProceed = !hasRequiredUnselected;
-
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: canProceed ? AppColors.gradient1 : null,
-        color: canProceed ? null : Colors.grey[300],
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: canProceed
-            ? [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.4),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ]
-            : null,
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: canProceed ? _addToCart : null,
-          borderRadius: BorderRadius.circular(16),
-          child: Center(
-            child: Text(
-              'Добавить в корзину',
-              style: GoogleFonts.montserrat(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: canProceed ? Colors.white : Colors.grey[600],
-              ),
-            ),
-          ),
-        ),
-      ),
-    )
-        .animate(target: canProceed ? 1 : 0)
-        .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.02, 1.02));
-  }
 }
 
 class ModifierScreenData {

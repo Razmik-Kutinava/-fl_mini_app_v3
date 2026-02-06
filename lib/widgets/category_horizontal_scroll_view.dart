@@ -1,11 +1,35 @@
 import 'package:flutter/material.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import '../models/product.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import '../providers/menu_provider.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import '../utils/responsive.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import 'product_card.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 import 'promo_section.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 
 /// Горизонтальный скролл категорий с товарами
 /// Все категории видны в одной горизонтальной полосе
@@ -266,11 +290,7 @@ class _CategoryHorizontalScrollViewState extends State<CategoryHorizontalScrollV
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Text(
                   category.name,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                  style: AppTextStyles.h2(AppColors.textPrimary),
                 ),
               ),
               // Промо секция с двумя товарами
@@ -307,10 +327,7 @@ class _CategoryHorizontalScrollViewState extends State<CategoryHorizontalScrollV
           padding: EdgeInsets.all(padding),
           child: Text(
             'Нет товаров в этой категории',
-            style: GoogleFonts.montserrat(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            style: AppTextStyles.body(AppColors.textSecondary),
           ),
         ),
       );
@@ -339,11 +356,7 @@ class _CategoryHorizontalScrollViewState extends State<CategoryHorizontalScrollV
               padding: EdgeInsets.symmetric(horizontal: padding, vertical: 12),
               child: Text(
                 category.name,
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: AppTextStyles.h2(AppColors.textPrimary),
               ),
             ),
             // Два товара в Row

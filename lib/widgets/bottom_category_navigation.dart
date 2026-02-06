@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import '../constants/app_text_styles.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_text_styles.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/category.dart' as models;
+import '../constants/app_text_styles.dart';
 
 class BottomCategoryNavigation extends StatelessWidget {
   final List<models.Category> categories;
@@ -88,7 +92,7 @@ class _CategoryTab extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: isSelected ? AppColors.gradient1 : null,
           color: isSelected ? null : Colors.transparent,
-          borderRadius: BorderRadius.circular(25),
+          borderRadius: BorderRadius.zero,
           border: isSelected
               ? null
               : Border.all(
@@ -115,13 +119,7 @@ class _CategoryTab extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: GoogleFonts.montserrat(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: isSelected
-                    ? Colors.white
-                    : AppColors.bottomNavInactive,
-              ),
+              style: AppTextStyles.bodySmall(),
             ),
           ],
         ),

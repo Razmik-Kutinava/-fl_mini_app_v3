@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/product.dart';
 import '../models/cart_item.dart';
 import '../providers/cart_provider.dart';
@@ -115,7 +115,7 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
             height: 4,
             decoration: BoxDecoration(
               color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.zero,
             ),
           ),
           // Header
@@ -126,10 +126,7 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
                 Expanded(
                   child: Text(
                     widget.product.name,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTextStyles.h1(),
                   ),
                 ),
                 IconButton(
@@ -148,7 +145,7 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
                 children: [
                   // Image
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.zero,
                     child: widget.product.imageUrl.isEmpty
                         ? Container(
                             height: 200,
@@ -181,10 +178,7 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
                   // Description
                   Text(
                     widget.product.description,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: AppTextStyles.bodySmall(),
                   ),
                   const SizedBox(height: 24),
                   // Size selector
@@ -237,38 +231,40 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
                 child: ElevatedButton(
                   onPressed: _addToCart,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    backgroundColor: AppColors.accentDarker,
+                    foregroundColor: AppColors.accent,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.zero,
+                      side: BorderSide(
+                        color: AppColors.borderGlow,
+                        width: 1,
+                      ),
                     ),
                     elevation: 0,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.shopping_cart, size: 20),
+                      const Icon(Icons.shopping_cart, size: 20, color: AppColors.accent),
                       const SizedBox(width: 12),
                       Text(
                         'Добавить в корзину',
-                        style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
+                        style: AppTextStyles.button(),
                       ),
                       const SizedBox(width: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
+                          color: AppColors.accent.withOpacity(0.2),
+                          borderRadius: BorderRadius.zero,
+                          border: Border.all(
+                            color: AppColors.borderGlow,
+                            width: 1,
+                          ),
                         ),
                         child: Text(
                           '${totalPrice.toStringAsFixed(0)} ₽',
-                          style: GoogleFonts.montserrat(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
+                          style: AppTextStyles.button(),
                         ),
                       ),
                     ],
@@ -308,17 +304,13 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
       children: [
         Text(
           title,
-          style: GoogleFonts.montserrat(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.textPrimary,
-          ),
+          style: AppTextStyles.h3(),
         ),
         if (required) ...[
           const SizedBox(width: 4),
           Text(
             '*',
-            style: TextStyle(color: AppColors.accent, fontSize: 16),
+            style: AppTextStyles.h3(AppColors.accent),
           ),
         ],
       ],
@@ -339,7 +331,7 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.grey[100],
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
                 border: Border.all(
                   color: isSelected ? AppColors.primary : Colors.transparent,
                   width: 2,
@@ -349,30 +341,19 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
                 children: [
                   Text(
                     size.label,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: isSelected ? AppColors.primary : AppColors.textPrimary,
-                    ),
+                    style: AppTextStyles.h2(isSelected ? AppColors.accent : AppColors.textPrimary),
                   ),
                   if (size.volume != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       size.volume!,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: AppColors.textSecondary,
-                      ),
+                      style: AppTextStyles.bodyTiny(),
                     ),
                   ],
                   const SizedBox(height: 4),
                   Text(
                     size.price > 0 ? '+${size.price.toStringAsFixed(0)} ₽' : 'Бесплатно',
-                    style: GoogleFonts.montserrat(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? AppColors.primary : AppColors.textSecondary,
-                    ),
+                    style: AppTextStyles.bodySmall(isSelected ? AppColors.accent : AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -395,11 +376,11 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
+              color: isSelected ? AppColors.accent.withOpacity(0.1) : AppColors.cardBackground,
+              borderRadius: BorderRadius.zero,
               border: Border.all(
-                color: isSelected ? AppColors.primary : Colors.transparent,
-                width: 2,
+                color: isSelected ? AppColors.borderGlow : AppColors.borderPrimary,
+                width: 1,
               ),
             ),
             child: Row(
@@ -409,33 +390,26 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
                   height: 24,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isSelected ? AppColors.primary : Colors.white,
+                    color: isSelected ? AppColors.accent : AppColors.cardBackground,
                     border: Border.all(
-                      color: isSelected ? AppColors.primary : Colors.grey[400]!,
-                      width: 2,
+                      color: isSelected ? AppColors.borderGlow : AppColors.borderPrimary,
+                      width: 1,
                     ),
                   ),
                   child: isSelected
-                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      ? const Icon(Icons.check, size: 16, color: AppColors.background)
                       : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     milk.label,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                    style: isSelected ? AppTextStyles.body() : AppTextStyles.bodySmall(),
                   ),
                 ),
                 Text(
                   milk.price > 0 ? '+${milk.price.toStringAsFixed(0)} ₽' : '',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                  style: AppTextStyles.price(),
                 ),
               ],
             ),
@@ -465,11 +439,11 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
             margin: const EdgeInsets.only(bottom: 8),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isSelected ? AppColors.primary.withOpacity(0.1) : Colors.grey[100],
-              borderRadius: BorderRadius.circular(12),
+              color: isSelected ? AppColors.accent.withOpacity(0.1) : AppColors.cardBackground,
+              borderRadius: BorderRadius.zero,
               border: Border.all(
-                color: isSelected ? AppColors.primary : Colors.transparent,
-                width: 2,
+                color: isSelected ? AppColors.borderGlow : AppColors.borderPrimary,
+                width: 1,
               ),
             ),
             child: Row(
@@ -478,34 +452,27 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
-                    color: isSelected ? AppColors.primary : Colors.white,
+                    borderRadius: BorderRadius.zero,
+                    color: isSelected ? AppColors.accent : AppColors.cardBackground,
                     border: Border.all(
-                      color: isSelected ? AppColors.primary : Colors.grey[400]!,
-                      width: 2,
+                      color: isSelected ? AppColors.borderGlow : AppColors.borderPrimary,
+                      width: 1,
                     ),
                   ),
                   child: isSelected
-                      ? const Icon(Icons.check, size: 16, color: Colors.white)
+                      ? const Icon(Icons.check, size: 16, color: AppColors.background)
                       : null,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     extra.label,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                    ),
+                    style: isSelected ? AppTextStyles.body() : AppTextStyles.bodySmall(),
                   ),
                 ),
                 Text(
                   '+${extra.price.toStringAsFixed(0)} ₽',
-                  style: GoogleFonts.montserrat(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.primary,
-                  ),
+                  style: AppTextStyles.price(),
                 ),
               ],
             ),
@@ -519,8 +486,12 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.zero,
+        border: Border.all(
+          color: AppColors.borderPrimary,
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -528,7 +499,7 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
           IconButton(
             onPressed: quantity > 1 ? () => setState(() => quantity--) : null,
             icon: const Icon(Icons.remove_circle),
-            color: quantity > 1 ? AppColors.primary : Colors.grey,
+            color: quantity > 1 ? AppColors.accent : AppColors.textTertiary,
             iconSize: 32,
           ),
           Container(
@@ -536,16 +507,13 @@ class _ProductDetailSheetState extends State<ProductDetailSheet> {
             alignment: Alignment.center,
             child: Text(
               '$quantity',
-              style: GoogleFonts.montserrat(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTextStyles.h2(),
             ),
           ),
           IconButton(
             onPressed: () => setState(() => quantity++),
             icon: const Icon(Icons.add_circle),
-            color: AppColors.primary,
+            color: AppColors.accent,
             iconSize: 32,
           ),
         ],

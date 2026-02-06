@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/location.dart';
 import '../utils/responsive.dart';
+import 'terminal_effects.dart';
 
 class LocationAppBar extends StatelessWidget {
   final Location? location;
@@ -34,13 +35,6 @@ class LocationAppBar extends StatelessWidget {
       desktop: 26.0,
     );
     
-    final fontSize = Responsive.responsiveSize(
-      context,
-      mobile: 16.0,
-      tablet: 18.0,
-      desktop: 20.0,
-    );
-    
     final padding = Responsive.responsiveSize(
       context,
       mobile: 16.0,
@@ -54,92 +48,83 @@ class LocationAppBar extends StatelessWidget {
           horizontal: padding,
           vertical: Responsive.responsiveSize(context, mobile: 12.0, tablet: 14.0, desktop: 16.0),
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.6),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
-                  width: 1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  // Иконка локации (синяя круглая)
-                  GestureDetector(
-                    onTap: onLocationTap,
+        child: TerminalBorder(
+          borderColor: AppColors.borderGlow,
+          borderWidth: 1,
+          padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.statusPanel,
+            ),
+            child: Row(
+              children: [
+                // Иконка локации (терминальный стиль)
+                GestureDetector(
+                  onTap: onLocationTap,
+                  child: NeonGlow(
                     child: Container(
                       width: iconSize,
                       height: iconSize,
                       decoration: BoxDecoration(
-                        color: AppColors.bottomNavActive, // Синий цвет
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.bottomNavActive.withOpacity(0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                        color: AppColors.accentDarker,
+                        border: Border.all(
+                          color: AppColors.borderGlow,
+                          width: 1,
+                        ),
+                        boxShadow: AppColors.neonGlow,
                       ),
                       child: Icon(
                         Icons.location_on,
-                        color: Colors.white,
+                        color: AppColors.accent,
                         size: iconInnerSize,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // Название локации и статус (кликабельно)
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: onLocationTap,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            location?.name ?? 'Кофейня',
-                            style: GoogleFonts.montserrat(
-                              fontWeight: FontWeight.bold,
-                              fontSize: fontSize,
-                              color: AppColors.textPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
-                          ),
-                          const SizedBox(height: 4),
-                          // Статус бейдж
-                          _buildStatusBadge(),
-                        ],
-                      ),
+                ),
+                const SizedBox(width: 12),
+                // Название локации и статус (кликабельно)
+                Expanded(
+                  child: GestureDetector(
+                    onTap: onLocationTap,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          location?.name.toUpperCase() ?? 'КОФЕЙНЯ',
+                          style: AppTextStyles.h3(),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                        const SizedBox(height: 4),
+                        // Статус бейдж
+                        _buildStatusBadge(),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  // Иконка профиля
-                  GestureDetector(
-                    onTap: onProfileTap,
-                    child: Container(
-                      width: iconSize,
-                      height: iconSize,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.person_outline,
-                        color: AppColors.textPrimary,
-                        size: iconInnerSize,
+                ),
+                const SizedBox(width: 8),
+                // Иконка профиля
+                GestureDetector(
+                  onTap: onProfileTap,
+                  child: Container(
+                    width: iconSize,
+                    height: iconSize,
+                    decoration: BoxDecoration(
+                      color: AppColors.accentDarker,
+                      border: Border.all(
+                        color: AppColors.borderSecondary,
+                        width: 1,
                       ),
                     ),
+                    child: Icon(
+                      Icons.person_outline,
+                      color: AppColors.textSecondary,
+                      size: iconInnerSize,
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -173,19 +158,18 @@ class LocationAppBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: isOpen
-            ? AppColors.locationStatusOpen.withOpacity(0.1)
-            : AppColors.locationStatusClosed.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
+        color: AppColors.cardBackground,
+        border: Border.all(
+          color: isOpen ? AppColors.borderGlow : AppColors.borderSecondary,
+          width: 1,
+        ),
       ),
-      child: Text(
-        statusText,
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: isOpen
-              ? AppColors.locationStatusOpen
-              : AppColors.locationStatusClosed,
+      child: BlinkEffect(
+        child: Text(
+          statusText.toUpperCase(),
+          style: AppTextStyles.bodyTiny(
+            isOpen ? AppColors.accent : AppColors.textTertiary,
+          ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/product.dart';
 import '../providers/menu_provider.dart';
 import '../utils/responsive.dart';
@@ -216,14 +217,16 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
     
     return Container(
         decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.4),
+          color: AppColors.background.withOpacity(0.4),
         ),
         child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(30),
-              topRight: Radius.circular(30),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.zero,
+            border: Border(
+              top: BorderSide(color: AppColors.primary, width: 2),
+              left: BorderSide(color: AppColors.primary, width: 2),
+              right: BorderSide(color: AppColors.primary, width: 2),
             ),
           ),
           child: page.isPromo
@@ -284,11 +287,8 @@ class _CategoryCarouselState extends State<CategoryCarousel> {
         child: Padding(
           padding: EdgeInsets.all(padding),
           child: Text(
-            'Нет товаров в этой категории',
-            style: GoogleFonts.montserrat(
-              fontSize: 16,
-              color: Colors.grey[600],
-            ),
+            'НЕТ ТОВАРОВ В ЭТОЙ КАТЕГОРИИ',
+            style: AppTextStyles.body().copyWith(color: AppColors.textSecondary),
           ),
         ),
       );

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:glassmorphism/glassmorphism.dart';
 import 'package:geolocator/geolocator.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/location.dart';
 import '../providers/location_provider.dart';
 import '../services/api_service.dart';
@@ -301,8 +300,8 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: isSelected ? AppColors.accent : AppColors.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
+                          borderRadius: BorderRadius.zero,
+                          border: Border.all(color: AppColors.borderPrimary, width: 2),
                           boxShadow: [
                             BoxShadow(
                               color: (isSelected ? AppColors.accent : AppColors.primary)
@@ -315,7 +314,7 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
                         child: Center(
                           child: Icon(
                             Icons.coffee,
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                             size: isSelected ? 28 : 24,
                           ),
                         ),
@@ -338,12 +337,12 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: AppColors.success,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3),
+                          borderRadius: BorderRadius.zero,
+                          border: Border.all(color: AppColors.borderPrimary, width: 2),
                         ),
                         child: const Icon(
                           Icons.my_location,
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           size: 20,
                         ),
                       ),
@@ -376,85 +375,52 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16),
-              child: GlassmorphicContainer(
+              child: Container(
                 width: double.infinity,
                 height: 60,
-                borderRadius: 20,
-                blur: 20,
-                alignment: Alignment.center,
-                border: 2,
-                linearGradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withOpacity(0.3),
-                    Colors.white.withOpacity(0.1),
-                  ],
-                ),
-                borderGradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withOpacity(0.5),
-                    Colors.white.withOpacity(0.2),
-                  ],
+                decoration: BoxDecoration(
+                  color: AppColors.cardBackground,
+                  borderRadius: BorderRadius.zero,
+                  border: Border.all(color: AppColors.borderPrimary, width: 1),
                 ),
                 child: Row(
                   children: [
                     IconButton(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                      icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary),
                     ),
                     Expanded(
                       child: Text(
-                        'Выбор кофейни',
+                        'ВЫБОР КОФЕЙНИ',
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.white,
-                        ),
+                        style: AppTextStyles.h3().copyWith(color: AppColors.textPrimary),
                       ),
                     ),
                     const SizedBox(width: 48),
                   ],
                 ),
-              ),
-            ).animate().fadeIn().slideY(begin: -0.3),
+              ).animate().fadeIn().slideY(begin: -0.3),
+            ),
           ),
           // Search bar
           Positioned(
             top: 100,
             left: 16,
             right: 16,
-            child: GlassmorphicContainer(
+            child: Container(
               width: double.infinity,
               height: 56,
-              borderRadius: 16,
-              blur: 20,
-              alignment: Alignment.center,
-              border: 2,
-              linearGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withOpacity(0.9),
-                  Colors.white.withOpacity(0.7),
-                ],
-              ),
-              borderGradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withOpacity(0.8),
-                  Colors.white.withOpacity(0.5),
-                ],
+              decoration: BoxDecoration(
+                color: AppColors.cardBackground,
+                borderRadius: BorderRadius.zero,
+                border: Border.all(color: AppColors.borderPrimary, width: 1),
               ),
               child: TextField(
+                style: AppTextStyles.body(),
                 decoration: InputDecoration(
-                  hintText: 'Поиск по адресу',
-                  hintStyle: GoogleFonts.inter(color: AppColors.textSecondary),
-                  prefixIcon: const Icon(Icons.search, color: AppColors.primary),
+                  hintText: 'ПОИСК ПО АДРЕСУ',
+                  hintStyle: AppTextStyles.bodySmall().copyWith(color: AppColors.textSecondary),
+                  prefixIcon: const Icon(Icons.search, color: AppColors.accent),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(16),
                 ),
@@ -488,7 +454,7 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
                       height: 4,
                       decoration: BoxDecoration(
                         color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
+                        borderRadius: BorderRadius.zero,
                       ),
                     ),
                     // Header
@@ -498,26 +464,18 @@ class _LocationSelectScreenState extends State<LocationSelectScreen> {
                         children: [
                           Text(
                             'Кофейни рядом',
-                            style: GoogleFonts.montserrat(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: AppColors.textPrimary,
-                            ),
+                            style: AppTextStyles.h2(),
                           ),
                           const Spacer(),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
                               gradient: AppColors.gradient1,
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: Text(
                               '${locations.length}',
-                              style: GoogleFonts.montserrat(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
+                              style: AppTextStyles.bodySmall(AppColors.accent),
                             ),
                           ),
                         ],

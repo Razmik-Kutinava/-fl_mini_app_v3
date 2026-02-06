@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'promo_card.dart';
 import '../models/product.dart';
 import 'product_card.dart';
+import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 
 class PromoSection extends StatelessWidget {
   final List<PromoItem> promotions;
@@ -28,12 +29,8 @@ class PromoSection extends StatelessWidget {
         children: [
           // Заголовок "акции"
           Text(
-            'акции',
-            style: GoogleFonts.montserrat(
-              fontWeight: FontWeight.bold,
-              fontSize: 24,
-              color: Colors.black87,
-            ),
+            'АКЦИИ', // UPPERCASE для терминального стиля
+            style: AppTextStyles.h1(),
           ),
           const SizedBox(height: 16),
           
@@ -63,7 +60,7 @@ class PromoSection extends StatelessWidget {
             const SizedBox(height: 24),
             Container(
               height: 1,
-              color: Colors.grey[300],
+              color: AppColors.borderSecondary,
               margin: const EdgeInsets.symmetric(vertical: 8),
             ),
             const SizedBox(height: 16),

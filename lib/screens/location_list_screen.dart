@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/location.dart';
 import '../providers/location_provider.dart';
 import 'location_map_screen.dart';
@@ -33,25 +33,26 @@ class _LocationListScreenState extends State<LocationListScreen> {
 
   Future<void> _loadLocations() async {
     final locationProvider = context.read<LocationProvider>();
-    
+
     print('📋 Загрузка списка кофеен...');
-    
+
     // Загружаем последние посещенные кофейни с датами
-    final recentWithDates = await locationProvider.getRecentLocationsWithDates();
+    final recentWithDates = await locationProvider
+        .getRecentLocationsWithDates();
     print('📋 Найдено последних кофеен: ${recentWithDates.length}');
-    
+
     // Загружаем все доступные кофейни
     final allLocations = locationProvider.locations;
     print('📋 Всего доступно кофеен: ${allLocations.length}');
-    
+
     // Фильтруем: оставляем все кофейни, которых нет в списке последних
     final recentIds = recentWithDates.keys.map((loc) => loc.id).toSet();
     final otherLocations = allLocations
         .where((loc) => !recentIds.contains(loc.id))
         .toList();
-    
+
     print('📋 Кофеен в секции "Все кофейни": ${otherLocations.length}');
-    
+
     setState(() {
       _recentLocationsWithDates = recentWithDates;
       _allLocations = otherLocations;
@@ -66,16 +67,14 @@ class _LocationListScreenState extends State<LocationListScreen> {
   void _openLocationMap(Location location) {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) => LocationMapScreen(location: location),
-      ),
+      MaterialPageRoute(builder: (_) => LocationMapScreen(location: location)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A1A),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -93,11 +92,7 @@ class _LocationListScreenState extends State<LocationListScreen> {
         ),
         title: Text(
           'Последние кофейни',
-          style: GoogleFonts.montserrat(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppTextStyles.h2(AppColors.accent),
         ),
       ),
       body: _isLoading
@@ -111,27 +106,28 @@ class _LocationListScreenState extends State<LocationListScreen> {
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: Text(
                         'Последние кофейни',
-                        style: GoogleFonts.montserrat(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: AppTextStyles.h2(AppColors.accent),
                       ),
                     ),
                   ),
                   SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final entry = _recentLocationsWithDates.entries.elementAt(index);
-                        final location = entry.key;
-                        final visitDate = entry.value;
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          child: _buildLocationItem(location, visitDate: visitDate),
-                        );
-                      },
-                      childCount: _recentLocationsWithDates.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final entry = _recentLocationsWithDates.entries.elementAt(
+                        index,
+                      );
+                      final location = entry.key;
+                      final visitDate = entry.value;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        child: _buildLocationItem(
+                          location,
+                          visitDate: visitDate,
+                        ),
+                      );
+                    }, childCount: _recentLocationsWithDates.length),
                   ),
                   // Разделитель между секциями
                   SliverToBoxAdapter(
@@ -145,14 +141,15 @@ class _LocationListScreenState extends State<LocationListScreen> {
                 // Секция всех работающих кофеен
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(16, _recentLocationsWithDates.isEmpty ? 16 : 0, 16, 8),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      _recentLocationsWithDates.isEmpty ? 16 : 0,
+                      16,
+                      8,
+                    ),
                     child: Text(
                       'Все кофейни',
-                      style: GoogleFonts.montserrat(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      style: AppTextStyles.h2(AppColors.accent),
                     ),
                   ),
                 ),
@@ -163,26 +160,23 @@ class _LocationListScreenState extends State<LocationListScreen> {
                       child: Center(
                         child: Text(
                           'Нет доступных кофеен',
-                          style: GoogleFonts.montserrat(
-                            color: Colors.white70,
-                            fontSize: 16,
-                          ),
+                          style: AppTextStyles.body(AppColors.accent),
                         ),
                       ),
                     ),
                   )
                 else
                   SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final location = _allLocations[index];
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          child: _buildLocationItem(location),
-                        );
-                      },
-                      childCount: _allLocations.length,
-                    ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final location = _allLocations[index];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 6,
+                        ),
+                        child: _buildLocationItem(location),
+                      );
+                    }, childCount: _allLocations.length),
                   ),
               ],
             ),
@@ -195,7 +189,7 @@ class _LocationListScreenState extends State<LocationListScreen> {
     if (visitDate != null) {
       final now = DateTime.now();
       final difference = now.difference(visitDate);
-      
+
       if (difference.inDays == 0) {
         if (difference.inHours == 0) {
           visitDateText = '${difference.inMinutes} мин назад';
@@ -214,16 +208,13 @@ class _LocationListScreenState extends State<LocationListScreen> {
         visitDateText = '$months мес назад';
       }
     }
-    
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.black.withOpacity(0.4),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
+        borderRadius: BorderRadius.zero,
+        border: Border.all(color: Colors.white.withOpacity(0.1), width: 1),
       ),
       child: Row(
         children: [
@@ -231,21 +222,11 @@ class _LocationListScreenState extends State<LocationListScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  location.name,
-                  style: GoogleFonts.montserrat(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                Text(location.name, style: AppTextStyles.h3(AppColors.accent)),
                 const SizedBox(height: 4),
                 Text(
                   location.address,
-                  style: GoogleFonts.montserrat(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
+                  style: AppTextStyles.bodySmall(AppColors.accent),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -253,32 +234,19 @@ class _LocationListScreenState extends State<LocationListScreen> {
                 Row(
                   children: [
                     Text(
-                      location.isOpen
-                          ? 'открыто'
-                          : 'откроемся завтра в 08:00',
-                      style: GoogleFonts.montserrat(
-                        color: location.isOpen
-                            ? AppColors.locationStatusOpen
-                            : AppColors.locationStatusClosed,
-                        fontSize: 12,
-                      ),
+                      location.isOpen ? 'открыто' : 'откроемся завтра в 08:00',
+                      style: AppTextStyles.bodyTiny(),
                     ),
                     if (visitDateText != null) ...[
                       const SizedBox(width: 8),
                       Text(
                         '•',
-                        style: GoogleFonts.montserrat(
-                          color: Colors.white.withOpacity(0.5),
-                          fontSize: 12,
-                        ),
+                        style: AppTextStyles.bodyTiny(AppColors.accent),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         visitDateText,
-                        style: GoogleFonts.montserrat(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 12,
-                        ),
+                        style: AppTextStyles.bodyTiny(AppColors.accent),
                       ),
                     ],
                   ],
@@ -305,4 +273,3 @@ class _LocationListScreenState extends State<LocationListScreen> {
     );
   }
 }
-

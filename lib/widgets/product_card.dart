@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:glassmorphism/glassmorphism.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../models/product.dart';
 import '../screens/product_modifiers_screen.dart';
+import 'terminal_effects.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -28,30 +28,31 @@ class ProductCard extends StatelessWidget {
         );
       },
       behavior: HitTestBehavior.translucent,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-              spreadRadius: 0,
+      child: NeonGlow(
+        child: Container(
+          decoration: BoxDecoration(
+            // Прямые углы (без borderRadius)
+            color: AppColors.cardBackground,
+            border: Border.all(
+              color: AppColors.borderSecondary,
+              width: 1,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(24),
+            boxShadow: AppColors.neonGlow,
+          ),
           child: Stack(
             children: [
               // Image
               product.imageUrl.isEmpty
                   ? Container(
                       decoration: BoxDecoration(
-                        gradient: AppColors.gradientCoffee,
+                        color: AppColors.accentDarker,
                       ),
-                      child: const Center(
-                        child: Icon(Icons.coffee, size: 50, color: Colors.white70),
+                      child: Center(
+                        child: Icon(
+                          Icons.coffee,
+                          size: 50,
+                          color: AppColors.accent.withOpacity(0.5),
+                        ),
                       ),
                     )
                   : CachedNetworkImage(
@@ -60,125 +61,106 @@ class ProductCard extends StatelessWidget {
                       height: double.infinity,
                       fit: BoxFit.cover,
                       placeholder: (_, __) => Shimmer.fromColors(
-                        baseColor: Colors.grey[300]!,
-                        highlightColor: Colors.grey[100]!,
+                        baseColor: AppColors.accentDarker,
+                        highlightColor: AppColors.accentMedium,
                         child: Container(
-                          color: Colors.white,
-                          child: const Center(
-                            child: CircularProgressIndicator(),
+                          color: AppColors.background,
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: AppColors.accent,
+                            ),
                           ),
                         ),
                       ),
                       errorWidget: (_, __, ___) => Container(
                         decoration: BoxDecoration(
-                          gradient: AppColors.gradientCoffee,
+                          color: AppColors.accentDarker,
                         ),
-                        child: const Center(
-                          child: Icon(Icons.coffee, size: 50, color: Colors.white70),
+                        child: Center(
+                          child: Icon(
+                            Icons.coffee,
+                            size: 50,
+                            color: AppColors.accent.withOpacity(0.5),
+                          ),
                         ),
                       ),
                     ),
-              // Gradient overlay
+              // Терминальный overlay
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
                 child: Container(
-                  height: 100,
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.7),
-                      ],
+                    color: AppColors.cardBackground.withOpacity(0.95),
+                    border: Border(
+                      top: BorderSide(
+                        color: AppColors.borderGlow,
+                        width: 1,
+                      ),
                     ),
                   ),
-                ),
-              ),
-              // Content
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: GlassmorphicContainer(
-                  width: double.infinity,
-                  height: 100,
-                  borderRadius: 0,
-                  blur: 20,
-                  alignment: Alignment.center,
-                  border: 0,
-                  linearGradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.3),
-                      Colors.black.withOpacity(0.6),
-                    ],
-                  ),
-                  borderGradient: const LinearGradient(
-                    colors: [Colors.transparent, Colors.transparent],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Text(
-                          product.name,
-                          style: GoogleFonts.montserrat(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.white,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Код продукта
+                      Text(
+                        '[CODE: ${product.id.substring(0, 3).toUpperCase()}]',
+                        style: AppTextStyles.bodyTiny(AppColors.textTertiary),
+                      ),
+                      const SizedBox(height: 4),
+                      // Название (UPPERCASE)
+                      Text(
+                        product.name.toUpperCase(),
+                        style: AppTextStyles.h3(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Цена
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.accentDarker,
+                              border: Border.all(
+                                color: AppColors.borderAccent,
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              '${product.price.toStringAsFixed(0)} ₽',
+                              style: AppTextStyles.price(),
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                gradient: AppColors.gradient2,
-                                borderRadius: BorderRadius.circular(12),
+                          // Кнопка добавления
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: AppColors.accentDarker,
+                              border: Border.all(
+                                color: AppColors.borderGlow,
+                                width: 1,
                               ),
-                              child: Text(
-                                '${product.price.toStringAsFixed(0)} ₽',
-                                style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
+                              boxShadow: AppColors.neonGlow,
                             ),
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                gradient: AppColors.gradient1,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary.withOpacity(0.5),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 22,
-                              ),
+                            child: Icon(
+                              Icons.add,
+                              color: AppColors.accent,
+                              size: 22,
                             ),
-                          ],
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),

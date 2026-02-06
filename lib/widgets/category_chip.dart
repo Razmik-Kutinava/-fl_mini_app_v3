@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import 'terminal_effects.dart';
 
 class CategoryChip extends StatelessWidget {
   final String label;
@@ -20,37 +21,46 @@ class CategoryChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(right: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          gradient: isSelected ? AppColors.gradient1 : null,
-          color: isSelected ? null : Colors.white,
-          borderRadius: BorderRadius.circular(25),
-          boxShadow: [
-            BoxShadow(
+      child: NeonGlow(
+        glowColor: isSelected ? AppColors.accent : AppColors.accentDarker,
+        blurRadius: isSelected ? 10 : 0,
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            // Прямые углы
+            color: isSelected
+                ? AppColors.accentDarker
+                : AppColors.cardBackground,
+            border: Border.all(
               color: isSelected
-                  ? AppColors.primary.withOpacity(0.3)
-                  : Colors.black.withOpacity(0.05),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
+                  ? AppColors.borderGlow
+                  : AppColors.borderSecondary,
+              width: 1,
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 16)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.montserrat(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: isSelected ? Colors.white : AppColors.textPrimary,
+            boxShadow: isSelected ? AppColors.neonGlow : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                emoji,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: isSelected
+                      ? AppColors.accent
+                      : AppColors.textSecondary,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 6),
+              Text(
+                label.toUpperCase(), // UPPERCASE для терминального стиля
+                style: AppTextStyles.bodySmall(
+                  isSelected ? AppColors.accent : AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
+import 'terminal_effects.dart';
 
 class PromoCard extends StatelessWidget {
   final String title;
@@ -25,19 +26,16 @@ class PromoCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.translucent,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 15,
-              offset: const Offset(0, 5),
+      child: NeonGlow(
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.zero, // SHARP CORNERS!
+            border: Border.all(
+              color: AppColors.borderGlow,
+              width: 1,
             ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
+            boxShadow: AppColors.neonGlow,
+          ),
           child: Stack(
             children: [
               // Фоновое изображение или градиент
@@ -48,8 +46,8 @@ class PromoCard extends StatelessWidget {
                   height: double.infinity,
                   fit: BoxFit.cover,
                   placeholder: (_, __) => Shimmer.fromColors(
-                    baseColor: Colors.grey[300]!,
-                    highlightColor: Colors.grey[100]!,
+                    baseColor: AppColors.accentDarker,
+                    highlightColor: AppColors.accentMedium,
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: gradient ?? AppColors.promoCardGradient1,
@@ -68,7 +66,7 @@ class PromoCard extends StatelessWidget {
                     gradient: gradient ?? AppColors.promoCardGradient1,
                   ),
                 ),
-              
+
               // Декоративные элементы (эмодзи)
               if (emoji != null)
                 Positioned(
@@ -79,7 +77,7 @@ class PromoCard extends StatelessWidget {
                     style: const TextStyle(fontSize: 32),
                   ),
                 ),
-              
+
               // Градиентная подложка для текста
               Positioned(
                 bottom: 0,
@@ -93,34 +91,31 @@ class PromoCard extends StatelessWidget {
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Colors.black.withOpacity(0.7),
+                        AppColors.background.withOpacity(0.9),
                       ],
                     ),
                   ),
                 ),
               ),
-              
+
               // Название промо
               Positioned(
                 bottom: 0,
                 left: 0,
                 right: 0,
-                child: Padding(
+                child: Container(
                   padding: const EdgeInsets.all(16),
-                  child: Text(
-                    title,
-                    style: GoogleFonts.montserrat(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          offset: const Offset(0, 1),
-                          blurRadius: 4,
-                          color: Colors.black.withOpacity(0.5),
-                        ),
-                      ],
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: AppColors.borderGlow,
+                        width: 1,
+                      ),
                     ),
+                  ),
+                  child: Text(
+                    title.toUpperCase(), // UPPERCASE для терминального стиля
+                    style: AppTextStyles.h3(),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),

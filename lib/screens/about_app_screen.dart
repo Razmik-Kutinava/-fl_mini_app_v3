@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../constants/app_text_styles.dart';
+
 import 'package:package_info_plus/package_info_plus.dart';
+import '../constants/app_text_styles.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../constants/app_text_styles.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 
 class AboutAppScreen extends StatefulWidget {
   const AboutAppScreen({super.key});
@@ -151,11 +155,7 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
         ),
         title: Text(
           'О приложении',
-          style: GoogleFonts.montserrat(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
+          style: AppTextStyles.h2(AppColors.accent),
         ),
         actions: [
           IconButton(
@@ -198,19 +198,12 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                   // Название приложения
                   Text(
                     appName,
-                    style: GoogleFonts.montserrat(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTextStyles.h1(AppColors.accent),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Версия $version (build $buildNumber)',
-                    style: GoogleFonts.montserrat(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: AppTextStyles.bodySmall(AppColors.accent),
                   ),
                   const SizedBox(height: 32),
                   // Три кнопки действий
@@ -302,11 +295,7 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
           width: 80,
           child: Text(
             label,
-            style: GoogleFonts.montserrat(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppTextStyles.bodyTiny(AppColors.accent),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -324,20 +313,12 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
         children: [
           Text(
             title,
-            style: GoogleFonts.montserrat(
-              color: Colors.white70,
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppTextStyles.bodySmall(AppColors.accent),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: GoogleFonts.montserrat(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w400,
-            ),
+            style: AppTextStyles.body(AppColors.accent),
           ),
           const Divider(
             color: Colors.white12,

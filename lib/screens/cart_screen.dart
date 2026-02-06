@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/user_provider.dart';
@@ -125,7 +125,7 @@ class _CartScreenState extends State<CartScreen> {
         context: context,
         builder: (_) => AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.zero,
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -135,7 +135,7 @@ class _CartScreenState extends State<CartScreen> {
                 height: 80,
                 decoration: BoxDecoration(
                   color: AppColors.success.withOpacity(0.1),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.zero,
                 ),
                 child: const Icon(
                   Icons.check,
@@ -146,10 +146,7 @@ class _CartScreenState extends State<CartScreen> {
               const SizedBox(height: 16),
               Text(
                 'Заказ оформлен!',
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: AppTextStyles.h2(),
               ),
               const SizedBox(height: 8),
               // Показываем имя пользователя из Telegram
@@ -158,7 +155,7 @@ class _CartScreenState extends State<CartScreen> {
                     ? '$displayName, ваш заказ будет готов через ~15 минут 🎉'
                     : 'Ваш заказ будет готов через ~15 минут',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(color: AppColors.textSecondary),
+                style: AppTextStyles.bodySmall(),
               ),
               // Показываем Telegram ID для отладки
               if (userProvider.telegramId != null) ...[
@@ -170,7 +167,7 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.zero,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -179,10 +176,7 @@ class _CartScreenState extends State<CartScreen> {
                       const SizedBox(width: 6),
                       Text(
                         'Telegram: ${userProvider.telegramId}',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          color: Colors.blue,
-                        ),
+                        style: AppTextStyles.bodyTiny(Colors.blue),
                       ),
                     ],
                   ),
@@ -227,21 +221,13 @@ class _CartScreenState extends State<CartScreen> {
           children: [
             Text(
               'Корзина',
-              style: GoogleFonts.montserrat(
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-                fontSize: 18,
-              ),
+              style: AppTextStyles.h3(),
             ),
             if (userProvider.userName != null &&
                 userProvider.userName!.isNotEmpty)
               Text(
                 userProvider.userName!,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: AppTextStyles.bodySmall(AppColors.accent),
               ),
           ],
         ),
@@ -270,7 +256,7 @@ class _CartScreenState extends State<CartScreen> {
                               foregroundColor: Colors.white,
                               icon: Icons.delete,
                               label: 'Удалить',
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.zero,
                             ),
                           ],
                         ),
@@ -280,7 +266,7 @@ class _CartScreenState extends State<CartScreen> {
                                   padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
-                                    borderRadius: BorderRadius.circular(16),
+                                    borderRadius: BorderRadius.zero,
                                     boxShadow: [
                                       BoxShadow(
                                         color: Colors.black.withOpacity(0.05),
@@ -292,7 +278,7 @@ class _CartScreenState extends State<CartScreen> {
                                   child: Row(
                                     children: [
                                       ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.zero,
                                         child: item.product.imageUrl.isEmpty
                                             ? Container(
                                                 width: 70,
@@ -301,7 +287,7 @@ class _CartScreenState extends State<CartScreen> {
                                                   gradient:
                                                       AppColors.gradientCoffee,
                                                   borderRadius:
-                                                      BorderRadius.circular(12),
+                                                      BorderRadius.zero,
                                                 ),
                                                 child: const Icon(
                                                   Icons.coffee,
@@ -321,10 +307,7 @@ class _CartScreenState extends State<CartScreen> {
                                                       decoration: BoxDecoration(
                                                         gradient: AppColors
                                                             .gradientCoffee,
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              12,
-                                                            ),
+                                                        borderRadius: BorderRadius.zero,
                                                       ),
                                                       child: const Icon(
                                                         Icons.coffee,
@@ -342,19 +325,12 @@ class _CartScreenState extends State<CartScreen> {
                                           children: [
                                             Text(
                                               '${item.product.name} ${item.sizeLabel}',
-                                              style: GoogleFonts.montserrat(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
+                                              style: AppTextStyles.bodySmall(),
                                             ),
                                             ...item.modifiersList.map(
                                               (mod) => Text(
                                                 mod,
-                                                style: GoogleFonts.inter(
-                                                  fontSize: 12,
-                                                  color:
-                                                      AppColors.textSecondary,
-                                                ),
+                                                style: AppTextStyles.bodyTiny(),
                                               ),
                                             ),
                                           ],
@@ -381,9 +357,7 @@ class _CartScreenState extends State<CartScreen> {
                                                   decoration: BoxDecoration(
                                                     color: Colors.grey[200],
                                                     borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
+                                                        BorderRadius.zero,
                                                   ),
                                                   child: const Icon(
                                                     Icons.remove,
@@ -398,10 +372,7 @@ class _CartScreenState extends State<CartScreen> {
                                                     ),
                                                 child: Text(
                                                   '${item.quantity}',
-                                                  style: GoogleFonts.montserrat(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 16,
-                                                  ),
+                                                  style: AppTextStyles.body(),
                                                 ),
                                               ),
                                               GestureDetector(
@@ -416,16 +387,14 @@ class _CartScreenState extends State<CartScreen> {
                                                   width: 28,
                                                   height: 28,
                                                   decoration: BoxDecoration(
-                                                    color: AppColors.primary,
+                                                    color: AppColors.accent,
                                                     borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
+                                                        BorderRadius.zero,
                                                   ),
                                                   child: const Icon(
                                                     Icons.add,
                                                     size: 18,
-                                                    color: Colors.white,
+                                                    color: AppColors.background,
                                                   ),
                                                 ),
                                               ),
@@ -434,11 +403,7 @@ class _CartScreenState extends State<CartScreen> {
                                           const SizedBox(height: 8),
                                           Text(
                                             '${item.totalPrice.toStringAsFixed(0)} ₽',
-                                            style: GoogleFonts.montserrat(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: AppColors.primary,
-                                            ),
+                                            style: AppTextStyles.price(),
                                           ),
                                         ],
                                       ),
@@ -481,18 +446,21 @@ class _CartScreenState extends State<CartScreen> {
                               Expanded(
                                 child: TextField(
                                   controller: _promoController,
+                                  style: AppTextStyles.body(),
                                   decoration: InputDecoration(
                                     hintText: 'Промокод',
-                                    hintStyle: GoogleFonts.inter(
-                                      color: AppColors.textSecondary,
-                                    ),
+                                    hintStyle: AppTextStyles.bodyTiny(),
                                     filled: true,
-                                    fillColor: Colors.grey[100],
+                                    fillColor: AppColors.cardBackground,
                                     border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      borderSide: BorderSide.none,
+                                      borderRadius: BorderRadius.zero,
+                                      borderSide: BorderSide(
+                                        color: AppColors.borderPrimary,
+                                        width: 1,
+                                      ),
                                     ),
                                     errorText: _promoError,
+                                    errorStyle: AppTextStyles.bodyTiny(AppColors.error),
                                     contentPadding: const EdgeInsets.symmetric(
                                       horizontal: 16,
                                       vertical: 14,
@@ -506,30 +474,33 @@ class _CartScreenState extends State<CartScreen> {
                                     ? null
                                     : _applyPromoCode,
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
+                                  backgroundColor: AppColors.accentDarker,
+                                  foregroundColor: AppColors.accent,
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 20,
                                     vertical: 14,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.zero,
+                                    side: BorderSide(
+                                      color: AppColors.borderGlow,
+                                      width: 1,
+                                    ),
                                   ),
+                                  elevation: 0,
                                 ),
                                 child: _isApplyingPromo
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 20,
                                         height: 20,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
-                                          color: Colors.white,
+                                          color: AppColors.accent,
                                         ),
                                       )
                                     : Text(
                                         'Применить',
-                                        style: GoogleFonts.montserrat(
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        style: AppTextStyles.button(),
                                       ),
                               ),
                             ],
@@ -539,7 +510,7 @@ class _CartScreenState extends State<CartScreen> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: AppColors.success.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.zero,
                             ),
                             child: Row(
                               children: [
@@ -551,10 +522,7 @@ class _CartScreenState extends State<CartScreen> {
                                 Expanded(
                                   child: Text(
                                     'Промокод ${cartProvider.promoCode} применён',
-                                    style: GoogleFonts.inter(
-                                      color: AppColors.success,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                    style: AppTextStyles.bodySmall(AppColors.success),
                                   ),
                                 ),
                                 IconButton(
@@ -577,15 +545,11 @@ class _CartScreenState extends State<CartScreen> {
                           children: [
                             Text(
                               'Товары (${cartProvider.itemCount} шт)',
-                              style: GoogleFonts.inter(
-                                color: AppColors.textSecondary,
-                              ),
+                              style: AppTextStyles.bodySmall(),
                             ),
                             Text(
                               '${cartProvider.subtotal.toStringAsFixed(0)} ₽',
-                              style: GoogleFonts.montserrat(
-                                fontWeight: FontWeight.w500,
-                              ),
+                              style: AppTextStyles.price(),
                             ),
                           ],
                         ),
@@ -596,16 +560,11 @@ class _CartScreenState extends State<CartScreen> {
                             children: [
                               Text(
                                 'Скидка (${cartProvider.promoCode})',
-                                style: GoogleFonts.inter(
-                                  color: AppColors.success,
-                                ),
+                                style: AppTextStyles.bodySmall(AppColors.success),
                               ),
                               Text(
                                 '-${cartProvider.discount.toStringAsFixed(0)} ₽',
-                                style: GoogleFonts.montserrat(
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.success,
-                                ),
+                                style: AppTextStyles.price(AppColors.success),
                               ),
                             ],
                           ),
@@ -616,18 +575,11 @@ class _CartScreenState extends State<CartScreen> {
                           children: [
                             Text(
                               'Итого:',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: AppTextStyles.h3(),
                             ),
                             Text(
                               '${cartProvider.total.toStringAsFixed(0)} ₽',
-                              style: GoogleFonts.montserrat(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
-                              ),
+                              style: AppTextStyles.h1(AppColors.accent),
                             ),
                           ],
                         ),
@@ -638,24 +590,25 @@ class _CartScreenState extends State<CartScreen> {
                           child: ElevatedButton(
                             onPressed: _checkout,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
+                              backgroundColor: AppColors.accentDarker,
+                              foregroundColor: AppColors.accent,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.zero,
+                                side: BorderSide(
+                                  color: AppColors.borderGlow,
+                                  width: 1,
+                                ),
                               ),
                               elevation: 0,
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                const Icon(Icons.credit_card, size: 20),
+                                const Icon(Icons.credit_card, size: 20, color: AppColors.accent),
                                 const SizedBox(width: 12),
                                 Text(
                                   'Оформить заказ',
-                                  style: GoogleFonts.montserrat(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
+                                  style: AppTextStyles.button(),
                                 ),
                                 const SizedBox(width: 12),
                                 Container(
@@ -664,15 +617,16 @@ class _CartScreenState extends State<CartScreen> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(20),
+                                    color: AppColors.accent.withOpacity(0.2),
+                                    borderRadius: BorderRadius.zero,
+                                    border: Border.all(
+                                      color: AppColors.borderGlow,
+                                      width: 1,
+                                    ),
                                   ),
                                   child: Text(
                                     '${cartProvider.total.toStringAsFixed(0)} ₽',
-                                    style: GoogleFonts.montserrat(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
+                                    style: AppTextStyles.button(),
                                   ),
                                 ),
                               ],
@@ -698,7 +652,7 @@ class _CartScreenState extends State<CartScreen> {
             height: 120,
             decoration: BoxDecoration(
               color: Colors.grey[200],
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.zero,
             ),
             child: Icon(
               Icons.shopping_cart_outlined,
@@ -709,34 +663,32 @@ class _CartScreenState extends State<CartScreen> {
           const SizedBox(height: 24),
           Text(
             'Корзина пуста',
-            style: GoogleFonts.montserrat(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+            style: AppTextStyles.h2(),
           ).animate().fadeIn(delay: 200.ms),
           const SizedBox(height: 8),
           Text(
             'Добавьте что-нибудь вкусное!',
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              color: AppColors.textSecondary,
-            ),
+            style: AppTextStyles.bodySmall(),
           ).animate().fadeIn(delay: 300.ms),
           const SizedBox(height: 32),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+              backgroundColor: AppColors.accentDarker,
+              foregroundColor: AppColors.accent,
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.zero,
+                side: BorderSide(
+                  color: AppColors.borderGlow,
+                  width: 1,
+                ),
               ),
+              elevation: 0,
             ),
             child: Text(
               'Перейти к меню',
-              style: GoogleFonts.montserrat(fontWeight: FontWeight.w600),
+              style: AppTextStyles.button(),
             ),
           ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.3),
         ],

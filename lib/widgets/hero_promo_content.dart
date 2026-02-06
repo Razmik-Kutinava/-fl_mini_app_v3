@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../utils/responsive.dart';
+import '../constants/app_text_styles.dart';
+import '../constants/app_colors.dart';
 
 class HeroPromoContent extends StatelessWidget {
   final String? title;
@@ -58,15 +59,14 @@ class HeroPromoContent extends StatelessWidget {
           // Подзаголовок (опционально)
           if (subtitle != null)
             Text(
-              subtitle!,
-              style: GoogleFonts.inter(
+              subtitle!.toUpperCase(), // UPPERCASE для терминального стиля
+              style: AppTextStyles.body(AppColors.accent).copyWith(
                 fontSize: subtitleFontSize,
-                color: Colors.white.withOpacity(0.9),
                 shadows: [
                   Shadow(
-                    offset: const Offset(0, 1),
-                    blurRadius: 4,
-                    color: Colors.black.withOpacity(0.2),
+                    offset: const Offset(0, 0),
+                    blurRadius: 10,
+                    color: AppColors.accent.withOpacity(0.5),
                   ),
                 ],
               ),

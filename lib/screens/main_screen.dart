@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:badges/badges.dart' as badges;
 import 'package:page_transition/page_transition.dart';
 import 'package:flutter/services.dart';
 import '../constants/app_colors.dart';
+import '../constants/app_text_styles.dart';
 import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/menu_provider.dart';
@@ -21,6 +21,7 @@ import '../widgets/category_horizontal_scroll_view.dart';
 import '../widgets/category_draggable_sheet.dart';
 import '../widgets/category_navigation_scrollable.dart';
 import '../widgets/product_card.dart';
+import '../widgets/terminal_effects.dart';
 import 'cart_screen.dart';
 import 'location_select_screen.dart';
 import 'location_map_screen.dart';
@@ -112,7 +113,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final menuData = await _apiService.getMenu(locationId);
 
     menuProvider.setCategories(menuData['categories']);
-    menuProvider.setProducts(menuData['products']);
+    menuProvider.setProducts(menuData['products']); 
     menuProvider.setLoading(false);
 
     // Загружаем промо после загрузки меню
@@ -204,44 +205,48 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
     final location = locationProvider.selectedLocation;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Фоновый баннер на весь экран
-          BackgroundHeroBanner(scrollController: _scrollController),
+        backgroundColor: AppColors.background,
+        body: Stack(
+          children: [
+            // Фоновый баннер на весь экран
+            BackgroundHeroBanner(scrollController: _scrollController),
 
-          // Основной контент: Header + Background (всегда видны)
-          Column(
-            children: [
-              // Location App Bar (всегда сверху)
-              LocationAppBar(
-                location: location,
-                onLocationTap: () {
-                  if (location != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => LocationMapScreen(location: location),
-                      ),
-                    );
-                  } else {
-                    _handleGeoRequest();
-                  }
-                },
-                onProfileTap: () {
-                  // TODO: Открыть профиль
-                },
-              ),
+            // Основной контент: Header + Background (всегда видны)
+            Column(
+              children: [
+                // Location App Bar (всегда сверху)
+                LocationAppBar(
+                  location: location,
+                  onLocationTap: () {
+                    if (location != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LocationMapScreen(location: location),
+                        ),
+                      );
+                    } else {
+                      _handleGeoRequest();
+                    }
+                  },
+                  onProfileTap: () {
+                    // TODO: Открыть профиль
+                  },
+                ),
 
-              // Hero промо-контент (фоновый баннер)
-              Expanded(
-                child: menuProvider.isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : _useNewCategoryView
-                    ? const HeroPromoContent()
-                          .animate()
-                          .fadeIn(delay: 200.ms)
-                          .slideY(begin: 0.2, end: 0)
+                // Hero промо-контент (фоновый баннер)
+                Expanded(
+                  child: menuProvider.isLoading
+                      ? Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.accent,
+                          ),
+                        )
+                      : _useNewCategoryView
+                          ? const HeroPromoContent()
+                                .animate()
+                                .fadeIn(delay: 200.ms)
+                                .slideY(begin: 0.2, end: 0)
                     // СТАРАЯ АРХИТЕКТУРА: CustomScrollView (не используется)
                     : RefreshIndicator(
                         onRefresh: _loadMenu,
@@ -404,47 +409,51 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             _buildProductsHoverExpandedOverlay(),
         ],
       ),
-      floatingActionButton: Consumer<CartProvider>(
-        builder: (context, cartProvider, _) {
-          if (cartProvider.itemCount > 0) {
-            return badges.Badge(
-              badgeContent: Text(
-                '${cartProvider.itemCount}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-              badgeStyle: const badges.BadgeStyle(badgeColor: AppColors.accent),
-              position: badges.BadgePosition.topEnd(top: -8, end: -8),
-              child: FloatingActionButton.extended(
-                onPressed: () async {
-                  print(
-                    '🛒 Cart button pressed, items: ${cartProvider.items.length}',
-                  );
-                  HapticFeedback.lightImpact();
-                  Navigator.push(
-                    context,
-                    PageTransition(
-                      type: PageTransitionType.rightToLeft,
-                      child: const CartScreen(),
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
+        floatingActionButton: Consumer<CartProvider>(
+          builder: (context, cartProvider, _) {
+            if (cartProvider.itemCount > 0) {
+              return NeonGlow(
+                child: badges.Badge(
+                  badgeContent: Text(
+                    '${cartProvider.itemCount}',
+                    style: AppTextStyles.bodyTiny(AppColors.background),
+                  ),
+                  badgeStyle: badges.BadgeStyle(
+                    badgeColor: AppColors.accent,
+                  ),
+                  position: badges.BadgePosition.topEnd(top: -8, end: -8),
+                  child: FloatingActionButton.extended(
+                    onPressed: () async {
+                      print(
+                        '🛒 Cart button pressed, items: ${cartProvider.items.length}',
+                      );
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        PageTransition(
+                          type: PageTransitionType.rightToLeft,
+                          child: const CartScreen(),
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        ),
+                      );
+                    },
+                    backgroundColor: AppColors.accentDarker,
+                    icon: Icon(
+                      Icons.shopping_cart,
+                      color: AppColors.accent,
                     ),
-                  );
-                },
-                backgroundColor: AppColors.primary,
-                icon: const Icon(Icons.shopping_cart, color: Colors.white),
-                label: Text(
-                  '${cartProvider.total.toStringAsFixed(0)} ₽',
-                  style: GoogleFonts.montserrat(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    label: Text(
+                      '${cartProvider.total.toStringAsFixed(0)} ₽',
+                      style: AppTextStyles.button(AppColors.accent),
+                    ),
                   ),
                 ),
-              ),
-            ).animate().fadeIn().slideY(begin: 0.5);
-          }
-          return const SizedBox.shrink();
-        },
-      ),
+              ).animate().fadeIn().slideY(begin: 0.5);
+            }
+            return const SizedBox.shrink();
+          },
+        ),
     );
   }
 
@@ -591,11 +600,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                         Expanded(
                           child: Text(
                             categoryName,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
+                            style: AppTextStyles.h3(),
                           ),
                         ),
                         IconButton(
@@ -817,11 +822,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
                                 padding: const EdgeInsets.only(top: 24),
                                 child: Text(
                                   'И еще ${products.length - 2} товаров в этой категории',
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 14,
-                                    color: Colors.grey[500],
-                                    fontStyle: FontStyle.italic,
-                                  ),
+                                  style: AppTextStyles.bodySmall(AppColors.textTertiary),
                                 ),
                               ),
                           ],
@@ -848,11 +849,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
             Expanded(
               child: Text(
                 title,
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: AppTextStyles.h3(),
               ),
             ),
             IconButton(
@@ -890,11 +887,7 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
               children: [
                 Text(
                   'акции',
-                  style: GoogleFonts.montserrat(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 24,
-                    color: Colors.black87,
-                  ),
+                  style: AppTextStyles.h2(),
                 ),
                 const SizedBox(height: 24),
                 if (firstPromo != null)

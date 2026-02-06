@@ -12,11 +12,13 @@ import 'screens/cart_screen.dart';
 import 'services/telegram_service.dart';
 import 'services/supabase_service.dart';
 import 'constants/app_colors.dart';
+import 'constants/app_text_styles.dart';
 import 'models/location.dart';
 import 'models/product.dart';
 import 'models/cart_item.dart';
 import 'dart:ui'; // Для ImageFilter.blur
 import 'dart:js' as js; // Для экспорта версии в JS
+import 'package:flutter/foundation.dart'; // Для debugPrint
 
 // ⭐ ФЛАГ ВЕРСИИ ДЕПЛОЯ - обновляется при каждом коммите/пуше
 const String DEPLOY_VERSION = '21.6';
@@ -95,8 +97,15 @@ void main() async {
   // Initialize Supabase FIRST
   await SupabaseService.initialize();
 
-  // Initialize Telegram WebApp
-  TelegramService.instance.init();
+  // Initialize Telegram WebApp с небольшой задержкой для загрузки скрипта
+  // Это предотвращает ошибки когда API еще не готов
+  Future.delayed(const Duration(milliseconds: 100), () {
+    try {
+      TelegramService.instance.init();
+    } catch (e) {
+      debugPrint('⚠️ Telegram WebApp init error (non-critical): $e');
+    }
+  });
 
   runApp(const CoffeeApp());
 }
@@ -114,15 +123,58 @@ class CoffeeApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MenuProvider()),
       ],
       child: MaterialApp(
-        title: 'Coffee Mini App',
+        title: 'КОД:ЧЁРНЫЙ',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: AppColors.primary,
-            brightness: Brightness.light,
+          useMaterial3: false, // Отключаем Material 3 для терминального стиля
+          colorScheme: ColorScheme.dark(
+            primary: AppColors.accent,
+            secondary: AppColors.accentMedium,
+            surface: AppColors.cardBackground,
+            error: AppColors.error,
+            onPrimary: AppColors.background,
+            onSecondary: AppColors.background,
+            onSurface: AppColors.textPrimary,
+            onError: AppColors.background,
+            brightness: Brightness.dark,
           ),
           scaffoldBackgroundColor: AppColors.background,
+          // Терминальные стили для компонентов
+          textTheme: TextTheme(
+            displayLarge: AppTextStyles.h1(),
+            displayMedium: AppTextStyles.h2(),
+            displaySmall: AppTextStyles.h3(),
+            bodyLarge: AppTextStyles.body(),
+            bodyMedium: AppTextStyles.bodySmall(),
+            bodySmall: AppTextStyles.bodyTiny(),
+            labelLarge: AppTextStyles.button(),
+          ),
+          // Прямые углы везде
+          cardTheme: CardThemeData(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero, // Прямые углы
+            ),
+            color: AppColors.cardBackground,
+            elevation: 0,
+          ),
+          buttonTheme: ButtonThemeData(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.zero, // Прямые углы
+            ),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.zero, // Прямые углы
+              ),
+              backgroundColor: AppColors.accentDarker,
+              foregroundColor: AppColors.accent,
+              side: BorderSide(
+                color: AppColors.borderGlow,
+                width: 1,
+              ),
+            ),
+          ),
         ),
         home: const AppInitializer(),
       ),
@@ -521,25 +573,23 @@ class _AppInitializerState extends State<AppInitializer> {
           left: 16,
           top: 60,
         ), // Отступы от краев
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10), // Размытие фона
-          child: Container(
-            constraints: const BoxConstraints(
-              maxWidth: 280,
-            ), // Ограничение ширины для компактности
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.6), // Темный полупрозрачный фон
-              borderRadius: BorderRadius.circular(20), // Немного меньше радиус
-              border: Border.all(
-                color: Colors.white.withOpacity(0.1),
-                width: 1,
-              ),
+        child: Container(
+          constraints: const BoxConstraints(
+            maxWidth: 280,
+          ), // Ограничение ширины для компактности
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground, // Терминальный фон
+            borderRadius: BorderRadius.zero,
+            border: Border.all(
+              color: AppColors.borderGlow,
+              width: 1,
             ),
-            padding: const EdgeInsets.all(16), // Уменьшенный padding
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          ),
+          padding: const EdgeInsets.all(16), // Уменьшенный padding
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
                 // Иконка локации и название
                 Row(
                   children: [
@@ -547,15 +597,17 @@ class _AppInitializerState extends State<AppInitializer> {
                       width: 32, // Уменьшенный размер иконки
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(
-                          0xFF2196F3,
-                        ), // Синий цвет как на картинке
-                        borderRadius: BorderRadius.circular(10),
+                        color: AppColors.accentDarker,
+                        borderRadius: BorderRadius.zero,
+                        border: Border.all(
+                          color: AppColors.borderGlow,
+                          width: 1,
+                        ),
                       ),
                       child: const Icon(
-                        Icons.rocket_launch, // Иконка ракеты/самолетика
-                        color: Colors.white,
-                        size: 20, // Уменьшенный размер иконки
+                        Icons.rocket_launch,
+                        color: AppColors.accent,
+                        size: 20,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -646,7 +698,7 @@ class _AppInitializerState extends State<AppInitializer> {
                         vertical: 12,
                       ), // Уменьшенный padding
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.zero,
                       ),
                       elevation: 0,
                     ),
@@ -663,8 +715,7 @@ class _AppInitializerState extends State<AppInitializer> {
             ),
           ),
         ),
-      ),
-    ).then((_) {
+      ).then((_) {
       // Обработка закрытия диалога при клике на фон
       print('📱 Dialog dismissed (by tapping outside or button)');
       if (_showLocationDialog) {
