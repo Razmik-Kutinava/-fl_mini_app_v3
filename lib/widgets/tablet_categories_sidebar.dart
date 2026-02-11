@@ -155,20 +155,21 @@ class _CategoryItemState extends State<_CategoryItem> {
           ),
           child: Stack(
             children: [
+              // Индикатор активной категории слева
+              if (widget.isActive)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 4,
+                    color: AppColors.borderGlow,
+                  ),
+                ),
+              
+              // Контент категории
               Row(
                 children: [
-                  // Индикатор активной категории слева
-                  if (widget.isActive)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      child: Container(
-                        width: 4,
-                        color: AppColors.borderGlow,
-                      ),
-                    ),
-                  
                   // Иконка категории (эмодзи или символ)
                   Text(
                     widget.emoji,
