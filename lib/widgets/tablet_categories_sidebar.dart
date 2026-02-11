@@ -32,7 +32,7 @@ class TabletCategoriesSidebar extends StatelessWidget {
     }
 
     return Container(
-      width: 260,
+      width: 280,
       decoration: BoxDecoration(
         color: AppColors.sidebarBackground,
         border: Border(
@@ -49,6 +49,7 @@ class TabletCategoriesSidebar extends StatelessWidget {
           Container(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
             decoration: BoxDecoration(
+              color: AppColors.sidebarBackground,
               border: Border(
                 bottom: BorderSide(
                   color: AppColors.borderPrimary,
@@ -156,16 +157,15 @@ class _CategoryItemState extends State<_CategoryItem> {
             children: [
               Row(
                 children: [
-                  // Индикатор активной категории
+                  // Индикатор активной категории слева
                   if (widget.isActive)
                     Positioned(
-                      left: -2,
-                      child: Text(
-                        '►',
-                        style: TextStyle(
-                          color: AppColors.accent,
-                          fontSize: 16,
-                        ),
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 4,
+                        color: AppColors.borderGlow,
                       ),
                     ),
                   

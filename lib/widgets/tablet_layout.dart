@@ -20,14 +20,7 @@ class TabletLayout extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.background,
-        border: Border.all(
-          color: AppColors.borderGlow,
-          width: 2,
-        ),
-        boxShadow: AppColors.neonGlowStrong,
-      ),
+      color: AppColors.background,
       child: Column(
         children: [
           // Верхняя панель

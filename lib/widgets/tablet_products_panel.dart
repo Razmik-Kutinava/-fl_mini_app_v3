@@ -55,6 +55,8 @@ class TabletProductsPanel extends StatelessWidget {
     final productsCount = products.length;
 
     return Container(
+      width: double.infinity,
+      height: double.infinity,
       color: AppColors.background,
       padding: const EdgeInsets.all(24),
       child: Column(

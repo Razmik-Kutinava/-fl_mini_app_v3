@@ -413,7 +413,14 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: scaffoldBody,
+      body: isMobile 
+          ? scaffoldBody 
+          : Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: AppColors.background,
+              child: scaffoldBody,
+            ),
       floatingActionButton: isMobile
           ? Consumer<CartProvider>(
               builder: (context, cartProvider, _) {
