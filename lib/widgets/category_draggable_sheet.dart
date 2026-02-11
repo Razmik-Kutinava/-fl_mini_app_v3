@@ -6,6 +6,7 @@ import '../constants/app_colors.dart';
 import '../constants/app_text_styles.dart';
 import '../models/product.dart';
 import '../providers/menu_provider.dart';
+import '../utils/responsive.dart';
 import 'product_card.dart';
 import 'promo_section.dart';
 
@@ -407,6 +408,9 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
   Widget build(BuildContext context) {
     final categories = _getAllCategories();
     final screenHeight = MediaQuery.of(context).size.height;
+    final isMobile = Responsive.isMobile(context);
+    final isTablet = Responsive.isTablet(context);
+    final isDesktop = Responsive.isDesktop(context);
 
     print('🚀 CategoryDraggableSheet BUILD: categories=${categories.length}, screenH=$screenHeight');
 
@@ -415,10 +419,22 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
       return const Center(child: CircularProgressIndicator());
     }
 
-    final sheetHeight = _sheetHeight * screenHeight;
+    // На веб/планшетах используем фиксированную высоту для лучшего UX
+    double effectiveSheetHeight;
+    if (isDesktop || isTablet) {
+      // На десктопе и планшете - всегда показываем в MAX состоянии
+      effectiveSheetHeight = screenHeight * 0.85;
+      if (_sheetState != SheetState.max) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _switchToState(SheetState.max);
+        });
+      }
+    } else {
+      effectiveSheetHeight = _sheetHeight * screenHeight;
+    }
     
-    // Показываем внешние табы категорий только в диапазоне 25-70%
-    final showExternalTabs = _sheetHeight >= 0.25 && _sheetHeight <= 0.70;
+    // Показываем внешние табы категорий только в диапазоне 25-70% (только на мобильных)
+    final showExternalTabs = isMobile && _sheetHeight >= 0.25 && _sheetHeight <= 0.70;
 
     print('🎨 Sheet: state=$_sheetState, height=${(_sheetHeight * 100).toInt()}%, showExternalTabs=$showExternalTabs');
 
@@ -427,7 +443,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
         // Внешние табы категорий (над каруселью, 25-70%)
         if (showExternalTabs)
           Positioned(
-            bottom: sheetHeight,
+            bottom: effectiveSheetHeight,
             left: 0,
             right: 0,
             child: _buildExternalCategoryTabs(categories),
@@ -438,7 +454,7 @@ class _CategoryDraggableSheetState extends State<CategoryDraggableSheet> with Si
           alignment: Alignment.bottomCenter,
           child: SizedBox(
             width: double.infinity,
-            height: sheetHeight,
+            height: effectiveSheetHeight,
             child: _buildSheetContent(categories),
           ),
         ),

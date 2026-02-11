@@ -25,6 +25,8 @@ class AppColors {
   static const cardBackground = Color(0x1A001E00); // rgba(0, 30, 0, 0.2)
   static const hoverBackground = Color(0x0D00FF00); // rgba(0, 255, 0, 0.05)
   static const statusPanel = Color(0x4D001400); // rgba(0, 20, 0, 0.3)
+  static const sidebarBackground = Color(0x66000F00); // rgba(0, 15, 0, 0.4) - фон сайдбара категорий
+  static const topBarBackground = Color(0x80001400); // rgba(0, 20, 0, 0.5) - фон верхней панели
   
   // Статусы
   static const success = Color(0xFF00FF00);
@@ -42,6 +44,13 @@ class AppColors {
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
     colors: [Color(0xFF006600), Color(0xFF00FF00)],
+  );
+  
+  // Градиент для активной категории (горизонтальный)
+  static const categoryActiveGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFF004400), Color(0xFF006600)],
   );
   
   // Для обратной совместимости
@@ -128,6 +137,23 @@ class AppColors {
       color: accent.withValues(alpha: 0.4),
       blurRadius: 20,
       spreadRadius: 2,
+    ),
+  ];
+  
+  // Эффект светящейся линии
+  static List<BoxShadow> get glowingLine => [
+    BoxShadow(
+      color: accent.withValues(alpha: 0.3),
+      blurRadius: 5,
+      spreadRadius: 0,
+    ),
+  ];
+  
+  // Эффект для текста заголовков
+  static List<Shadow> get textGlow => [
+    Shadow(
+      color: accent.withValues(alpha: 0.5),
+      blurRadius: 10,
     ),
   ];
 }

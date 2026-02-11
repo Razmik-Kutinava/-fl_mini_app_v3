@@ -217,8 +217,97 @@
   <title>Coffee Mini App</title>
   <link rel="manifest" href="manifest.json">
   
+  <!-- Fix transparent background during loading -->
+  <style>
+    body {
+      background-color: #0A0A0A !important;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    html {
+      background-color: #0A0A0A !important;
+    }
+    #loading {
+      background-color: #0A0A0A !important;
+    }
+  </style>
+  
   <!-- Telegram Web App -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script>
+    // Защита от ошибок Telegram WebApp API
+    (function() {
+      // Ждём загрузки Telegram WebApp скрипта
+      if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+        try {
+          // Проверяем что WebApp инициализирован
+          var webApp = window.Telegram.WebApp;
+          
+          // Обёртка для безопасного вызова методов
+          var originalReady = webApp.ready;
+          if (originalReady) {
+            webApp.ready = function() {
+              try {
+                return originalReady.apply(this, arguments);
+              } catch (e) {
+                console.warn('⚠️ Telegram WebApp ready() error:', e);
+              }
+            };
+          }
+          
+          // Защита MainButton
+          if (webApp.MainButton) {
+            var mainButton = webApp.MainButton;
+            
+            // Обёртка для setText
+            if (mainButton.setText) {
+              var originalSetText = mainButton.setText;
+              mainButton.setText = function(text) {
+                try {
+                  if (this && originalSetText) {
+                    return originalSetText.apply(this, arguments);
+                  }
+                } catch (e) {
+                  console.warn('⚠️ Telegram MainButton setText() error:', e);
+                }
+              };
+            }
+            
+            // Обёртка для show
+            if (mainButton.show) {
+              var originalShow = mainButton.show;
+              mainButton.show = function() {
+                try {
+                  if (this && originalShow) {
+                    return originalShow.apply(this, arguments);
+                  }
+                } catch (e) {
+                  console.warn('⚠️ Telegram MainButton show() error:', e);
+                }
+              };
+            }
+            
+            // Обёртка для hide
+            if (mainButton.hide) {
+              var originalHide = mainButton.hide;
+              mainButton.hide = function() {
+                try {
+                  if (this && originalHide) {
+                    return originalHide.apply(this, arguments);
+                  }
+                } catch (e) {
+                  console.warn('⚠️ Telegram MainButton hide() error:', e);
+                }
+              };
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Error wrapping Telegram WebApp API:', e);
+        }
+      }
+    })();
+  </script>
 </head>
 <body>
   <script>

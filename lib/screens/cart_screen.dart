@@ -11,6 +11,7 @@ import '../providers/cart_provider.dart';
 import '../providers/location_provider.dart';
 import '../providers/user_provider.dart';
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
 
 class CartScreen extends StatefulWidget {
   const CartScreen({super.key});
@@ -206,8 +207,10 @@ class _CartScreenState extends State<CartScreen> {
   Widget build(BuildContext context) {
     final cartProvider = context.watch<CartProvider>();
     final userProvider = context.watch<UserProvider>();
+    final isDesktop = Responsive.isDesktop(context);
+    final isTablet = Responsive.isTablet(context);
 
-    return Scaffold(
+    final content = Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -640,6 +643,20 @@ class _CartScreenState extends State<CartScreen> {
               ],
             ),
     );
+
+    // Для десктопа и планшетов - ограничиваем ширину и центрируем
+    if (isDesktop || isTablet) {
+      return Center(
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: isDesktop ? 800 : 600,
+          ),
+          child: content,
+        ),
+      );
+    }
+
+    return content;
   }
 
   Widget _buildEmptyCart() {

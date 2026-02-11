@@ -94,6 +94,40 @@ class AppTextStyles {
     color: color ?? AppColors.accent,
   );
   
+  // Планшетная версия - специфичные стили
+  static TextStyle tabletH1([Color? color]) => _mono(
+    fontSize: 28,
+    fontWeight: FontWeight.bold,
+    color: color,
+  ).copyWith(
+    letterSpacing: 2.0,
+    shadows: AppColors.textGlow,
+  );
+  
+  static TextStyle tabletPrice([Color? color]) => _mono(
+    fontSize: 24,
+    fontWeight: FontWeight.bold,
+    color: color ?? AppColors.accent,
+  );
+  
+  static TextStyle tabletButton([Color? color]) => _mono(
+    fontSize: 16,
+    fontWeight: FontWeight.bold,
+    color: color ?? AppColors.textPrimary,
+  );
+  
+  static TextStyle tabletCategoryLabel([Color? color]) => _mono(
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+    color: color ?? AppColors.textTertiary,
+  ).copyWith(letterSpacing: 2.0);
+  
+  static TextStyle tabletTerminal([Color? color]) => _mono(
+    fontSize: 12,
+    fontWeight: FontWeight.normal,
+    color: color ?? AppColors.textTertiary,
+  );
+  
   // Для обратной совместимости (старые стили)
   static TextStyle get oldH1 => h1();
   static TextStyle get oldH2 => h2();
