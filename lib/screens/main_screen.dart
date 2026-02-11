@@ -413,8 +413,8 @@ class _MainScreenState extends State<MainScreen> with TickerProviderStateMixin {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: isMobile 
-          ? scaffoldBody 
+      body: isMobile
+          ? scaffoldBody
           : Container(
               width: double.infinity,
               height: double.infinity,

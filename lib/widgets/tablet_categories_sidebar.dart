@@ -30,6 +30,9 @@ class TabletCategoriesSidebar extends StatelessWidget {
           .length;
       categoryCounts[category.id] = count;
     }
+    
+    // Если категории еще не загружены, показываем только "для тебя"
+    final hasCategories = categories.isNotEmpty;
 
     return Container(
       width: 280,
@@ -65,38 +68,49 @@ class TabletCategoriesSidebar extends StatelessWidget {
           
           // Список категорий
           Expanded(
-            child: ListView.builder(
-              itemCount: categories.length + 1, // +1 для "для тебя"
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  // Первая категория - "для тебя"
-                  final isActive = selectedCategoryId == null;
-                  final count = categoryCounts[null] ?? 0;
-                  
-                  return _CategoryItem(
-                    categoryName: 'ДЛЯ ТЕБЯ',
-                    categoryId: null,
-                    emoji: '⭐',
-                    count: count,
-                    isActive: isActive,
-                    onTap: () => onCategorySelected(null),
-                  );
-                }
-                
-                final category = categories[index - 1];
-                final isActive = selectedCategoryId == category.id;
-                final count = categoryCounts[category.id] ?? 0;
-                
-                return _CategoryItem(
-                  categoryName: category.name,
-                  categoryId: category.id,
-                  emoji: category.emoji.isNotEmpty ? category.emoji : '☕',
-                  count: count,
-                  isActive: isActive,
-                  onTap: () => onCategorySelected(category.id),
-                );
-              },
-            ),
+            child: menuProvider.isLoading
+                ? Center(
+                    child: Text(
+                      'ЗАГРУЗКА...',
+                      style: AppTextStyles.bodyTiny(),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: hasCategories ? categories.length + 1 : 1, // +1 для "для тебя"
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        // Первая категория - "для тебя"
+                        final isActive = selectedCategoryId == null;
+                        final count = categoryCounts[null] ?? 0;
+                        
+                        return _CategoryItem(
+                          categoryName: 'ДЛЯ ТЕБЯ',
+                          categoryId: null,
+                          emoji: '⭐',
+                          count: count,
+                          isActive: isActive,
+                          onTap: () => onCategorySelected(null),
+                        );
+                      }
+                      
+                      if (!hasCategories) {
+                        return const SizedBox.shrink();
+                      }
+                      
+                      final category = categories[index - 1];
+                      final isActive = selectedCategoryId == category.id;
+                      final count = categoryCounts[category.id] ?? 0;
+                      
+                      return _CategoryItem(
+                        categoryName: category.name,
+                        categoryId: category.id,
+                        emoji: category.emoji.isNotEmpty ? category.emoji : '☕',
+                        count: count,
+                        isActive: isActive,
+                        onTap: () => onCategorySelected(category.id),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
